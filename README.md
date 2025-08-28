@@ -1,4 +1,6 @@
 # CodeGraphContext
+[![test](https://github.com/Shashankss1205/CodeGraphContext/actions/workflows/test.yml/badge.svg)](https://github.com/Shashankss1205/CodeGraphContext/actions/workflows/test.yml)
+
 
 An MCP server that indexes local code into a graph database to provide context to AI assistants.
 
