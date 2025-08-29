@@ -229,20 +229,141 @@ def setup_local_db():
         setup_local_binary()
 
 def setup_docker():
-    """Creates Docker files and runs docker-compose."""
-    console.print("This will create a `docker-compose.yml` and `.env` file in your current directory.")
-    # Here you would write the file contents
-    console.print("[green]docker-compose.yml and .env created.[/green]")
-    console.print("Please set your NEO4J_PASSWORD in the .env file.")
-    confirm_q = [{"type": "confirm", "message": "Ready to launch Docker containers?", "name": "proceed"}]
-    if prompt(confirm_q).get("proceed"):
-        try:
-            # Using our run_command to handle the subprocess call
-            docker_process = run_command(["docker", "compose", "up", "-d"], console, check=True)
-            if docker_process:
-                console.print("[bold green]Docker containers started successfully![/bold green]")
-        except Exception as e:
-            console.print(f"[bold red]Failed to start Docker containers:[/bold red] {e}")
+    """Creates Docker files and runs docker-compose for Neo4j."""
+    console.print("\n[bold cyan]Setting up Neo4j with Docker...[/bold cyan]")
+
+    # Prompt for password first
+    console.print("Please set a secure password for your Neo4j database:")
+    password_questions = [
+        {"type": "password", "message": "Enter Neo4j password:", "name": "password"},
+        {"type": "password", "message": "Confirm password:", "name": "password_confirm"},
+    ]
+    
+    while True:
+        passwords = prompt(password_questions)
+        if not passwords:
+            return  # User cancelled
+        
+        password = passwords.get("password", "")
+        if password and password == passwords.get("password_confirm"):
+            break
+        console.print("[red]Passwords do not match or are empty. Please try again.[/red]")
+
+    # Create data directories
+    neo4j_dir = Path.cwd() / "neo4j_data"
+    for subdir in ["data", "logs", "conf", "plugins"]:
+        (neo4j_dir / subdir).mkdir(parents=True, exist_ok=True)
+
+    # Fixed docker-compose.yml content
+    docker_compose_content = f"""
+services:
+  neo4j:
+    image: neo4j:5.21
+    container_name: neo4j-cgc
+    restart: unless-stopped
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      - NEO4J_AUTH=neo4j/12345678
+      - NEO4J_ACCEPT_LICENSE_AGREEMENT=yes
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+
+volumes:
+  neo4j_data:
+  neo4j_logs:
+"""
+
+    # Write docker-compose.yml
+    compose_file = Path.cwd() / "docker-compose.yml"
+    with open(compose_file, "w") as f:
+        f.write(docker_compose_content)
+
+    console.print("[green]✅ docker-compose.yml created with secure password.[/green]")
+
+    # Check if Docker is running
+    docker_check = run_command(["docker", "--version"], console, check=False)
+    if not docker_check:
+        console.print("[red]❌ Docker is not installed or not running. Please install Docker first.[/red]")
+        return
+
+    # Check if docker-compose is available
+    compose_check = run_command(["docker", "compose", "version"], console, check=False)
+    if not compose_check:
+        console.print("[red]❌ Docker Compose is not available. Please install Docker Compose.[/red]")
+        return
+
+    confirm_q = [{"type": "confirm", "message": "Ready to launch Neo4j in Docker?", "name": "proceed", "default": True}]
+    if not prompt(confirm_q).get("proceed"):
+        return
+
+    try:
+        # Pull the image first
+        console.print("[cyan]Pulling Neo4j Docker image...[/cyan]")
+        pull_process = run_command(["docker", "pull", "neo4j:5.21"], console, check=True)
+        if not pull_process:
+            console.print("[yellow]⚠️ Could not pull image, but continuing anyway...[/yellow]")
+
+        # Start containers
+        console.print("[cyan]Starting Neo4j container...[/cyan]")
+        docker_process = run_command(["docker", "compose", "up", "-d"], console, check=True)
+        
+        if docker_process:
+            console.print("[bold green]🚀 Neo4j Docker container started successfully![/bold green]")
+            
+            # Wait for Neo4j to be ready
+            console.print("[cyan]Waiting for Neo4j to be ready (this may take 30-60 seconds)...[/cyan]")
+            
+            # Try to connect for up to 2 minutes
+            max_attempts = 24  # 24 * 5 seconds = 2 minutes
+            for attempt in range(max_attempts):
+                time.sleep(5)
+                
+                # Check if container is still running
+                status_check = run_command(["docker", "compose", "ps", "-q", "neo4j"], console, check=False)
+                if not status_check or not status_check.stdout.strip():
+                    console.print("[red]❌ Neo4j container stopped unexpectedly. Check logs with: docker compose logs neo4j[/red]")
+                    return
+                
+                # Try to connect
+                health_check = run_command([
+                    "docker", "exec", "neo4j-cgc", "cypher-shell", 
+                    "-u", "neo4j", "-p", password, 
+                    "RETURN 'Connection successful' as status"
+                ], console, check=False)
+                
+                if health_check and health_check.returncode == 0:
+                    console.print("[bold green]✅ Neo4j is ready and accepting connections![/bold green]")
+                    break
+                    
+                if attempt < max_attempts - 1:
+                    console.print(f"[yellow]Still waiting... (attempt {attempt + 1}/{max_attempts})[/yellow]")
+            else:
+                console.print("[red]❌ Neo4j did not become ready within 2 minutes. Check logs with: docker compose logs neo4j[/red]")
+                return
+
+            # Generate MCP configuration
+            creds = {
+                "uri": "neo4j://localhost:7687",  # Use neo4j:// protocol for Neo4j 5.x
+                "username": "neo4j",
+                "password": password
+            }
+            _generate_mcp_json(creds)
+            
+            console.print("\n[bold green]🎉 Setup complete![/bold green]")
+            console.print("Neo4j is running at:")
+            console.print("  • Web interface: http://localhost:7474")
+            console.print("  • Bolt connection: neo4j://localhost:7687")
+            console.print("\n[cyan]Useful commands:[/cyan]")
+            console.print("  • Stop: docker compose down")
+            console.print("  • Restart: docker compose restart")
+            console.print("  • View logs: docker compose logs neo4j")
+            
+    except Exception as e:
+        console.print(f"[bold red]❌ Failed to start Neo4j Docker container:[/bold red] {e}")
+        console.print("[cyan]Try checking the logs with: docker compose logs neo4j[/cyan]")
 
 def setup_local_binary():
     """Automates the installation and configuration of Neo4j on Ubuntu/Debian."""
