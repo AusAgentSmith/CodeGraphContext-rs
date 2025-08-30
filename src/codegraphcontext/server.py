@@ -103,7 +103,7 @@ class MCPServer:
             },
             "analyze_code_relationships": {
                 "name": "analyze_code_relationships",
-                "description": "Analyze code relationships like 'who calls this function' or 'class hierarchy'.",
+                "description": "Analyze code relationships like 'who calls this function' or 'class hierarchy'. Supported query types include: find_callers, find_callees, find_importers, who_modifies, class_hierarchy, overrides, dead_code, call_chain, module_deps, variable_scope, find_complexity.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
@@ -207,7 +207,6 @@ class MCPServer:
                     "required": ["repo_path"]
                 }
             }
-            # Other tools like list_imports, add_package_to_graph can be added here following the same pattern
         }    
 
     def get_database_status(self) -> dict:
@@ -642,8 +641,9 @@ class MCPServer:
             return {
                 "error": "Both 'query_type' and 'target' are required",
                 "supported_query_types": [
-                    "who_calls", "what_calls", "who_imports", "who_modifies",
-                    "class_hierarchy", "overrides", "dead_code"
+                    "find_callers", "find_callees", "find_importers", "who_modifies",
+                    "class_hierarchy", "overrides", "dead_code", "call_chain",
+                    "module_deps", "variable_scope", "find_complexity"
                 ]
             }
         

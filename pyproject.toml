@@ -1,6 +1,6 @@
 [project]
 name = "codegraphcontext"
-version = "0.1.6"
+version = "0.1.7"
 description = "An MCP server that indexes local code into a graph database to provide context to AI assistants."
 authors = [{ name = "Shashank Shekhar Singh", email = "shashankshekharsingh1205@gmail.com" }]
 readme = "README.md"
@@ -36,6 +36,7 @@ cgc = "codegraphcontext.cli.main:app"
 dev = [
     "pytest>=7.4.0",
     "black>=23.11.0",
+    "pytest-asyncio>=0.21.0",
 ]
 
 [tool.setuptools]

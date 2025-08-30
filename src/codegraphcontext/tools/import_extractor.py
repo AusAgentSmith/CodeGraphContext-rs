@@ -1,4 +1,5 @@
 # src/codegraphcontext/tools/import_extractor.py
+import ast
 import logging
 import re
 from pathlib import Path
@@ -13,23 +14,24 @@ class ImportExtractor:
 
     @staticmethod
     def extract_python_imports(file_path: str) -> Set[str]:
-        """Extract imports from a Python file"""
+        """Extract imports from a Python file using AST parsing."""
         imports = set()
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-            patterns = [
-                r'^\s*import\s+([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)',
-                r'^\s*from\s+([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)\s+import',
-            ]
-            for line in content.split('\n'):
-                for pattern in patterns:
-                    match = re.match(pattern, line.strip())
-                    if match:
-                        import_name = match.group(1).split('.')[0]
-                        imports.add(import_name)
+                tree = ast.parse(f.read(), filename=file_path)
+
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    for alias in node.names:
+                        imports.add(alias.name.split('.')[0]) # Get top-level package
+                elif isinstance(node, ast.ImportFrom):
+                    if node.level > 0: # Relative import
+                        # As per the user's request, do not list relative imports
+                        pass
+                    elif node.module:
+                        imports.add(node.module.split('.')[0]) # Get top-level package
         except Exception as e:
-            logger.warning(f"Error reading {file_path}: {e}")
+            logger.warning(f"Error parsing or reading {file_path}: {e}")
         return imports
 
 
