@@ -1,8 +1,12 @@
 # CodeGraphContext
 [![Build Status](https://github.com/Shashankss1205/CodeGraphContext/actions/workflows/test.yml/badge.svg)](https://github.com/Shashankss1205/CodeGraphContext/actions/workflows/test.yml)
 
-
 An MCP server that indexes local code into a graph database to provide context to AI assistants.
+
+## Project Details
+- **Version:** 0.1.8
+- **Authors:** Shashank Shekhar Singh <shashankshekharsingh1205@gmail.com>
+- **License:** MIT License (See [LICENSE](LICENSE) for details)
 
 ## Features
 
@@ -11,12 +15,23 @@ An MCP server that indexes local code into a graph database to provide context t
 -   **Live Updates:** Watches local files for changes and automatically updates the graph.
 -   **Interactive Setup:** A user-friendly command-line wizard for easy setup.
 
+## Dependencies
+
+- `neo4j>=5.15.0`
+- `watchdog>=3.0.0`
+- `requests>=2.31.0`
+- `stdlibs>=2023.11.18`
+- `typer[all]>=0.9.0`
+- `rich>=13.7.0`
+- `inquirerpy>=0.3.4`
+- `python-dotenv>=1.0.0`
+
 ## Getting Started
 
 1.  **Install:** `pip install codegraphcontext`
 2.  **Setup:** `cgc setup`
 3.  **Start:** `cgc start`
-4.  **Index Code:** `cgc tool add-code-to-graph '{"path": "/path/to/your/project"}'`
+4.  **Index Code:** `cgc tool add-code-to-graph '{"path": "/path/to/your/project"}'` (Under active development)
 
 ## MCP Client Configuration
 
@@ -46,7 +61,11 @@ Add the following to your MCP client's configuration:
           "analyze_code_relationships",
           "watch_directory",
           "find_dead_code",
-          "execute_cypher_query"
+          "execute_cypher_query",
+          "calculate_cyclomatic_complexity",
+          "find_most_complex_functions",
+          "list_indexed_repositories",
+          "delete_repository"
         ],
         "disabled": false
       },
@@ -97,5 +116,22 @@ Once the server is running, you can interact with it through your AI assistant u
     -   "Which files import the `requests` library?"
     -   "Find all implementations of the `render` method."
 
+-   **Advanced Call Chain and Dependency Tracking (Spanning Hundreds of Files):**
+    The CodeGraphContext excels at tracing complex execution flows and dependencies across vast codebases. Leveraging the power of graph databases, it can identify direct and indirect callers and callees, even when a function is called through multiple layers of abstraction or across numerous files. This is invaluable for:
+    -   **Impact Analysis:** Understand the full ripple effect of a change to a core function.
+    -   **Debugging:** Trace the path of execution from an entry point to a specific bug.
+    -   **Code Comprehension:** Grasp how different parts of a large system interact.
+
+    -   "Show me the full call chain from the `main` function to `process_data`."
+    -   "Find all functions that directly or indirectly call `validate_input`."
+    -   "What are all the functions that `initialize_system` eventually calls?"
+    -   "Trace the dependencies of the `DatabaseManager` module."
+
 -   **Code Quality and Maintenance:**
     -   "Is there any dead or unused code in this project?"
+    -   "Calculate the cyclomatic complexity of the `process_data` function in `src/utils.py`."
+    -   "Find the 5 most complex functions in the codebase."
+
+-   **Repository Management:**
+    -   "List all currently indexed repositories."
+    -   "Delete the indexed repository at `/path/to/old-project`."
