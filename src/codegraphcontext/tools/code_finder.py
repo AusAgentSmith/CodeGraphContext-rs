@@ -2,6 +2,7 @@
 import logging
 import re
 from typing import Any, Dict, List
+from pathlib import Path
 
 from ..core.database import DatabaseManager
 
@@ -115,6 +116,56 @@ class CodeFinder:
         results["total_matches"] = len(all_results)
         
         return results
+    
+    def find_functions_by_argument(self, argument_name: str, file_path: str = None) -> List[Dict]:
+        """Find functions that take a specific argument name."""
+        with self.driver.session() as session:
+            if file_path:
+                query = """
+                    MATCH (f:Function)-[:HAS_PARAMETER]->(p:Parameter)
+                    WHERE p.name = $argument_name AND f.file_path = $file_path
+                    RETURN f.name AS function_name, f.file_path AS file_path, f.line_number AS line_number,
+                           f.docstring AS docstring, f.is_dependency AS is_dependency
+                    ORDER BY f.is_dependency ASC, f.file_path, f.line_number
+                    LIMIT 20
+                """
+                result = session.run(query, argument_name=argument_name, file_path=file_path)
+            else:
+                query = """
+                    MATCH (f:Function)-[:HAS_PARAMETER]->(p:Parameter)
+                    WHERE p.name = $argument_name
+                    RETURN f.name AS function_name, f.file_path AS file_path, f.line_number AS line_number,
+                           f.docstring AS docstring, f.is_dependency AS is_dependency
+                    ORDER BY f.is_dependency ASC, f.file_path, f.line_number
+                    LIMIT 20
+                """
+                result = session.run(query, argument_name=argument_name)
+            return [dict(record) for record in result]
+
+    def find_functions_by_decorator(self, decorator_name: str, file_path: str = None) -> List[Dict]:
+        """Find functions that have a specific decorator applied to them."""
+        with self.driver.session() as session:
+            if file_path:
+                query = """
+                    MATCH (f:Function)
+                    WHERE f.file_path = $file_path AND $decorator_name IN f.decorators
+                    RETURN f.name AS function_name, f.file_path AS file_path, f.line_number AS line_number,
+                           f.docstring AS docstring, f.is_dependency AS is_dependency, f.decorators AS decorators
+                    ORDER BY f.is_dependency ASC, f.file_path, f.line_number
+                    LIMIT 20
+                """
+                result = session.run(query, decorator_name=decorator_name, file_path=file_path)
+            else:
+                query = """
+                    MATCH (f:Function)
+                    WHERE $decorator_name IN f.decorators
+                    RETURN f.name AS function_name, f.file_path AS file_path, f.line_number AS line_number,
+                           f.docstring AS docstring, f.is_dependency AS is_dependency, f.decorators AS decorators
+                    ORDER BY f.is_dependency ASC, f.file_path, f.line_number
+                    LIMIT 20
+                """
+                result = session.run(query, decorator_name=decorator_name)
+            return [dict(record) for record in result]
     
     def who_calls_function(self, function_name: str, file_path: str = None) -> List[Dict]:
         """Find what functions call a specific function using CALLS relationships with improved matching"""
@@ -230,7 +281,7 @@ class CodeFinder:
         with self.driver.session() as session:
             result = session.run("""
                 MATCH (file:File)-[imp:IMPORTS]->(module:Module)
-                WHERE module.name CONTAINS $module_name OR module.name = $module_name
+                WHERE module.name = $module_name OR module.full_import_name CONTAINS $module_name
                 OPTIONAL MATCH (repo:Repository)-[:CONTAINS]->(file)
                 RETURN DISTINCT
                     file.name as file_name,
@@ -344,8 +395,11 @@ class CodeFinder:
             
             return [dict(record) for record in result]
     
-    def find_dead_code(self) -> Dict[str, Any]:
-        """Find potentially unused functions (not called by other functions in the project)"""
+    def find_dead_code(self, exclude_decorated_with: List[str] = None) -> Dict[str, Any]:
+        """Find potentially unused functions (not called by other functions in the project), optionally excluding those with specific decorators."""
+        if exclude_decorated_with is None:
+            exclude_decorated_with = []
+
         with self.driver.session() as session:
             result = session.run("""
                 MATCH (func:Function)
@@ -353,6 +407,7 @@ class CodeFinder:
                   AND NOT func.name IN ['main', '__init__', '__main__', 'setup', 'run', '__new__', '__del__']
                   AND NOT func.name STARTS WITH '_test'
                   AND NOT func.name STARTS WITH 'test_'
+                  AND ALL(decorator_name IN $exclude_decorated_with WHERE NOT decorator_name IN func.decorators)
                 WITH func
                 OPTIONAL MATCH (caller:Function)-[:CALLS]->(func)
                 WHERE caller.is_dependency = false
@@ -368,37 +423,84 @@ class CodeFinder:
                     file.name as file_name
                 ORDER BY func.file_path, func.line_number
                 LIMIT 50
-            """)
+            """, exclude_decorated_with=exclude_decorated_with)
             
             return {
                 "potentially_unused_functions": [dict(record) for record in result],
                 "note": "These functions might be unused, but could be entry points, callbacks, or called dynamically"
             }
     
+    def find_all_callers(self, function_name: str, file_path: str = None) -> List[Dict]:
+        """Find all direct and indirect callers of a specific function."""
+        with self.driver.session() as session:
+            if file_path:
+                # Find functions within the specified file_path that call the target function
+                query = """
+                    MATCH (f:Function)-[:CALLS*]->(target:Function {name: $function_name})
+                    WHERE f.file_path = $file_path
+                    RETURN DISTINCT f.name AS caller_name, f.file_path AS caller_file_path, f.line_number AS caller_line_number, f.is_dependency AS caller_is_dependency
+                    ORDER BY f.is_dependency ASC, f.file_path, f.line_number
+                    LIMIT 50
+                """
+                result = session.run(query, function_name=function_name, file_path=file_path)
+            else:
+                # If no file_path (context) is provided, find all callers of the function by name
+                query = """
+                    MATCH (f:Function)-[:CALLS*]->(target:Function {name: $function_name})
+                    RETURN DISTINCT f.name AS caller_name, f.file_path AS caller_file_path, f.line_number AS caller_line_number, f.is_dependency AS caller_is_dependency
+                    ORDER BY f.is_dependency ASC, f.file_path, f.line_number
+                    LIMIT 50
+                """
+                result = session.run(query, function_name=function_name)
+            return [dict(record) for record in result]
+
+    def find_all_callees(self, function_name: str, file_path: str = None) -> List[Dict]:
+        """Find all direct and indirect callees of a specific function."""
+        with self.driver.session() as session:
+            if file_path:
+                query = """
+                    MATCH (caller:Function {name: $function_name, file_path: $file_path})
+                    MATCH (caller)-[:CALLS*]->(f:Function)
+                    RETURN DISTINCT f.name AS callee_name, f.file_path AS callee_file_path, f.line_number AS callee_line_number, f.is_dependency AS callee_is_dependency
+                    ORDER BY f.is_dependency ASC, f.file_path, f.line_number
+                    LIMIT 50
+                """
+                result = session.run(query, function_name=function_name, file_path=file_path)
+            else:
+                query = """
+                    MATCH (caller:Function {name: $function_name})
+                    MATCH (caller)-[:CALLS*]->(f:Function)
+                    RETURN DISTINCT f.name AS callee_name, f.file_path AS callee_file_path, f.line_number AS callee_line_number, f.is_dependency AS callee_is_dependency
+                    ORDER BY f.is_dependency ASC, f.file_path, f.line_number
+                    LIMIT 50
+                """
+                result = session.run(query, function_name=function_name)
+            return [dict(record) for record in result]
+
     def find_function_call_chain(self, start_function: str, end_function: str, max_depth: int = 5) -> List[Dict]:
         """Find call chains between two functions"""
         with self.driver.session() as session:
-            result = session.run("""
+            result = session.run(f"""
                 MATCH path = shortestPath(
-                    (start:Function {name: $start_function})-[:CALLS*1..$max_depth]->(end:Function {name: $end_function})
+                    (start:Function {{name: $start_function}})-[:CALLS*1..{max_depth}]->(end:Function {{name: $end_function}})
                 )
                 WITH path, nodes(path) as func_nodes, relationships(path) as call_rels
                 RETURN 
-                    [node in func_nodes | {
+                    [node in func_nodes | {{
                         name: node.name,
                         file_path: node.file_path,
                         line_number: node.line_number,
                         is_dependency: node.is_dependency
-                    }] as function_chain,
-                    [rel in call_rels | {
+                    }}] as function_chain,
+                    [rel in call_rels | {{
                         call_line: rel.line_number,
                         args: rel.args,
                         full_call_name: rel.full_call_name
-                    }] as call_details,
+                    }}] as call_details,
                     length(path) as chain_length
                 ORDER BY chain_length ASC
                 LIMIT 10
-            """, start_function=start_function, end_function=end_function, max_depth=max_depth)
+            """, start_function=start_function, end_function=end_function)
             
             return [dict(record) for record in result]
     
@@ -494,6 +596,20 @@ class CodeFinder:
                     "summary": f"Found {len(results)} files that import '{target}'"
                 }
                 
+            elif query_type == "find_functions_by_argument":
+                results = self.find_functions_by_argument(target, context)
+                return {
+                    "query_type": "find_functions_by_argument", "target": target, "context": context, "results": results,
+                    "summary": f"Found {len(results)} functions that take '{target}' as an argument"
+                }
+            
+            elif query_type == "find_functions_by_decorator":
+                results = self.find_functions_by_decorator(target, context)
+                return {
+                    "query_type": "find_functions_by_decorator", "target": target, "context": context, "results": results,
+                    "summary": f"Found {len(results)} functions decorated with '{target}'"
+                }
+                
             elif query_type in ["who_modifies", "modifies", "mutations", "changes", "variable_usage"]:
                 results = self.who_modifies_variable(target)
                 return {
@@ -530,13 +646,29 @@ class CodeFinder:
                     "summary": f"Found the top {len(results)} most complex functions"
                 }
             
+            elif query_type == "find_all_callers":
+                results = self.find_all_callers(target, context)
+                return {
+                    "query_type": "find_all_callers", "target": target, "context": context, "results": results,
+                    "summary": f"Found {len(results)} direct and indirect callers of '{target}'"
+                }
+
+            elif query_type == "find_all_callees":
+                results = self.find_all_callees(target, context)
+                return {
+                    "query_type": "find_all_callees", "target": target, "context": context, "results": results,
+                    "summary": f"Found {len(results)} direct and indirect callees of '{target}'"
+                }
+                
             elif query_type in ["call_chain", "path", "chain"]:
                 if '->' in target:
                     start_func, end_func = target.split('->', 1)
-                    results = self.find_function_call_chain(start_func.strip(), end_func.strip())
+                    # max_depth can be passed as context, default to 5 if not provided or invalid
+                    max_depth = int(context) if context and context.isdigit() else 5
+                    results = self.find_function_call_chain(start_func.strip(), end_func.strip(), max_depth)
                     return {
                         "query_type": "call_chain", "target": target, "results": results,
-                        "summary": f"Found {len(results)} call chains from '{start_func.strip()}' to '{end_func.strip()}'"
+                        "summary": f"Found {len(results)} call chains from '{start_func.strip()}' to '{end_func.strip()}' (max depth: {max_depth})"
                     }
                 else:
                     return {

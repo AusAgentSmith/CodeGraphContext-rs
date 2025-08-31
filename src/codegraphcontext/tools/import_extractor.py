@@ -6,6 +6,18 @@ from pathlib import Path
 from typing import Set
 
 import stdlibs
+import os
+from datetime import datetime
+
+logger = logging.getLogger(__name__)
+
+def debug_log(message):
+    """Write debug message to a file"""
+    debug_file = os.path.expanduser("~/mcp_debug.log")
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    with open(debug_file, "a") as f:
+        f.write(f"[{timestamp}] {message}\n")
+        f.flush()
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +44,7 @@ class ImportExtractor:
                         imports.add(node.module.split('.')[0]) # Get top-level package
         except Exception as e:
             logger.warning(f"Error parsing or reading {file_path}: {e}")
+        debug_log(f"Raw imports extracted from {file_path}: {imports}") # Add this line
         return imports
 
 

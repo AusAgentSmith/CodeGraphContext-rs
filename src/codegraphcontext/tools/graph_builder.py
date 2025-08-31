@@ -244,7 +244,9 @@ class CodeVisitor(ast.NodeVisitor):
                      "args": [arg.arg for arg in node.args.args], "source": ast.unparse(node),
                      "context": self.current_context, "class_context": self.current_class,
                      "is_dependency": self.is_dependency, "docstring": ast.get_docstring(node),
-                     "decorators": [ast.unparse(d) for d in node.decorator_list]}
+                     "decorators": [ast.unparse(d) for d in node.decorator_list],
+                     "source_code": ast.unparse(node)} # Add source_code here
+        self.functions.append(func_data)
         self.functions.append(func_data)
         self._push_context(node.name, "function", node.lineno)
         # This will trigger visit_Assign and visit_Call for nodes inside the function
@@ -343,7 +345,8 @@ class CodeVisitor(ast.NodeVisitor):
         """Visit import statements"""
         for name in node.names:
             import_data = {
-                "name": name.name,
+                "name": name.name.split('.')[0], # Store the top-level package name
+                "full_import_name": name.name, # Store the full import name
                 "line_number": node.lineno,
                 "alias": name.asname,
                 "context": self.current_context,
@@ -361,14 +364,20 @@ class CodeVisitor(ast.NodeVisitor):
 
         for alias in node.names:
             # If node.module is None, it's an import like `from . import name`
+            # Determine the base module name for the 'name' property
             if node.module:
-                full_name = f"{prefix}{node.module}.{alias.name}"
+                # For 'from .module import name', base_module is 'module'
+                # For 'from package.module import name', base_module is 'package'
+                base_module = node.module.split('.')[0]
+                full_import_name = f"{prefix}{node.module}.{alias.name}"
             else:
-                # The full name is just the prefix and the imported name
-                full_name = f"{prefix}{alias.name}"
+                # For 'from . import name', base_module is 'name'
+                base_module = alias.name
+                full_import_name = f"{prefix}{alias.name}"
 
             import_data = {
-                "name": full_name,
+                "name": base_module,  # Store the top-level module name
+                "full_import_name": full_import_name, # Store the full import path
                 "line_number": node.lineno,
                 "alias": alias.asname,
                 "context": self.current_context,
@@ -445,29 +454,29 @@ class CodeVisitor(ast.NodeVisitor):
         inferred_obj_type = None
         if isinstance(node.func, ast.Attribute):
             base_obj_node = node.func.value
-            
+
             if isinstance(base_obj_node, ast.Name):
                 obj_name = base_obj_node.id
                 if obj_name == 'self':
                     # If the base is 'self', find the type of the attribute on the current class
                     inferred_obj_type = self.class_symbol_table.get(node.func.attr)
                     if not inferred_obj_type: # Fallback for method calls directly on self
-                         inferred_obj_type = self.current_class
+                        inferred_obj_type = self.current_class
                 else:
                     inferred_obj_type = (self.local_symbol_table.get(obj_name) or
-                                         self.class_symbol_table.get(obj_name) or
-                                         self.module_symbol_table.get(obj_name))
+                                        self.class_symbol_table.get(obj_name) or
+                                        self.module_symbol_table.get(obj_name))
                     # If it's not a variable, it might be a direct call on a Class name.
                     if not inferred_obj_type and obj_name in self.imports_map:
                         inferred_obj_type = obj_name
 
             elif isinstance(base_obj_node, ast.Call):
                 inferred_obj_type = self._resolve_type_from_call(base_obj_node)
-            
+
             elif isinstance(base_obj_node, ast.Attribute): # e.g., self.job_manager
                 # This handles nested attributes
                 # The goal is to find the type of `self.job_manager`, which is 'JobManager'
-                
+
                 # Resolve the base of the chain, e.g., get 'self' from 'self.job_manager'
                 base = base_obj_node
                 while isinstance(base, ast.Attribute):
@@ -477,11 +486,66 @@ class CodeVisitor(ast.NodeVisitor):
                     # In self.X.Y... The attribute we care about is the first one, X
                     attr_name = base_obj_node.attr
                     inferred_obj_type = self.class_symbol_table.get(attr_name)
-            
+
         elif isinstance(node.func, ast.Name):
             inferred_obj_type = (self.local_symbol_table.get(call_name) or
-                                 self.class_symbol_table.get(call_name) or
-                                 self.module_symbol_table.get(call_name))
+                                self.class_symbol_table.get(call_name) or
+                                self.module_symbol_table.get(call_name))
+    
+        #   there are no CALLS relationships originating from P2pkhAddress.to_address in the graph. This is the root cause of the find_all_callees tool reporting 0
+        #   results.
+
+        #   The problem is not with the find_all_callees query itself, but with the GraphBuilder's ability to correctly identify and create CALLS relationships for methods like
+        #   P2pkhAddress.to_address.
+
+        #   Specifically, the GraphBuilder._create_function_calls method is likely not correctly processing calls made within methods of a class, especially when those calls are to:
+        #    1. self.method(): Internal method calls.
+        #    2. Functions imported from other modules (e.g., h_to_b, get_network).
+        #    3. Functions from external libraries (e.g., hashlib.sha256, b58encode).
+
+        #   The GraphBuilder.CodeVisitor.visit_Call method is responsible for identifying function calls. It needs to be improved to handle these cases.
+
+        #   Plan:
+
+        #    1. Enhance `CodeVisitor.visit_Call` in `src/codegraphcontext/tools/graph_builder.py`:
+        #        * Internal Method Calls (`self.method()`): When node.func is an ast.Attribute and node.func.value.id is self, the call_name should be node.func.attr, and the resolved_path should
+        #          be the file_path of the current class.
+        #        * Imported Functions: The _create_function_calls method already has some logic for resolving imported functions using imports_map. I need to ensure this logic is robust and
+        #          correctly applied within visit_Call to set inferred_obj_type or resolved_path accurately.
+        #        * External Library Functions: For now, we might not be able to fully resolve calls to external library functions unless those libraries are also indexed. However, we should at
+        #          least capture the full_call_name and call_name for these.
+        # inferred_obj_type = None
+        # if isinstance(node.func, ast.Attribute):
+        #     base_obj_node = node.func.value
+            
+        #     if isinstance(base_obj_node, ast.Name):
+        #         obj_name = base_obj_node.id
+        #         if obj_name == 'self':
+        #             # If the base is 'self', the call is to a method of the current class
+        #             inferred_obj_type = self.current_class
+        #         else:
+        #             # Try to resolve the type of the object from symbol tables
+        #             inferred_obj_type = (self.local_symbol_table.get(obj_name) or
+        #                                  self.class_symbol_table.get(obj_name) or
+        #                                  self.module_symbol_table.get(obj_name))
+        #             # If not found in symbol tables, check if it's a class name from imports
+        #             if not inferred_obj_type and obj_name in self.imports_map:
+        #                 inferred_obj_type = obj_name
+
+        #     elif isinstance(base_obj_node, ast.Call):
+        #         inferred_obj_type = self._resolve_type_from_call(base_obj_node)
+            
+        #     elif isinstance(base_obj_node, ast.Attribute): # e.g., self.job_manager.method()
+        #         # Recursively resolve the type of the base attribute
+        #         inferred_obj_type = self._resolve_attribute_base_type(base_obj_node)
+            
+        # elif isinstance(node.func, ast.Name):
+        #     # If it's a direct function call, try to infer its type from symbol tables or imports
+        #     inferred_obj_type = (self.local_symbol_table.get(call_name) or
+        #                          self.class_symbol_table.get(call_name) or
+        #                          self.module_symbol_table.get(call_name))
+        #     if not inferred_obj_type and call_name in self.imports_map:
+        #         inferred_obj_type = call_name
 
         if call_name and call_name not in __builtins__:
             call_data = {
@@ -621,12 +685,36 @@ class GraphBuilder:
                         MERGE (f)-[:CONTAINS]->(n)
                     """
                     session.run(query, file_path=file_path_str, name=item['name'], line_number=item['line_number'], props=item)
+                    
+                    # If it's a function, create parameter nodes and relationships and calculate complexity
+                    if label == 'Function':
+                        # Calculate cyclomatic complexity
+                        try:
+                            func_tree = ast.parse(item['source_code'])
+                            complexity_visitor = CyclomaticComplexityVisitor()
+                            complexity_visitor.visit(func_tree)
+                            item['cyclomatic_complexity'] = complexity_visitor.complexity
+                        except Exception as e:
+                            logger.warning(f"Could not calculate cyclomatic complexity for {item['name']} in {file_path_str}: {e}")
+                            item['cyclomatic_complexity'] = 1 # Default to 1 on error
+
+                        for arg_name in item.get('args', []):
+                            session.run("""
+                                MATCH (fn:Function {name: $func_name, file_path: $file_path, line_number: $line_number})
+                                MERGE (p:Parameter {name: $arg_name, file_path: $file_path, function_line_number: $line_number})
+                                MERGE (fn)-[:HAS_PARAMETER]->(p)
+                            """, func_name=item['name'], file_path=file_path_str, line_number=item['line_number'], arg_name=arg_name)
 
             for imp in file_data['imports']:
-                session.run("""
-                    MATCH (f:File {path: $file_path})
-                    MERGE (m:Module {name: $name})
-                    SET m.alias = $alias
+                set_clauses = ["m.alias = $alias"]
+                if 'full_import_name' in imp:
+                    set_clauses.append("m.full_import_name = $full_import_name")
+                set_clause_str = ", ".join(set_clauses)
+
+                session.run(f"""
+                    MATCH (f:File {{path: $file_path}})
+                    MERGE (m:Module {{name: $name}})
+                    SET {set_clause_str}
                     MERGE (f)-[:IMPORTS]->(m)
                 """, file_path=file_path_str, **imp)
 
@@ -663,9 +751,20 @@ class GraphBuilder:
 
         for var in file_data.get('variables', []):
             context = var.get('context')
+            class_context = var.get('class_context')
             parent_line = var.get('parent_line')
             
-            if context and parent_line:
+            if class_context:
+                session.run("""
+                    MATCH (c:Class {name: $class_name, file_path: $file_path})
+                    MATCH (v:Variable {name: $var_name, file_path: $file_path, line_number: $var_line})
+                    MERGE (c)-[:CONTAINS]->(v)
+                """,
+                class_name=class_context,
+                file_path=file_path,
+                var_name=var['name'],
+                var_line=var['line_number'])
+            elif context and parent_line:
                 parent_label = "Function"
                 parent_node_data = None
                 
@@ -749,7 +848,11 @@ class GraphBuilder:
             
             # Fallback if no path could be resolved by any of the above rules
             if not resolved_path:
-                resolved_path = caller_file_path
+                # If the called name is in the imports map, use its path
+                if called_name in imports_map and imports_map[called_name]:
+                    resolved_path = imports_map[called_name][0] # Take the first path for now
+                else:
+                    resolved_path = caller_file_path
 
             caller_context = call.get('context')
             inferred_type = call.get('inferred_obj_type')

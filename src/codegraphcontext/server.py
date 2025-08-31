@@ -103,11 +103,11 @@ class MCPServer:
             },
             "analyze_code_relationships": {
                 "name": "analyze_code_relationships",
-                "description": "Analyze code relationships like 'who calls this function' or 'class hierarchy'. Supported query types include: find_callers, find_callees, find_importers, who_modifies, class_hierarchy, overrides, dead_code, call_chain, module_deps, variable_scope, find_complexity.",
+                "description": "Analyze code relationships like 'who calls this function' or 'class hierarchy'. Supported query types include: find_callers, find_callees, find_all_callers, find_all_callees, find_importers, who_modifies, class_hierarchy, overrides, dead_code, call_chain, module_deps, variable_scope, find_complexity, find_functions_by_argument, find_functions_by_decorator.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
-                        "query_type": {"type": "string", "description": "Type of relationship query to run."},
+                        "query_type": {"type": "string", "description": "Type of relationship query to run.", "enum": ["find_callers", "find_callees", "find_all_callers", "find_all_callees", "find_importers", "who_modifies", "class_hierarchy", "overrides", "dead_code", "call_chain", "module_deps", "variable_scope", "find_complexity", "find_functions_by_argument", "find_functions_by_decorator"]},
                         "target": {"type": "string", "description": "The function, class, or module to analyze."},
                         "context": {"type": "string", "description": "Optional: specific file path for precise results."}
                     },
@@ -159,11 +159,12 @@ class MCPServer:
             },
             "find_dead_code": {
                 "name": "find_dead_code",
-                "description": "Find potentially unused functions (dead code) across the entire indexed codebase.",
+                "description": "Find potentially unused functions (dead code) across the entire indexed codebase, optionally excluding functions with specific decorators.",
                 "inputSchema": {
                     "type": "object",
-                    "properties": {},
-                    "additionalProperties": False
+                    "properties": {
+                        "exclude_decorated_with": {"type": "array", "items": {"type": "string"}, "description": "Optional: A list of decorator names (e.g., '@app.route') to exclude from dead code detection.", "default": []}
+                    }
                 }
             },
             "calculate_cyclomatic_complexity": {
@@ -303,12 +304,12 @@ class MCPServer:
                 "details": str(e)
             }
     
-    def find_dead_code_tool(self) -> Dict[str, Any]:
+    def find_dead_code_tool(self, **args) -> Dict[str, Any]:
         """Tool to find potentially dead code across the entire project."""
+        exclude_decorated_with = args.get("exclude_decorated_with", [])
         try:
             debug_log("Finding dead code.")
-            # The target argument from the old tool is not needed.
-            results = self.code_finder.find_dead_code()
+            results = self.code_finder.find_dead_code(exclude_decorated_with=exclude_decorated_with)
             
             return {
                 "success": True,
@@ -445,17 +446,11 @@ class MCPServer:
             else:
                 return {"error": f"Path {path} does not exist"}
             
-            if language == 'python':
-                # Get the list of stdlib modules for the current Python version
-                stdlib_modules = set(stdlibs.module_names)
-                # stdlib_modules = {
-                #     'os', 'sys', 'json', 'time', 'datetime', 'math', 'random', 're', 'collections', 
-                #     'itertools', 'functools', 'operator', 'pathlib', 'urllib', 'http', 'logging', 
-                #     'threading', 'multiprocessing', 'asyncio', 'typing', 'dataclasses', 'enum', 
-                #     'abc', 'io', 'csv', 'sqlite3', 'pickle', 'base64', 'hashlib', 'hmac', 'secrets', 
-                #     'unittest', 'doctest', 'pdb', 'profile', 'cProfile', 'timeit'
-                # }
-                all_imports = all_imports - stdlib_modules
+            # Removed standard library filtering as per user request.
+            # if language == 'python':
+            #     # Get the list of stdlib modules for the current Python version
+            #     stdlib_modules = set(stdlibs.module_names)
+            #     all_imports = all_imports - stdlib_modules
             
             return {
                 "imports": sorted(list(all_imports)), "language": language,
