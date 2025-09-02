@@ -1,5 +1,9 @@
 # CodeGraphContext
 [![Build Status](https://github.com/Shashankss1205/CodeGraphContext/actions/workflows/test.yml/badge.svg)](https://github.com/Shashankss1205/CodeGraphContext/actions/workflows/test.yml)
+[![PyPI version](https://img.shields.io/pypi/v/codegraphcontext)](https://pypi.org/project/codegraphcontext/)
+[![PyPI downloads](https://img.shields.io/pypi/dm/codegraphcontext)](https://pypi.org/project/codegraphcontext/)
+[![GitHub stars](https://img.shields.io/github/stars/Shashankss1205/CodeGraphContext?style=social)](https://github.com/Shashankss1205/CodeGraphContext/stargazers)
+[![License](https://img.shields.io/github/license/Shashankss1205/CodeGraphContext)](LICENSE)
 
 An MCP server that indexes local code into a graph database to provide context to AI assistants.
 
@@ -14,6 +18,16 @@ An MCP server that indexes local code into a graph database to provide context t
 -   **Relationship Analysis:** Query for callers, callees, class hierarchies, and more.
 -   **Live Updates:** Watches local files for changes and automatically updates the graph.
 -   **Interactive Setup:** A user-friendly command-line wizard for easy setup.
+
+## Used By
+
+CodeGraphContext is already being explored by developers and projects for:
+
+- **Static code analysis in AI assistants**
+- **Graph-based visualization of Python projects**
+- **Dead code and complexity detection**
+
+If you’re using CodeGraphContext in your project, feel free to open a PR and add it here! 🚀
 
 ## Dependencies
 
@@ -135,3 +149,10 @@ Once the server is running, you can interact with it through your AI assistant u
 -   **Repository Management:**
     -   "List all currently indexed repositories."
     -   "Delete the indexed repository at `/path/to/old-project`."
+
+## Contributing
+
+Contributions are welcome! 🎉  
+If you have ideas for new features, integrations, or improvements, open an [issue](https://github.com/Shashankss1205/CodeGraphContext/issues) or submit a PR.
+
+Join discussions and help shape the future of CodeGraphContext.
