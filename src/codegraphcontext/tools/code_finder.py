@@ -237,8 +237,10 @@ class CodeFinder:
         """Find what functions a specific function calls using CALLS relationships"""
         with self.driver.session() as session:
             if file_path:
+                # Convert file_path to absolute path
+                absolute_file_path = str(Path(file_path).resolve())
                 result = session.run("""
-                    MATCH (caller:Function {name: $function_name, file_path: $file_path})
+                    MATCH (caller:Function {name: $function_name, file_path: $absolute_file_path})
                     MATCH (caller)-[call:CALLS]->(called:Function)
                     OPTIONAL MATCH (called_file:File)-[:CONTAINS]->(called)
                     RETURN DISTINCT
@@ -253,7 +255,7 @@ class CodeFinder:
                         call.call_type as call_type
                     ORDER BY called.is_dependency ASC, called.name
                     LIMIT 20
-                """, function_name=function_name, file_path=file_path)
+                """, function_name=function_name, absolute_file_path=absolute_file_path)
             else:
                 result = session.run("""
                     MATCH (caller:Function {name: $function_name})
