@@ -172,8 +172,7 @@ class CodeFinder:
         with self.driver.session() as session:
             if file_path:
                 result = session.run("""
-                    MATCH (target:Function {name: $function_name, file_path: $file_path})
-                    MATCH (caller:Function)-[call:CALLS]->(target)
+                    MATCH (caller:Function)-[call:CALLS]->(target:Function {name: $function_name, file_path: $file_path})
                     OPTIONAL MATCH (caller_file:File)-[:CONTAINS]->(caller)
                     RETURN DISTINCT
                         caller.name as caller_function,
@@ -436,8 +435,7 @@ class CodeFinder:
             if file_path:
                 # Find functions within the specified file_path that call the target function
                 query = """
-                    MATCH (f:Function)-[:CALLS*]->(target:Function {name: $function_name})
-                    WHERE f.file_path = $file_path
+                    MATCH (f:Function)-[:CALLS*]->(target:Function {name: $function_name, file_path: $file_path})
                     RETURN DISTINCT f.name AS caller_name, f.file_path AS caller_file_path, f.line_number AS caller_line_number, f.is_dependency AS caller_is_dependency
                     ORDER BY f.is_dependency ASC, f.file_path, f.line_number
                     LIMIT 50
