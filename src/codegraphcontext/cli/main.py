@@ -3,6 +3,10 @@ import typer
 from rich.console import Console
 import asyncio
 import logging
+import json
+import os
+from pathlib import Path
+from dotenv import load_dotenv, find_dotenv
 from codegraphcontext.server import MCPServer
 from .setup_wizard import run_setup_wizard
 
@@ -31,6 +35,44 @@ def start():
     Start the CodeGraphContext MCP server.
     """
     console.print("[bold green]Starting CodeGraphContext Server...[/bold green]")
+    
+    # 1. Prefer loading environment variables from mcp.json in the current directory
+    mcp_file_path = Path.cwd() / "mcp.json"
+    if mcp_file_path.exists():
+        try:
+            with open(mcp_file_path, "r") as f:
+                mcp_config = json.load(f)
+            
+            server_env = mcp_config.get("mcpServers", {}).get("CodeGraphContext", {}).get("env", {})
+            for key, value in server_env.items():
+                os.environ[key] = value
+            console.print("[green]Loaded Neo4j credentials from local mcp.json.[/green]")
+        except Exception as e:
+            console.print(f"[bold red]Error loading mcp.json:[/bold red] {e}")
+            console.print("[yellow]Attempting to start server without mcp.json environment variables.[/yellow]")
+    else:
+        # 2. If no local mcp.json, try to load from ~/.codegraphcontext/.env
+        global_env_path = Path.home() / ".codegraphcontext" / ".env"
+        if global_env_path.exists():
+            try:
+                load_dotenv(dotenv_path=global_env_path)
+                console.print(f"[green]Loaded Neo4j credentials from global .env file: {global_env_path}[/green]")
+            except Exception as e:
+                console.print(f"[bold red]Error loading global .env file from {global_env_path}:[/bold red] {e}")
+                console.print("[yellow]Attempting to start server without .env environment variables.[/yellow]")
+        else:
+            # Fallback: try to load from a .env file found by find_dotenv (searches up the tree)
+            try:
+                dotenv_path = find_dotenv(usecwd=True, raise_error_if_not_found=False)
+                if dotenv_path:
+                    load_dotenv(dotenv_path)
+                    console.print(f"[green]Loaded Neo4j credentials from global .env file: {dotenv_path}[/green]")
+                else:
+                    console.print("[yellow]No local mcp.json or global .env file found. Attempting to start server without explicit Neo4j credentials.[/yellow]")
+            except Exception as e:
+                console.print(f"[bold red]Error loading global .env file:[/bold red] {e}")
+                console.print("[yellow]Attempting to start server without .env environment variables.[/yellow]")
+
     server = None
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
@@ -79,15 +121,21 @@ def tool(
     console.print(f"Calling tool [bold cyan]{name}[/bold cyan] with args: {args}")
     console.print("[yellow]Note: This is a placeholder for direct tool invocation.[/yellow]")
 
+@app.command()
+def help(ctx: typer.Context):
+    """Show this message and exit."""
+    root_ctx = ctx.parent or ctx
+    typer.echo(root_ctx.get_help())
 
-@app.command(name="help")
-def show_help():
+
+@app.callback(invoke_without_command=True)
+def main(ctx: typer.Context):
     """
-    Show a list of available commands and their descriptions.
+    CodeGraphContext: An MCP server for AI-powered code analysis.
     """
-    console.print("[bold]CodeGraphContext CLI Commands:[/bold]")
-    for command in app.registered_commands:
-        # Get the first line of the docstring as a short description
-        description = command.help.split('\n')[0].strip() if command.help else "No description."
-        console.print(f"  [bold cyan]{command.name}[/bold cyan]: {description}")
-    console.print("\nFor more information on a specific command, run: [bold]cgc <command> --help[/bold]")
+    if ctx.invoked_subcommand is None:
+        console.print("[bold green]👋 Welcome to CodeGraphContext (cgc)![/bold green]\n")
+        console.print("👉 Run [cyan]cgc setup[/cyan] to configure the server and database.")
+        console.print("👉 Run [cyan]cgc start[/cyan] to launch the server.")
+        console.print("👉 Run [cyan]cgc help[/cyan] to see all available commands.\n")
+        console.print("👉 Running [green]codegraphcontext [white]works the same as using [green]cgc")
