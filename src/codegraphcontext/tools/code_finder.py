@@ -732,7 +732,7 @@ class CodeFinder:
         with self.driver.session() as session:
             query = """
                 MATCH (f:Function)
-                WHERE f.cyclomatic_complexity IS NOT NULL
+                WHERE f.cyclomatic_complexity IS NOT NULL AND f.is_dependency = false
                 RETURN f.name as function_name, f.file_path as file_path, f.cyclomatic_complexity as complexity, f.line_number as line_number
                 ORDER BY f.cyclomatic_complexity DESC
                 LIMIT $limit

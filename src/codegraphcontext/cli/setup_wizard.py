@@ -30,7 +30,7 @@ def _generate_mcp_json(creds):
                 "args": args,
                 "env": {
                     "NEO4J_URI": creds.get("uri", ""),
-                    "NEO4J_USER": creds.get("username", "neo4j"),
+                    "NEO4J_USERNAME": creds.get("username", "neo4j"),
                     "NEO4J_PASSWORD": creds.get("password", "")
                 },
                 "tools": {
@@ -65,7 +65,7 @@ def _generate_mcp_json(creds):
     env_file.parent.mkdir(parents=True, exist_ok=True)
     with open(env_file, "w") as f:
         f.write(f"NEO4J_URI={creds.get('uri', '')}\n")
-        f.write(f"NEO4J_USER={creds.get('username', 'neo4j')}\n")
+        f.write(f"NEO4J_USERNAME={creds.get('username', 'neo4j')}\n")
         f.write(f"NEO4J_PASSWORD={creds.get('password', '')}\n")
 
     console.print(f"[cyan]Neo4j credentials also saved to: {env_file}[/cyan]")

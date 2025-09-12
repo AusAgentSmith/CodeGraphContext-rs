@@ -626,7 +626,7 @@ class GraphBuilder:
                 is_dependency=is_dependency,
             )
 
-    def add_file_to_graph(self, file_data: Dict, repo_name: str):
+    def add_file_to_graph(self, file_data: Dict, repo_name: str, imports_map: dict):
         """Adds a file and its contents within a single, unified session."""
         file_path_str = str(Path(file_data['file_path']).resolve())
         file_name = Path(file_path_str).name
@@ -721,14 +721,22 @@ class GraphBuilder:
             for class_item in file_data.get('classes', []):
                 if class_item.get('bases'):
                     for base_class_name in class_item['bases']:
-                        session.run("""
-                            MATCH (child:Class {name: $child_name, file_path: $file_path})
-                            MATCH (parent:Class {name: $parent_name})
-                            MERGE (child)-[:INHERITS_FROM]->(parent)
-                        """, 
-                        child_name=class_item['name'], 
-                        file_path=file_path_str, 
-                        parent_name=base_class_name)
+                        resolved_parent_file_path = self._resolve_class_path(
+                            base_class_name,
+                            file_path_str,
+                            file_data['imports'],
+                            imports_map
+                        )
+                        if resolved_parent_file_path:
+                            session.run("""
+                                MATCH (child:Class {name: $child_name, file_path: $file_path})
+                                MATCH (parent:Class {name: $parent_name, file_path: $resolved_parent_file_path})
+                                MERGE (child)-[:INHERITS_FROM]->(parent)
+                            """, 
+                            child_name=class_item['name'], 
+                            file_path=file_path_str, 
+                            parent_name=base_class_name,
+                            resolved_parent_file_path=resolved_parent_file_path)
 
             self._create_class_method_relationships(session, file_data)
             self._create_contextual_relationships(session, file_data)
@@ -909,6 +917,43 @@ class GraphBuilder:
                 func_name=func['name'],
                 func_line=func['line_number'])
                 
+    def _resolve_class_path(self, class_name: str, current_file_path: str, current_file_imports: list, global_imports_map: dict) -> Optional[str]:
+        debug_log(f"_resolve_class_path: Resolving '{class_name}' from '{current_file_path}'")
+        """
+        Resolves the file path of a class based on import resolution priority.
+        1. Same file definition
+        2. Imports within the current file (direct or aliased)
+        3. Global imports map (anywhere in the indexed project)
+        """
+        # Priority 1: Same file definition
+        with self.driver.session() as session:
+            result = session.run("""
+                MATCH (c:Class {name: $class_name, file_path: $current_file_path})
+                RETURN c.file_path AS file_path
+            """, class_name=class_name, current_file_path=current_file_path).single()
+            if result:
+                debug_log(f"_resolve_class_path: Priority 1 match: {result['file_path']}")
+                return result['file_path']
+
+        # Priority 2: Imports within the current file
+        with self.driver.session() as session:
+            result = session.run("""
+                MATCH (f:File {path: $current_file_path})-[:IMPORTS]->(m:Module)
+                OPTIONAL MATCH (m)-[:CONTAINS]->(c:Class {name: $class_name})
+                RETURN c.file_path AS file_path
+            """, current_file_path=current_file_path, class_name=class_name).single()
+            if result and result["file_path"]:
+                debug_log(f"_resolve_class_path: Priority 2 match: {result['file_path']}")
+                return result['file_path']
+
+        # Priority 3: Global imports map (anywhere in the indexed project) - Fallback
+        if class_name in global_imports_map:
+            debug_log(f"_resolve_class_path: Priority 3 match: {global_imports_map[class_name][0]}")
+            return global_imports_map[class_name][0]
+
+        debug_log(f"_resolve_class_path: No path resolved for '{class_name}'")
+        return None
+                
     def delete_file_from_graph(self, file_path: str):
         """Deletes a file and all its contained elements and relationships."""
         file_path_str = str(Path(file_path).resolve())
@@ -1058,7 +1103,7 @@ class GraphBuilder:
                     repo_path = path.resolve() if path.is_dir() else file.parent.resolve()
                     file_data = self.parse_python_file(repo_path, file, imports_map, is_dependency)
                     if "error" not in file_data:
-                        self.add_file_to_graph(file_data, repo_name)
+                        self.add_file_to_graph(file_data, repo_name, imports_map)
                         all_function_calls_data.append(file_data) # Collect for later processing
                     processed_count += 1
                     if job_id:
