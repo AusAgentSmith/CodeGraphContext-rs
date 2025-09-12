@@ -60,6 +60,16 @@ def _generate_mcp_json(creds):
         json.dump(mcp_config, f, indent=2)
     console.print(f"\n[cyan]For your convenience, the configuration has also been saved to: {mcp_file}[/cyan]")
 
+    # Also save to a .env file for convenience
+    env_file = Path.home() / ".codegraphcontext" / ".env"
+    env_file.parent.mkdir(parents=True, exist_ok=True)
+    with open(env_file, "w") as f:
+        f.write(f"NEO4J_URI={creds.get('uri', '')}\n")
+        f.write(f"NEO4J_USER={creds.get('username', 'neo4j')}\n")
+        f.write(f"NEO4J_PASSWORD={creds.get('password', '')}\n")
+
+    console.print(f"[cyan]Neo4j credentials also saved to: {env_file}[/cyan]")
+
 
 def get_project_root() -> Path:
     """Always return the directory where the user runs `cgc` (CWD)."""
@@ -136,6 +146,7 @@ def find_latest_neo4j_creds_file():
 def setup_hosted_db():
     """Guides user to configure a remote Neo4j instance."""
     console.print("\nTo connect to a hosted Neo4j database, you'll need your connection credentials.")
+    console.print("[yellow]Warning: You are configuring to connect to a remote/hosted Neo4j database. Ensure your credentials are secure.[/yellow]")
     console.print("If you don't have a hosted database, you can create a free one at [bold blue]https://neo4j.com/product/auradb/[/bold blue] (click 'Start free').")
     
     questions = [
@@ -265,7 +276,7 @@ services:
       - "7474:7474"
       - "7687:7687"
     environment:
-      - NEO4J_AUTH=neo4j/12345678
+      - NEO4J_AUTH=neo4j/{password}
       - NEO4J_ACCEPT_LICENSE_AGREEMENT=yes
     volumes:
       - neo4j_data:/data
