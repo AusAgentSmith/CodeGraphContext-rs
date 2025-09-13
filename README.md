@@ -8,7 +8,7 @@
 An MCP server that indexes local code into a graph database to provide context to AI assistants.
 
 ## Project Details
-- **Version:** 0.1.8
+- **Version:** 0.1.10
 - **Authors:** Shashank Shekhar Singh <shashankshekharsingh1205@gmail.com>
 - **License:** MIT License (See [LICENSE](LICENSE) for details)
 
@@ -44,8 +44,15 @@ If you’re using CodeGraphContext in your project, feel free to open a PR and a
 
 1.  **Install:** `pip install codegraphcontext`
 2.  **Setup:** `cgc setup`
+    This interactive command guides you through configuring your Neo4j database connection. It offers several options:
+    *   **Local Setup (Docker Recommended):** Helps you set up a local Neo4j instance using Docker, which is the easiest way to get started.
+    *   **Local Setup (Linux Binary):** For Debian-based Linux systems (like Ubuntu), `cgc setup` can automate the installation of Neo4j directly on your machine.
+    *   **Hosted Setup:** Allows you to connect to an existing remote Neo4j database (e.g., Neo4j AuraDB).
+    Upon successful configuration, `cgc setup` will generate two important files:
+    *   `mcp.json`: Contains the MCP client configuration for CodeGraphContext.
+    *   `~/.codegraphcontext/.env`: Stores your Neo4j connection credentials securely.
 3.  **Start:** `cgc start`
-4.  **Index Code:** `cgc tool add-code-to-graph '{"path": "/path/to/your/project"}'` (Under active development)
+
 
 ## MCP Client Configuration
 
@@ -153,6 +160,7 @@ Once the server is running, you can interact with it through your AI assistant u
 ## Contributing
 
 Contributions are welcome! 🎉  
+Please see our [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 If you have ideas for new features, integrations, or improvements, open an [issue](https://github.com/Shashankss1205/CodeGraphContext/issues) or submit a PR.
 
 Join discussions and help shape the future of CodeGraphContext.
