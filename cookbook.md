@@ -16,6 +16,8 @@ This cookbook provides examples of how to use the `mcp` tool to query and unders
   }
   ```
 
+![Query 1](images/1.png)
+
 ### 2. Find all calls to a specific function
 - **Natural Language:** "Find all calls to the `helper` function."
 - **Tool:** `analyze_code_relationships`
@@ -26,6 +28,8 @@ This cookbook provides examples of how to use the `mcp` tool to query and unders
     "target": "helper"
   }
   ```
+
+![Query 2](images/2.png)
 
 ### 3. Find what a function calls
 - **Natural Language:** "What functions are called inside the `foo` function?"
@@ -39,6 +43,8 @@ This cookbook provides examples of how to use the `mcp` tool to query and unders
   }
   ```
 
+![Query 3](images/3.png)
+
 ### 4. Find all imports of a specific module
 - **Natural Language:** "Where is the `math` module imported?"
 - **Tool:** `analyze_code_relationships`
@@ -49,6 +55,8 @@ This cookbook provides examples of how to use the `mcp` tool to query and unders
     "target": "math"
   }
   ```
+
+![Query 4](images/4.png)
 
 ### 5. Find all methods of a class
 - **Natural Language:** "What are the methods of the `A` class?"
@@ -62,6 +70,8 @@ This cookbook provides examples of how to use the `mcp` tool to query and unders
   ```
 - **Note:** The response for `class_hierarchy` includes a list of methods.
 
+![Query 5](images/5.png)
+
 ### 6. Find all classes that inherit from a specific class
 - **Natural Language:** "Show me all classes that inherit from `Base`."
 - **Tool:** `analyze_code_relationships`
@@ -74,6 +84,8 @@ This cookbook provides examples of how to use the `mcp` tool to query and unders
   ```
 - **Note:** The response for `class_hierarchy` includes a list of child classes.
 
+![Query 6](images/6.png)
+
 ### 7. Find all functions with a specific decorator
 - **Natural Language:** "Find all functions with the `log_decorator`."
 - **Tool:** `analyze_code_relationships`
@@ -85,6 +97,8 @@ This cookbook provides examples of how to use the `mcp` tool to query and unders
   }
   ```
 
+![Query 7](images/7.png)
+
 ### 8. Find all dataclasses
 - **Natural Language:** "Find all dataclasses."
 - **Tool:** `execute_cypher_query`
@@ -94,6 +108,8 @@ This cookbook provides examples of how to use the `mcp` tool to query and unders
     "cypher_query": "MATCH (c:Class) WHERE 'dataclass' IN c.decorators RETURN c.name, c.file_path"
   }
   ```
+
+![Query 8](images/8.png)
 
 ---
 
@@ -108,6 +124,8 @@ This cookbook provides examples of how to use the `mcp` tool to query and unders
     "limit": 5
   }
   ```
+
+![Query 9](images/9.png)
 
 ### 10. Calculate cyclomatic complexity of a function
 - **Natural Language:** "What is the cyclomatic complexity of `try_except_finally`?"
@@ -129,6 +147,8 @@ This cookbook provides examples of how to use the `mcp` tool to query and unders
   }
   ```
 
+![Query 11](images/11.png)
+
 ### 12. Find the call chain between two functions
 - **Natural Language:** "What is the call chain from `wrapper` to `helper`?"
 - **Tool:** `analyze_code_relationships`
@@ -139,6 +159,8 @@ This cookbook provides examples of how to use the `mcp` tool to query and unders
     "target": "wrapper->helper"
   }
   ```
+
+![Query 12](images/12.png)
 
 ### 13. Find all direct and indirect callers of a function
 - **Natural Language:** "Show me all functions that eventually call the `helper` function."
@@ -151,6 +173,8 @@ This cookbook provides examples of how to use the `mcp` tool to query and unders
   }
   ```
 
+![Query 13](images/13.png)
+
 ### 14. Find functions by argument name
 - **Natural Language:** "Find all functions that take `request` as an argument."
 - **Tool:** `analyze_code_relationships`
@@ -161,6 +185,8 @@ This cookbook provides examples of how to use the `mcp` tool to query and unders
     "target": "request"
   }
   ```
+
+![Query 14](images/14.png)
 
 ### 15. List all python package imports from a directory
 - **Natural Language:** "List all python package imports from my project directory."
@@ -183,6 +209,8 @@ This cookbook provides examples of how to use the `mcp` tool to query and unders
   ```json
   {}
   ```
+
+![Query 16](images/16.png)
 
 ### 17. Check the status of an indexing job
 - **Natural Language:** "What is the status of job `4cb9a60e-c1b1-43a7-9c94-c840771506bc`?"
@@ -217,6 +245,8 @@ These examples use the `execute_cypher_query` tool for more specific and complex
   }
   ```
 
+![Query 19](images/19.png)
+
 ### 20. Find all classes
 - **Natural Language:** "Show me all the classes."
 - **JSON Arguments:**
@@ -225,6 +255,8 @@ These examples use the `execute_cypher_query` tool for more specific and complex
     "cypher_query": "MATCH (n:Class) RETURN n.name, n.file_path, n.line_number LIMIT 50"
   }
   ```
+
+![Query 20](images/20.png)
 
 ### 21. Find all functions in a file
 - **Natural Language:** "Find all functions in `module_a.py`."
@@ -235,6 +267,8 @@ These examples use the `execute_cypher_query` tool for more specific and complex
   }
   ```
 
+![Query 21](images/21.png)
+
 ### 22. Find all classes in a file
 - **Natural Language:** "Find all classes in `advanced_classes.py`."
 - **JSON Arguments:**
@@ -243,6 +277,8 @@ These examples use the `execute_cypher_query` tool for more specific and complex
     "cypher_query": "MATCH (c:Class) WHERE c.file_path ENDS WITH 'advanced_classes.py' RETURN c.name"
   }
   ```
+
+![Query 22](images/22.png)
 
 ### 23. List all top-level functions and classes in a file
 - **Natural Language:** "List all top-level functions and classes in `module_a.py`."
@@ -253,6 +289,8 @@ These examples use the `execute_cypher_query` tool for more specific and complex
   }
   ```
 
+![Query 23](images/23.png)
+
 ### 24. Find functions in one module that call a function in another
 - **Natural Language:** "Find functions in `module_a.py` that call `helper` in `module_b.py`."
 - **JSON Arguments:**
@@ -261,6 +299,8 @@ These examples use the `execute_cypher_query` tool for more specific and complex
     "cypher_query": "MATCH (caller:Function)-[:CALLS]->(callee:Function {name: 'helper'}) WHERE caller.file_path ENDS WITH 'module_a.py' AND callee.file_path ENDS WITH 'module_b.py' RETURN caller.name"
   }
   ```
+
+![Query 24](images/24.png)
 
 ### 25. Find circular file imports
 - **Natural Language:** "Are there any circular dependencies between files?"
@@ -280,6 +320,8 @@ These examples use the `execute_cypher_query` tool for more specific and complex
   }
   ```
 
+![Query 26](images/26.png)
+
 ### 27. Find all functions in a file that have a docstring
 - **Natural Language:** "Find all functions in `module_a.py` that have a docstring."
 - **JSON Arguments:**
@@ -298,6 +340,8 @@ These examples use the `execute_cypher_query` tool for more specific and complex
   }
   ```
 
+![Query 28](images/28.png)
+
 ### 29. Find the depth of inheritance for all classes
 - **Natural Language:** "How deep are the inheritance chains for all classes?"
 - **JSON Arguments:**
@@ -306,6 +350,8 @@ These examples use the `execute_cypher_query` tool for more specific and complex
     "cypher_query": "MATCH (c:Class) OPTIONAL MATCH path = (c)-[:INHERITS_FROM*]->(parent:Class) RETURN c.name, c.file_path, length(path) AS depth ORDER BY depth DESC"
   }
   ```
+
+![Query 29](images/29.png)
 
 ### 30. Find all functions that have a docstring
 - **Natural Language:** "Show me all functions that are documented."
@@ -316,6 +362,8 @@ These examples use the `execute_cypher_query` tool for more specific and complex
   }
   ```
 
+![Query 30](images/30.png)
+
 ### 31. Find all decorated methods in a class
 - **Natural Language:** "Find all decorated methods in the `Child` class."
 - **JSON Arguments:**
@@ -324,6 +372,8 @@ These examples use the `execute_cypher_query` tool for more specific and complex
     "cypher_query": "MATCH (c:Class {name: 'Child'})-[:CONTAINS]->(m:Function) WHERE m.decorators IS NOT NULL AND size(m.decorators) > 0 RETURN m.name"
   }
   ```
+
+![Query 31](images/31.png)
 
 ### 32. Find the number of functions in each file
 - **Natural Language:** "How many functions are in each file?"
@@ -334,6 +384,8 @@ These examples use the `execute_cypher_query` tool for more specific and complex
   }
   ```
 
+![Query 32](images/32.png)
+
 ### 33. Find all methods that override a parent method
 - **Natural Language:** "Find all methods that are overridden from a parent class."
 - **JSON Arguments:**
@@ -342,6 +394,8 @@ These examples use the `execute_cypher_query` tool for more specific and complex
     "cypher_query": "MATCH (c:Class)-[:INHERITS_FROM]->(p:Class), (c)-[:CONTAINS]->(m:Function), (p)-[:CONTAINS]->(m_parent:Function) WHERE m.name = m_parent.name RETURN m.name as method, c.name as child_class, p.name as parent_class"
   }
   ```
+
+![Query 33](images/33.png)
 
 ### 34. Find all functions that call `super()`
 - **Natural Language:** "Find all methods that call their parent's method via `super()`."
@@ -352,6 +406,8 @@ These examples use the `execute_cypher_query` tool for more specific and complex
   }
   ```
 
+![Query 34](images/34.png)
+
 ### 35. Find all calls to a function with a specific argument
 - **Natural Language:** "Find all calls to `helper` with the argument `x`."
 - **JSON Arguments:**
@@ -361,6 +417,8 @@ These examples use the `execute_cypher_query` tool for more specific and complex
   }
   ```
 
+![Query 35](images/35.png)
+
 ### 36. Find all functions that are not called by any other function
 - **Natural Language:** "Find all dead code (functions that are never called)."
 - **JSON Arguments:**
@@ -369,6 +427,8 @@ These examples use the `execute_cypher_query` tool for more specific and complex
     "cypher_query": "MATCH (f:Function) WHERE NOT (()-[:CALLS]->(f)) AND f.is_dependency = false RETURN f.name, f.file_path"
   }
   ```
+
+![Query 36](images/36.png)
 
 ### 37. Find all functions that are called with a specific argument
 - **Natural Language:** "Find all calls to `print` with the argument `'hello'`."
@@ -391,6 +451,8 @@ These examples use the `execute_cypher_query` tool for more specific and complex
   }
   ```
 
+![Query 38](images/38.png)
+
 ### 39. Find all functions that are overridden
 - **Natural Language:** "Find all functions that are overridden."
 - **Tool:** `analyze_code_relationships`
@@ -402,6 +464,8 @@ These examples use the `execute_cypher_query` tool for more specific and complex
   }
   ```
 
+![Query 39](images/39.png)
+
 ### 40. Find all modules imported by `module_a`
 - **Natural Language:** "Find all modules imported by `module_a`."
 - **Tool:** `execute_cypher_query`
@@ -410,3 +474,4 @@ These examples use the `execute_cypher_query` tool for more specific and complex
   {
     "cypher_query": "MATCH (f:File {name: 'module_a.py'})-[:IMPORTS]->(m:Module) RETURN m.name AS imported_module_name"
   }
+```
