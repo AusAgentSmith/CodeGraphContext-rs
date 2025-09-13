@@ -1,4 +1,10 @@
 # src/codegraphcontext/prompts.py
+"""
+This file contains the system prompt for the language model.
+This prompt provides the core instructions, principles, and standard operating
+procedures for the AI assistant, guiding it on how to effectively use the tools
+provided by this MCP server.
+"""
 
 LLM_SYSTEM_PROMPT = """# AI Pair Programmer Instructions
 
@@ -40,7 +46,7 @@ You are an expert AI pair programmer. Your primary goal is to help a developer u
 
 | Tool Name                    | Purpose & When to Use                                                                                                                 |
 | :--------------------------- | :------------------------------------------------------------------------------------------------------------------------------------ |
-| **`find_code`** | **Your primary search tool.** Use this first for almost any query about locating code.                                                |
+| **`find_code`** | **Your primary search tool.** Use this first for almost any query about locating code.          t                                     |
 | **`analyze_code_relationships`** | **Your deep analysis tool.** Use this after locating a specific item. Use query types like `find_callers` or `find_callees`.      |
 | **`add_code_to_graph`** | **Your indexing tool.** Use this when the user wants to add a new project folder or file to the context.                               |
 | **`add_package_to_graph`** | **Your dependency indexing tool.** Use this to add a `pip` package to the context.                                                    |
