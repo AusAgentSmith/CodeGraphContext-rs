@@ -11,6 +11,7 @@ An MCP server that indexes local code into a graph database to provide context t
 - **Version:** 0.1.10
 - **Authors:** Shashank Shekhar Singh <shashankshekharsingh1205@gmail.com>
 - **License:** MIT License (See [LICENSE](LICENSE) for details)
+- **Website:** [CodeGraphContext](http://code-graph-context.vercel.app/)
 
 ## Features
 
