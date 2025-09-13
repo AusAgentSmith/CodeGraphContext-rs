@@ -26,7 +26,7 @@ from .tools.import_extractor import ImportExtractor
 logger = logging.getLogger(__name__)
 
 def debug_log(message):
-    """Write debug message to a file"""
+    """Write debug message to a file for development and testing."""
     debug_file = os.path.expanduser("~/mcp_debug.log")
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with open(debug_file, "a") as f:
@@ -34,18 +34,37 @@ def debug_log(message):
         f.flush()
 
 class MCPServer:
-    """Main MCP Server class that orchestrates all components."""
+    """
+    The main MCP Server class.
+    
+    This class orchestrates all the major components of the application, including:
+    - Database connection management (`DatabaseManager`)
+    - Background job tracking (`JobManager`)
+    - File system watching for live updates (`CodeWatcher`)
+    - Tool handlers for graph building, code searching, etc.
+    - The main JSON-RPC communication loop for interacting with an AI assistant.
+    """
 
     def __init__(self, loop=None):
+        """
+        Initializes the MCP server and its components. 
+        
+        Args:
+            loop: The asyncio event loop to use. If not provided, it gets the current
+                  running loop or creates a new one.
+        """
         try:
+            # Initialize the database manager and establish a connection early
+            # to fail fast if credentials are wrong.
             self.db_manager = DatabaseManager()
-            self.db_manager.get_driver() # Initialize connection early
+            self.db_manager.get_driver() 
         except ValueError as e:
             raise ValueError(f"Database configuration error: {e}")
 
+        # Initialize managers for jobs and file watching.
         self.job_manager = JobManager()
         
-        # Get the current event loop to pass to thread-sensitive components
+        # Get the current event loop to pass to thread-sensitive components like the graph builder.
         if loop is None:
             try:
                 loop = asyncio.get_running_loop()
@@ -54,17 +73,21 @@ class MCPServer:
                 asyncio.set_event_loop(loop)
         self.loop = loop
 
-        # Initialize tool handlers
+        # Initialize all the tool handlers, passing them the necessary managers and the event loop.
         self.graph_builder = GraphBuilder(self.db_manager, self.job_manager, loop)
         self.code_finder = CodeFinder(self.db_manager)
         self.import_extractor = ImportExtractor()
-        
         self.code_watcher = CodeWatcher(self.graph_builder, self.job_manager)
         
+        # Define the tool manifest that will be exposed to the AI assistant.
         self._init_tools()
 
     def _init_tools(self):
-        """Defines the complete tool manifest for the LLM."""
+        """
+        Defines the complete tool manifest for the LLM.
+        This dictionary contains the schema for every tool the AI can call,
+        including its name, description, and input parameters.
+        """
         self.tools = {
             "add_code_to_graph": {
                 "name": "add_code_to_graph",
@@ -203,7 +226,7 @@ class MCPServer:
                 "inputSchema": {
                     "type": "object",
                     "properties": {
-                        "repo_path": {"type": "string", "description": "The path of the repository to delete."}
+                        "repo_path": {"type": "string", "description": "The path of the repository to delete."} 
                     },
                     "required": ["repo_path"]
                 }
@@ -211,11 +234,23 @@ class MCPServer:
         }    
 
     def get_database_status(self) -> dict:
-        """Get current database connection status"""
+        """Returns the current connection status of the Neo4j database."""
         return {"connected": self.db_manager.is_connected()}
         
     def get_local_package_path(self, package_name: str) -> Optional[str]:
-        """Get the local installation path of a Python package"""
+        """
+        Finds the local installation path of a Python package.
+
+        This method uses `importlib` to locate a package and determines its root
+        directory, handling both regular packages (directories with __init__.py)
+        and single-file modules.
+
+        Args:
+            package_name: The name of the package to locate (e.g., "requests").
+
+        Returns:
+            The absolute path to the package's directory as a string, or None if not found.
+        """
         try:
             debug_log(f"Getting local path for package: {package_name}")
             
@@ -226,25 +261,26 @@ class MCPServer:
                 debug_log(f"Module file: {module_file}")
 
                 if module_file.name == '__init__.py':
-                    # It's a package (directory)
+                    # For a package, the path is the parent directory of __init__.py
                     package_path = str(module_file.parent)
                 elif package_name in stdlibs.module_names:
-                    # It's a single-file standard library module (e.g., os.py, io.py)
+                    # For a standard library single file module, the path is the file itself
                     package_path = str(module_file)
                 else:
-                    # Default to parent directory for other single-file modules
+                    # For other single-file modules, assume the parent directory is the container
                     package_path = str(module_file.parent)
 
                 debug_log(f"Determined package path: {package_path}")
                 return package_path
 
             elif hasattr(module, '__path__'):
-                # This handles namespace packages or packages without __init__.py
+                # This handles namespace packages which may not have an __init__.py
                 if isinstance(module.__path__, list) and module.__path__:
                     package_path = str(Path(module.__path__[0]))
                     debug_log(f"Package path from __path__: {package_path}")
                     return package_path
                 else:
+                    # Fallback for other __path__ formats
                     package_path = str(Path(str(module.__path__)))
                     debug_log(f"Package path from __path__ (str): {package_path}")
                     return package_path
@@ -261,14 +297,16 @@ class MCPServer:
         
     def execute_cypher_query_tool(self, **args) -> Dict[str, Any]:
         """
-        Tool to execute a read-only Cypher query.
-        This is a powerful tool and includes safety checks to prevent database modification.
+        Tool implementation for executing a read-only Cypher query.
+        
+        Important: Includes a safety check to prevent any database modification
+        by disallowing keywords like CREATE, MERGE, DELETE, etc.
         """
         cypher_query = args.get("cypher_query")
         if not cypher_query:
             return {"error": "Cypher query cannot be empty."}
 
-        # Safety Check: Prevent write operations.
+        # Safety Check: Prevent any write operations to the database.
         forbidden_keywords = ['CREATE', 'MERGE', 'DELETE', 'SET', 'REMOVE', 'DROP', 'CALL apoc']
         query_upper = cypher_query.upper()
         if any(keyword in query_upper for keyword in forbidden_keywords):
@@ -280,7 +318,7 @@ class MCPServer:
             debug_log(f"Executing Cypher query: {cypher_query}")
             with self.db_manager.get_driver().session() as session:
                 result = session.run(cypher_query)
-                # Convert results to a list of dictionaries for JSON serialization
+                # Convert results to a list of dictionaries for clean JSON serialization.
                 records = [record.data() for record in result]
                 
                 return {
@@ -385,21 +423,27 @@ class MCPServer:
             return {"error": f"Failed to delete repository: {str(e)}"}
 
     def watch_directory_tool(self, **args) -> Dict[str, Any]:
-        """Tool to start watching a directory."""
+        """
+        Tool implementation to start watching a directory for changes.
+
+        This process involves two steps:
+        1. Kicking off a background job to do an initial scan of the directory.
+        2. Starting the file watcher to catch live changes.
+        """
         path = args.get("path")
         if not path or not Path(path).is_dir():
             return {"error": f"Invalid path provided: {path}. Must be a directory."}
 
         try:
-            # First, ensure the code is added/scanned
+            # First, ensure the code is added/scanned by calling the appropriate tool.
             scan_job_result = self.add_code_to_graph_tool(path=path, is_dependency=False)
             if "error" in scan_job_result:
                 return scan_job_result
 
-            # Now, start the watcher
+            # Now, start the file system watcher.
             watch_result = self.code_watcher.watch_directory(path)
             
-            # Combine results
+            # Combine results into a single, informative response.
             final_result = {
                 "success": True,
                 "message": f"Initial scan started for {path}. Now watching for live changes.",
@@ -461,7 +505,12 @@ class MCPServer:
             return {"error": f"Failed to analyze imports: {str(e)}"}
     
     def add_code_to_graph_tool(self, **args) -> Dict[str, Any]:
-        """Tool to add code to Neo4j graph with background processing"""
+        """
+        Tool implementation to index a directory of code.
+
+        This creates a background job and runs the indexing asynchronously
+        so the AI assistant can continue to be responsive.
+        """
         path = args.get("path")
         is_dependency = args.get("is_dependency", False)
         
@@ -471,7 +520,7 @@ class MCPServer:
             if not path_obj.exists():
                 return {"error": f"Path {path} does not exist"}
 
-            # Check if the repository is already indexed
+            # Prevent re-indexing the same repository.
             indexed_repos = self.list_indexed_repositories_tool().get("repositories", [])
             for repo in indexed_repos:
                 if Path(repo["path"]).resolve() == path_obj:
@@ -480,12 +529,12 @@ class MCPServer:
                         "message": f"Repository '{path}' is already indexed."
                     }
             
+            # Estimate time and create a job for the user to track.
             total_files, estimated_time = self.graph_builder.estimate_processing_time(path_obj)
-            
             job_id = self.job_manager.create_job(str(path_obj), is_dependency)
-            
             self.job_manager.update_job(job_id, total_files=total_files, estimated_duration=estimated_time)
             
+            # Create the coroutine for the background task and schedule it on the main event loop.
             coro = self.graph_builder.build_graph_from_path_async(
                 path_obj, is_dependency, job_id
             )
@@ -671,7 +720,16 @@ class MCPServer:
     
 
     async def handle_tool_call(self, tool_name: str, args: Dict[str, Any]) -> Dict[str, Any]:
-        """Routes a tool call to the appropriate handler."""
+        """
+        Routes a tool call from the AI assistant to the appropriate handler function. 
+        
+        Args:
+            tool_name: The name of the tool to execute.
+            args: A dictionary of arguments for the tool.
+
+        Returns:
+            A dictionary containing the result of the tool execution.
+        """
         tool_map: Dict[str, Coroutine] = {
             "list_imports": self.list_imports_tool,
             "add_package_to_graph": self.add_package_to_graph_tool,
@@ -690,18 +748,27 @@ class MCPServer:
         }
         handler = tool_map.get(tool_name)
         if handler:
+            # Run the synchronous tool function in a separate thread to avoid
+            # blocking the main asyncio event loop.
             return await asyncio.to_thread(handler, **args)
         else:
             return {"error": f"Unknown tool: {tool_name}"}
 
     async def run(self):
-        """Runs the main server loop, listening for JSON-RPC requests."""
+        """
+        Runs the main server loop, listening for JSON-RPC requests from stdin.
+        
+        This loop continuously reads lines from stdin, parses them as JSON-RPC
+        requests, and routes them to the appropriate handlers (e.g., initialize,
+        tools/list, tools/call). The response is then printed to stdout.
+        """
         logger.info("MCP Server is running. Waiting for requests...")
         self.code_watcher.start()
         
         loop = asyncio.get_event_loop()
         while True:
             try:
+                # Read a request from the standard input.
                 line = await loop.run_in_executor(None, sys.stdin.readline)
                 if not line:
                     logger.info("Client disconnected (EOF received). Shutting down.")
@@ -713,6 +780,7 @@ class MCPServer:
                 request_id = request.get('id')
                 
                 response = {}
+                # Route the request based on the JSON-RPC method.
                 if method == 'initialize':
                     response = {
                         "jsonrpc": "2.0", "id": request_id,
@@ -726,12 +794,13 @@ class MCPServer:
                         }
                     }
                 elif method == 'tools/list':
-                    # This now correctly returns the list of defined tools
+                    # Return the list of tools defined in _init_tools.
                     response = {
                         "jsonrpc": "2.0", "id": request_id,
                         "result": {"tools": list(self.tools.values())}
                     }
                 elif method == 'tools/call':
+                    # Execute a tool call and return the result.
                     tool_name = params.get('name')
                     args = params.get('arguments', {})
                     result = await self.handle_tool_call(tool_name, args)
@@ -740,11 +809,13 @@ class MCPServer:
                         "result": {"content": [{"type": "text", "text": json.dumps(result, indent=2)}]}
                     }
                 else:
+                    # Handle unknown methods.
                     response = {
                         "jsonrpc": "2.0", "id": request_id,
                         "error": {"code": -32601, "message": f"Method not found: {method}"}
                     }
                 
+                # Send the response to standard output.
                 print(json.dumps(response), flush=True)
 
             except Exception as e:
@@ -756,6 +827,7 @@ class MCPServer:
                 print(json.dumps(error_response), flush=True)
 
     def shutdown(self):
+        """Gracefully shuts down the server and its components."""
         logger.info("Shutting down server...")
         self.code_watcher.stop()
         self.db_manager.close_driver()
