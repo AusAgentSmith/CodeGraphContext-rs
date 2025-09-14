@@ -4,11 +4,12 @@
 [![PyPI downloads](https://img.shields.io/pypi/dm/codegraphcontext)](https://pypi.org/project/codegraphcontext/)
 [![GitHub stars](https://img.shields.io/github/stars/Shashankss1205/CodeGraphContext?style=social)](https://github.com/Shashankss1205/CodeGraphContext/stargazers)
 [![License](https://img.shields.io/github/license/Shashankss1205/CodeGraphContext)](LICENSE)
+[![Website](https://img.shields.io/badge/website-up-brightgreen)](http://code-graph-context.vercel.app/)
 
 An MCP server that indexes local code into a graph database to provide context to AI assistants.
 
 ## Project Details
-- **Version:** 0.1.10
+- **Version:** 0.1.11
 - **Authors:** Shashank Shekhar Singh <shashankshekharsingh1205@gmail.com>
 - **License:** MIT License (See [LICENSE](LICENSE) for details)
 - **Website:** [CodeGraphContext](http://code-graph-context.vercel.app/)
@@ -45,19 +46,33 @@ If you’re using CodeGraphContext in your project, feel free to open a PR and a
 
 1.  **Install:** `pip install codegraphcontext`
 2.  **Setup:** `cgc setup`
-    This interactive command guides you through configuring your Neo4j database connection. It offers several options:
-    *   **Local Setup (Docker Recommended):** Helps you set up a local Neo4j instance using Docker, which is the easiest way to get started.
-    *   **Local Setup (Linux Binary):** For Debian-based Linux systems (like Ubuntu), `cgc setup` can automate the installation of Neo4j directly on your machine.
+    This interactive command guides you through configuring your Neo4j database connection and automatically setting up your IDE.
+    
+        **Database Configuration:**
+    *   **Local Setup (Docker Recommended):** Helps you set up a local Neo4j instance using Docker. Requires Docker and Docker Compose to be installed.
+    *   **Local Setup (Linux Binary):** For Debian-based Linux systems (like Ubuntu), `cgc setup` can automate the installation of Neo4j. Requires `sudo` privileges.
     *   **Hosted Setup:** Allows you to connect to an existing remote Neo4j database (e.g., Neo4j AuraDB).
-    Upon successful configuration, `cgc setup` will generate two important files:
-    *   `mcp.json`: Contains the MCP client configuration for CodeGraphContext.
-    *   `~/.codegraphcontext/.env`: Stores your Neo4j connection credentials securely.
+
+    **IDE/CLI Configuration:**
+    After setting up your database, the wizard will ask to configure your development environment. It can automatically detect and configure the following:
+    *   VS Code
+    *   Cursor
+    *   Claude
+    *   Gemini CLI
+
+    Upon successful configuration, `cgc setup` will generate and place the necessary configuration files:
+    *   It creates an `mcp.json` file in your current directory for reference.
+    *   It stores your Neo4j credentials securely in `~/.codegraphcontext/.env`.
+    *   It updates the settings file of your chosen IDE/CLI (e.g., `.claude.json` or VS Code's `settings.json`).
+
 3.  **Start:** `cgc start`
 
 
 ## MCP Client Configuration
 
-Add the following to your MCP client's configuration:
+The `cgc setup` command attempts to automatically configure your IDE/CLI. If you choose not to use the automatic setup, or if your tool is not supported, you can configure it manually.
+
+Add the following server configuration to your client's settings file (e.g., VS Code's `settings.json` or `.claude.json`):
 
 ```json
 {
@@ -68,9 +83,9 @@ Add the following to your MCP client's configuration:
         "start"
       ],
       "env": {
-        "NEO4J_URI": "************",
-        "NEO4J_USER": "************",
-        "NEO4J_PASSWORD": "**************"
+        "NEO4J_URI": "YOUR_NEO4J_URI",
+        "NEO4J_USERNAME": "YOUR_NEO4J_USERNAME",
+        "NEO4J_PASSWORD": "YOUR_NEO4J_PASSWORD"
       },
       "tools": {
         "alwaysAllow": [
