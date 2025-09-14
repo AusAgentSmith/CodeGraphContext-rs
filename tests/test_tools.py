@@ -16,9 +16,18 @@ def call_tool(server, name, args):
         "params": {"name": name, "arguments": args}
     }
     response = server(request)
-    content = json.loads(response["result"]["content"][0]["text"])
-    return content
-
+    
+    # Handle both success and error responses
+    if "result" in response:
+        content = json.loads(response["result"]["content"][0]["text"])
+        return content
+    elif "error" in response:
+        # For error responses, return the error data
+        error_data = response["error"].get("data", {})
+        return error_data
+    else:
+        raise ValueError(f"Unexpected response format: {response}")
+        
 @pytest.fixture(scope="module")
 def server():
     """
@@ -371,3 +380,28 @@ def test_execute_cypher_query(indexed_project):
     assert len(results) > 0, "No results from Cypher query."
     assert "functionName" in results[0], "Cypher query result missing 'functionName' key."
     print("Successfully executed Cypher query.")
+
+def test_execute_cypher_query_with_forbidden_keyword_in_string(indexed_project):
+    """
+    Tests that a read-only query with a forbidden keyword inside a string literal is allowed.
+    """
+    server = indexed_project
+    print("\n--- Executing Cypher query with forbidden keyword in string ---")
+    # This query should not be blocked by the safety check
+    cypher_query = "MATCH (n:Function) WHERE n.name = 'create_user_function' RETURN n.name AS functionName"
+    query_result = call_tool(server, "execute_cypher_query", {"cypher_query": cypher_query})
+    assert query_result.get("success") is True, f"execute_cypher_query with forbidden keyword in string failed: {query_result.get('error')}"
+    print("Successfully executed Cypher query with forbidden keyword in string.")
+
+def test_execute_cypher_query_with_write_operation(indexed_project):
+    """
+    Tests that a query with a write operation is blocked.
+    """
+    server = indexed_project
+    print("\n--- Executing Cypher query with write operation ---")
+    cypher_query = "CREATE (n:TestNode) RETURN n"
+    query_result = call_tool(server, "execute_cypher_query", {"cypher_query": cypher_query})
+    assert query_result.get("success") is None, "execute_cypher_query with write operation should have failed"
+    assert "error" in query_result, "execute_cypher_query with write operation should have returned an error"
+    assert "read-only" in query_result.get("error", ""), "Error message should indicate that only read-only queries are supported"
+    print("Successfully blocked a write operation.")
