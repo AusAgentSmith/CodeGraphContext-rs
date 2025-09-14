@@ -48,7 +48,7 @@ If you’re using CodeGraphContext in your project, feel free to open a PR and a
 2.  **Setup:** `cgc setup`
     This interactive command guides you through configuring your Neo4j database connection and automatically setting up your IDE.
     
-        **Database Configuration:**
+      **Database Configuration:**
     *   **Local Setup (Docker Recommended):** Helps you set up a local Neo4j instance using Docker. Requires Docker and Docker Compose to be installed.
     *   **Local Setup (Linux Binary):** For Debian-based Linux systems (like Ubuntu), `cgc setup` can automate the installation of Neo4j. Requires `sudo` privileges.
     *   **Hosted Setup:** Allows you to connect to an existing remote Neo4j database (e.g., Neo4j AuraDB).
