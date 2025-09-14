@@ -1020,7 +1020,7 @@ class GraphBuilder:
             
             if "error" not in file_data:
                 debug_log(f"[update_file_in_graph] Adding new file data to graph for: {file_path_str}")
-                self.add_file_to_graph(file_data, repo_name)
+                self.add_file_to_graph(file_data, repo_name, imports_map)
                 debug_log(f"[update_file_in_graph] New file data added for: {file_path_str}")
                 # --- CRITICAL: Return the new data ---
                 return file_data
