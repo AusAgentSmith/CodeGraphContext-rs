@@ -15,7 +15,7 @@ def _generate_mcp_json(creds):
     """Generates and prints the MCP JSON configuration."""
     cgc_path = shutil.which("cgc") or sys.executable
 
-    if "python" in Path(cgc_path).name:  
+    if "python" in Path(cgc_path).name:
         # fallback to running as module if no cgc binary is found
         command = cgc_path
         args = ["-m", "cgc", "start"]
@@ -49,11 +49,11 @@ def _generate_mcp_json(creds):
             }
         }
     }
-    
+
     console.print("\n[bold green]Configuration successful![/bold green]")
     console.print("Copy the following JSON and add it to your MCP server configuration file:")
     console.print(json.dumps(mcp_config, indent=2))
-    
+
     # Also save to a file for convenience
     mcp_file = Path.cwd() / "mcp.json"
     with open(mcp_file, "w") as f:
@@ -69,6 +69,109 @@ def _generate_mcp_json(creds):
         f.write(f"NEO4J_PASSWORD={creds.get('password', '')}\n")
 
     console.print(f"[cyan]Neo4j credentials also saved to: {env_file}[/cyan]")
+    _configure_ide(mcp_config)
+
+def _configure_ide(mcp_config):
+    """Asks user for their IDE and configures it automatically."""
+    questions = [
+        {
+            "type": "confirm",
+            "message": "Automatically configure your IDE/CLI (VS Code, Cursor, Claude, Gemini)?",
+            "name": "configure_ide",
+            "default": True,
+        }
+    ]
+    result = prompt(questions)
+    if not result or not result.get("configure_ide"):
+        console.print("\n[cyan]Skipping automatic IDE configuration. You can add the MCP server manually.[/cyan]")
+        return
+
+    ide_questions = [
+        {
+            "type": "list",
+            "message": "Choose your IDE/CLI to configure:",
+            "choices": ["VS Code", "Cursor", "Claude code", "Gemini CLI", "None of the above"],
+            "name": "ide_choice",
+        }
+    ]
+    ide_result = prompt(ide_questions)
+    ide_choice = ide_result.get("ide_choice")
+
+    if not ide_choice or ide_choice == "None of the above":
+        console.print("\n[cyan]You can add the MCP server manually to your IDE/CLI.[/cyan]")
+        return
+
+    if ide_choice in ["VS Code", "Cursor", "Claude code", "Gemini CLI"]:
+        console.print(f"\n[bold cyan]Configuring for {ide_choice}...[/bold cyan]")
+        
+        config_paths = {
+            "VS Code": [
+                Path.home() / ".config" / "Code" / "User" / "settings.json",
+                Path.home() / "Library" / "Application Support" / "Code" / "User" / "settings.json",
+                Path.home() / "AppData" / "Roaming" / "Code" / "User" / "settings.json"
+            ],
+            "Cursor": [
+                Path.home() / ".cursor" / "settings.json",
+                Path.home() / ".config" / "cursor" / "settings.json",
+                Path.home() / "Library" / "Application Support" / "cursor" / "settings.json",
+                Path.home() / "AppData" / "Roaming" / "cursor" / "settings.json",
+                Path.home() / ".config" / "Cursor" / "User" / "settings.json",
+            ],
+            "Claude code": [
+                Path.home() / ".claude.json"
+            ],
+            "Gemini CLI": [
+                Path.home() / ".gemini" / "settings.json"
+            ]
+        }
+
+        target_path = None
+        paths_to_check = config_paths.get(ide_choice, [])
+        for path in paths_to_check:
+            if path.exists():
+                target_path = path
+                break
+        
+        if not target_path:
+            # If file doesn't exist, check if parent directory exists
+            for path in paths_to_check:
+                if path.parent.exists():
+                    target_path = path
+                    break
+        
+        if not target_path:
+            console.print(f"[yellow]Could not automatically find or create the configuration directory for {ide_choice}.[/yellow]")
+            console.print("Please add the MCP configuration manually from the `mcp.json` file generated above.")
+            return
+
+        console.print(f"Using configuration file at: {target_path}")
+        
+        try:
+            with open(target_path, "r") as f:
+                try:
+                    settings = json.load(f)
+                except json.JSONDecodeError:
+                    settings = {}
+        except FileNotFoundError:
+            settings = {}
+
+        if not isinstance(settings, dict):
+            console.print(f"[red]Error: Configuration file at {target_path} is not a valid JSON object.[/red]")
+            return
+
+        if "mcpServers" not in settings:
+            settings["mcpServers"] = {}
+        
+        settings["mcpServers"].update(mcp_config["mcpServers"])
+
+        try:
+            with open(target_path, "w") as f:
+                json.dump(settings, f, indent=2)
+            console.print(f"[green]Successfully updated {ide_choice} configuration.[/green]")
+        except Exception as e:
+            console.print(f"[red]Failed to write to configuration file: {e}[/red]")
+
+
 
 
 def get_project_root() -> Path:
