@@ -785,7 +785,7 @@ class MCPServer:
                     response = {
                         "jsonrpc": "2.0", "id": request_id,
                         "result": {
-                            "protocolVersion": "2024-11-05",
+                            "protocolVersion": "2025-03-26",
                             "serverInfo": {
                                 "name": "CodeGraphContext", "version": "0.1.0",
                                 "systemPrompt": LLM_SYSTEM_PROMPT
@@ -804,24 +804,40 @@ class MCPServer:
                     tool_name = params.get('name')
                     args = params.get('arguments', {})
                     result = await self.handle_tool_call(tool_name, args)
-                    response = {
-                        "jsonrpc": "2.0", "id": request_id,
-                        "result": {"content": [{"type": "text", "text": json.dumps(result, indent=2)}]}
-                    }
+                    
+                    if "error" in result:
+                        response = {
+                            "jsonrpc": "2.0", "id": request_id,
+                            "error": {"code": -32000, "message": "Tool execution error", "data": result}
+                        }
+                    else:
+                        response = {
+                            "jsonrpc": "2.0", "id": request_id,
+                            "result": {"content": [{"type": "text", "text": json.dumps(result, indent=2)}]}
+                        }
+                elif method == 'notifications/initialized':
+                    # This is a notification, no response needed.
+                    pass
                 else:
                     # Handle unknown methods.
-                    response = {
-                        "jsonrpc": "2.0", "id": request_id,
-                        "error": {"code": -32601, "message": f"Method not found: {method}"}
-                    }
+                    if request_id is not None:
+                        response = {
+                            "jsonrpc": "2.0", "id": request_id,
+                            "error": {"code": -32601, "message": f"Method not found: {method}"}
+                        }
                 
-                # Send the response to standard output.
-                print(json.dumps(response), flush=True)
+                # Send the response to standard output if it's not a notification.
+                if request_id is not None and response:
+                    print(json.dumps(response), flush=True)
 
             except Exception as e:
                 logger.error(f"Error processing request: {e}\n{traceback.format_exc()}")
+                request_id = "unknown"
+                if 'request' in locals() and isinstance(request, dict):
+                    request_id = request.get('id', "unknown")
+
                 error_response = {
-                    "jsonrpc": "2.0", "id": request.get('id') if 'request' in locals() else None,
+                    "jsonrpc": "2.0", "id": request_id,
                     "error": {"code": -32603, "message": f"Internal error: {str(e)}", "data": traceback.format_exc()}
                 }
                 print(json.dumps(error_response), flush=True)

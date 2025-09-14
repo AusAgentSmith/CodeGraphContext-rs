@@ -31,7 +31,7 @@ app = typer.Typer(
     help="CodeGraphContext: An MCP server for AI-powered code analysis.",
     add_completion=False,
 )
-console = Console()
+console = Console(stderr=True)
 
 # Configure basic logging for the application.
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(name)s - %(message)s')
