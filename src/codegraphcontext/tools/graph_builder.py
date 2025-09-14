@@ -985,15 +985,28 @@ class GraphBuilder:
                 """, path=path)
 
     def delete_repository_from_graph(self, repo_path: str):
-        """Deletes a repository and all its contents from the graph."""
+        """
+        Deletes a repository and all its contents from the graph, then cleans up
+        any orphaned Module nodes that are no longer referenced.
+        """
         repo_path_str = str(Path(repo_path).resolve())
         with self.driver.session() as session:
+            # Delete the repository and all its contained elements, including parameters
             session.run("""
                 MATCH (r:Repository {path: $path})
                 OPTIONAL MATCH (r)-[:CONTAINS*]->(e)
-                DETACH DELETE r, e
+                OPTIONAL MATCH (e)-[:HAS_PARAMETER]->(p)
+                DETACH DELETE r, e, p
             """, path=repo_path_str)
             logger.info(f"Deleted repository and its contents from graph: {repo_path_str}")
+
+            # Clean up orphaned Module nodes that are no longer imported by any file
+            session.run("""
+                MATCH (m:Module)
+                WHERE NOT ()-[:IMPORTS]->(m)
+                DETACH DELETE m
+            """)
+            logger.info("Cleaned up orphaned Module nodes.")
 
     def update_file_in_graph(self, file_path: Path, repo_path: Path, imports_map: dict):
         """
