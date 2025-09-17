@@ -4,7 +4,7 @@
 [![PyPI downloads](https://img.shields.io/pypi/dm/codegraphcontext)](https://pypi.org/project/codegraphcontext/)
 [![GitHub stars](https://img.shields.io/github/stars/Shashankss1205/CodeGraphContext?style=social)](https://github.com/Shashankss1205/CodeGraphContext/stargazers)
 [![License](https://img.shields.io/github/license/Shashankss1205/CodeGraphContext)](LICENSE)
-[![Website](https://img.shields.io/badge/website-up-brightgreen)](http://code-graph-context.vercel.app/)
+[![Website](https://img.shields.io/badge/website-up-brightgreen)](http://codegraphcontext.vercel.app/)
 [![Watch on YouTube](https://img.shields.io/badge/YouTube-Watch%20Demo-red?logo=youtube)](https://youtu.be/KYYSdxhg1xU)
 
 
