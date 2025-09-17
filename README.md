@@ -5,8 +5,16 @@
 [![GitHub stars](https://img.shields.io/github/stars/Shashankss1205/CodeGraphContext?style=social)](https://github.com/Shashankss1205/CodeGraphContext/stargazers)
 [![License](https://img.shields.io/github/license/Shashankss1205/CodeGraphContext)](LICENSE)
 [![Website](https://img.shields.io/badge/website-up-brightgreen)](http://code-graph-context.vercel.app/)
+[![Watch on YouTube](https://img.shields.io/badge/YouTube-Watch%20Demo-red?logo=youtube)](https://youtu.be/KYYSdxhg1xU)
+
 
 An MCP server that indexes local code into a graph database to provide context to AI assistants.
+
+### Indexing a codebase
+![Indexing using an MCP client](images/Indexing.gif)
+
+### Using the MCP server
+![Using the MCP server](images/Usecase.gif)
 
 ## Project Details
 - **Version:** 0.1.11
