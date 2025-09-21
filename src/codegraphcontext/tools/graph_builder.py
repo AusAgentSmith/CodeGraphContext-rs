@@ -9,21 +9,13 @@ from datetime import datetime
 
 from ..core.database import DatabaseManager
 from ..core.jobs import JobManager, JobStatus
+from ..utils.debug_log import debug_log
 
 logger = logging.getLogger(__name__)
 
 # This is for developers and testers only. It enables detailed debug logging to a file.
 # Set to 1 to enable, 0 to disable.
 debug_mode = 0
-
-def debug_log(message):
-    """Write debug message to a file"""
-    debug_file = os.path.expanduser("~/mcp_debug.log")
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with open(debug_file, "a") as f:
-        f.write(f"[{timestamp}] {message}\n")
-        f.flush()
-
 
 class CyclomaticComplexityVisitor(ast.NodeVisitor):
     """Calculates cyclomatic complexity for a given AST node."""

@@ -8,12 +8,10 @@ from neo4j.exceptions import CypherSyntaxError
 
 from ..core.database import DatabaseManager
 from ..core.jobs import JobManager, JobStatus
+from ..utils.debug_log import debug_log
 
 logger = logging.getLogger(__name__)
 
-def debug_log(message):
-    # This helper can be moved to a shared utils.py file later
-    ...
 
 class SystemTools:
     """Handles system-level tools like job management and direct DB queries."""
