@@ -13,15 +13,9 @@ import stdlibs
 import os
 from datetime import datetime
 
-logger = logging.getLogger(__name__)
+from ..utils.debug_log import debug_log
 
-def debug_log(message):
-    """Write debug message to a file for development and testing."""
-    debug_file = os.path.expanduser("~/mcp_debug.log")
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with open(debug_file, "a") as f:
-        f.write(f"[{timestamp}] {message}\n")
-        f.flush()
+logger = logging.getLogger(__name__)
 
 class ImportExtractor:
     """

@@ -22,17 +22,9 @@ from .core.watcher import CodeWatcher
 from .tools.graph_builder import GraphBuilder
 from .tools.code_finder import CodeFinder
 from .tools.import_extractor import ImportExtractor
-
+from .utils.debug_log import debug_log
 
 logger = logging.getLogger(__name__)
-
-def debug_log(message):
-    """Write debug message to a file for development and testing."""
-    debug_file = os.path.expanduser("~/mcp_debug.log")
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with open(debug_file, "a") as f:
-        f.write(f"[{timestamp}] {message}\n")
-        f.flush()
 
 class MCPServer:
     """
