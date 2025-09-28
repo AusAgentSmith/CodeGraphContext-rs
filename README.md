@@ -6,7 +6,7 @@
 [![License](https://img.shields.io/github/license/Shashankss1205/CodeGraphContext)](LICENSE)
 [![Website](https://img.shields.io/badge/website-up-brightgreen)](http://codegraphcontext.vercel.app/)
 [![Watch on YouTube](https://img.shields.io/badge/YouTube-Watch%20Demo-red?logo=youtube)](https://youtu.be/KYYSdxhg1xU)
-
+[![Join Discord](https://img.shields.io/badge/Discord-Join%20Chat-7289da?logo=discord&logoColor=white)](https://discord.gg/dR4QY32uYQ)
 
 An MCP server that indexes local code into a graph database to provide context to AI assistants.
 
