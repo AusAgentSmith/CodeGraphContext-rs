@@ -374,11 +374,16 @@ def setup_local_db():
     ]
     result = prompt(questions)
     local_method = result.get("local_method")
-    
+
     if local_method and "Docker" in local_method:
         setup_docker()
     elif local_method:
-        setup_local_binary()
+        if platform.system() == "Darwin":
+            # lazy import to avoid circular import
+            from .setup_macos import setup_macos_binary
+            setup_macos_binary(console, prompt, run_command, _generate_mcp_json)
+        else:
+            setup_local_binary()
 
 def setup_docker():
     """Creates Docker files and runs docker-compose for Neo4j."""
