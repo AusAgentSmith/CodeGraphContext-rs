@@ -8,6 +8,7 @@ import time
 import json
 import sys
 import shutil
+import yaml 
 
 console = Console()
 
@@ -71,6 +72,16 @@ def _generate_mcp_json(creds):
     console.print(f"[cyan]Neo4j credentials also saved to: {env_file}[/cyan]")
     _configure_ide(mcp_config)
 
+def convert_mcp_json_to_yaml():
+    json_path = Path.cwd() / "mcp.json"
+    yaml_path = Path.cwd() / "devfile.yaml"
+    if json_path.exists():
+        with open(json_path, "r") as json_file:
+            mcp_config = json.load(json_file)
+        with open(yaml_path, "w") as yaml_file:
+            yaml.dump(mcp_config, yaml_file, default_flow_style=False)
+        console.print(f"[green]Generated devfile.yaml for Amazon Q Developer at {yaml_path}[/green]")
+
 def _configure_ide(mcp_config):
     """Asks user for their IDE and configures it automatically."""
     questions = [
@@ -103,6 +114,10 @@ def _configure_ide(mcp_config):
 
     if ide_choice in ["VS Code", "Cursor", "Claude code", "Gemini CLI" , "Cline", "Windsurf", "RooCode", "Amazon Q Developer"]:
         console.print(f"\n[bold cyan]Configuring for {ide_choice}...[/bold cyan]")
+
+        if ide_choice == "Amazon Q Developer":
+            convert_mcp_json_to_yaml()
+            return  
         
         config_paths = {
             "VS Code": [
