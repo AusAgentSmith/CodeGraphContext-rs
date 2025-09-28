@@ -32,3 +32,6 @@ htmlcov/
 
 # MCP
 mcp.json
+
+# Docker
+docker-compose.yml 
