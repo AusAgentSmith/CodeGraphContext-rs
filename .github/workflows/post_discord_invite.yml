@@ -1,0 +1,23 @@
+name: Post Discord Invite on Issue
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  post_discord_invite:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post Discord Invite
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const issue_number = context.payload.issue.number;
+            const discord_link = "https://discord.gg/dR4QY32uYQ";
+            await github.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number,
+              body: `Hi! 👋 Join our CodeGraphContext Discord channel to collaborate: ${discord_link}`
+            });
