@@ -22,6 +22,9 @@ An MCP server that indexes local code into a graph database to provide context t
 - **License:** MIT License (See [LICENSE](LICENSE) for details)
 - **Website:** [CodeGraphContext](http://codegraphcontext.vercel.app/)
 
+## Star History
+[![Star History Chart](https://api.star-history.com/svg?repos=Shashankss1205/CodeGraphContext&type=Date)](https://www.star-history.com/#Shashankss1205/CodeGraphContext&Date)
+
 ## Features
 
 -   **Code Indexing:** Analyzes Python code and builds a knowledge graph of its components.
