@@ -1,5 +1,9 @@
 name: Post Discord Invite on Issue or PR
 
+permissions:
+  issues: write
+  pull-requests: write
+
 on:
   issues:
     types: [opened]
@@ -17,7 +21,6 @@ jobs:
           script: |
             const discord_link = "https://discord.gg/dR4QY32uYQ";
 
-            // Determine issue/PR number
             let number;
             if (context.payload.issue) {
               number = context.payload.issue.number;
@@ -28,7 +31,8 @@ jobs:
               return;
             }
 
-            // Post the comment
+            console.log("Detected issue/PR number:", number);
+
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
