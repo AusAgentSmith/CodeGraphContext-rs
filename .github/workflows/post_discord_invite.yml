@@ -15,10 +15,21 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            // Determine if it's an issue or PR
-            const number = context.payload.issue ? context.payload.issue.number : context.payload.pull_request.number;
             const discord_link = "https://discord.gg/dR4QY32uYQ";
-            await github.issues.createComment({
+
+            // Determine issue/PR number
+            let number;
+            if (context.payload.issue) {
+              number = context.payload.issue.number;
+            } else if (context.payload.pull_request) {
+              number = context.payload.pull_request.number;
+            } else {
+              console.log("No issue or PR found. Exiting.");
+              return;
+            }
+
+            // Post the comment
+            await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: number,
