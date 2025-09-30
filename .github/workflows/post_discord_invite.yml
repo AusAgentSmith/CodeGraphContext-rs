@@ -1,23 +1,26 @@
-name: Post Discord Invite on Issue
+name: Post Discord Invite on Issue or PR
 
 on:
   issues:
+    types: [opened]
+  pull_request:
     types: [opened]
 
 jobs:
   post_discord_invite:
     runs-on: ubuntu-latest
     steps:
-      - name: Post Discord Invite
+      - name: Post Discord Invite Comment
         uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const issue_number = context.payload.issue.number;
+            // Determine if it's an issue or PR
+            const number = context.payload.issue ? context.payload.issue.number : context.payload.pull_request.number;
             const discord_link = "https://discord.gg/dR4QY32uYQ";
             await github.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number,
+              issue_number: number,
               body: `Hi! 👋 Join our CodeGraphContext Discord channel to collaborate: ${discord_link}`
             });
