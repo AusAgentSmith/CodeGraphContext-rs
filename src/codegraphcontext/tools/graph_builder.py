@@ -1136,7 +1136,7 @@ class GraphBuilder:
 
                 self.job_manager.update_job(
 
-                    job_id, status=JobStatus.FAILED, end_time=datetime.now(), errors=[error_message]
+                    job_id, status=status, end_time=datetime.now(), errors=[error_message]
                 )
 
     def add_code_to_graph_tool(
