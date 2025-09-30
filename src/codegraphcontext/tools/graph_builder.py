@@ -1127,7 +1127,7 @@ class GraphBuilder:
             error_message=str(e)
             logger.error(f"Failed to build graph for path {path}: {error_message}", exc_info=True)
             if job_id:
-                '''checking if the repo has been deleted or not'''
+                '''checking if the repo got deleted '''
                 if "no such file found" in error_message or "deleted" in error_message or "not found" in error_message:
                     status=JobStatus.CANCELLED
                     
