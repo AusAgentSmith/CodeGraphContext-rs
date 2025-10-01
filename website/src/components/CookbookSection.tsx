@@ -152,10 +152,14 @@ const CookbookSection = () => {
     }
   ];
 
-  const ExampleCard = ({ example, isOpen, onToggle }: { 
-    example: any, 
-    isOpen: boolean, 
-    onToggle: () => void 
+  const ExampleCard = ({
+    example,
+    isOpen,
+    onToggle,
+  }: {
+    example: any;
+    isOpen: boolean;
+    onToggle: () => void;
   }) => (
     <Collapsible open={isOpen} onOpenChange={onToggle}>
       <CollapsibleTrigger asChild>
@@ -170,23 +174,29 @@ const CookbookSection = () => {
                   {example.description}
                 </p>
               </div>
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary" className="text-xs">
-                  {example.tool}
-                </Badge>
-                <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+              <div className="flex items-center gap-2 self-start sm:self-auto">
+                <div className="flex items-center gap-1 bg-secondary text-secondary-foreground px-2 py-1 rounded-md text-xs">
+                  <span>{example.tool}</span>
+                  <ChevronDown
+                    className={`h-3.5 w-3.5 transition-transform ${
+                      isOpen ? "rotate-180" : ""
+                    }`}
+                  />
+                </div>
               </div>
             </div>
           </CardHeader>
         </Card>
       </CollapsibleTrigger>
-      
+
       <CollapsibleContent>
         <Card className="mt-2 border border-border/30 bg-muted/20">
           <CardContent className="p-4">
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-muted-foreground">JSON Arguments:</span>
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <span className="text-sm font-medium text-muted-foreground">
+                  JSON Arguments:
+                </span>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -197,7 +207,9 @@ const CookbookSection = () => {
                 </Button>
               </div>
               <pre className="bg-muted/50 rounded-md p-3 text-sm overflow-x-auto border border-border/30">
-                <code className="text-foreground">{example.args}</code>
+                <code className="text-foreground break-words">
+                  {example.args}
+                </code>
               </pre>
             </div>
           </CardContent>
