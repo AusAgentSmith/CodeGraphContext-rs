@@ -10,7 +10,7 @@ The `find_code` tool allows users to search for code snippets, functions, classe
 
 Below is a demo video showcasing the usage of the `find_code` tool in action.
 
-<iframe src="https://drive.google.com/file/d/1ojCDIIAwcir9e3jgHHIVC5weZ9nuIQcs/view?usp=drive_link" width="640" height="480" allow="autoplay"></iframe>
+[![Watch the demo video](https://www.perplexity.ai/search/codegraphcontext-https-github-1PyiB4ifQ5CI7aKhoPYN6A#101)](https://drive.google.com/file/d/1ojCDIIAwcir9e3jgHHIVC5weZ9nuIQcs/view?usp=drive_link)
 
 
 
