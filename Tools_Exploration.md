@@ -10,4 +10,14 @@ Below is a demo video showcasing the usage of the `find_code` tool in action.
 
 ---
 
+## watch_directory Tool
 
+The `watch_directory` tool allows users to monitor a specified directory for file changes, additions, or deletions in real-time. It helps developers automate workflows such as triggering scripts, updating indexes, or syncing files whenever changes occur in the directory.
+
+---
+
+## Demo Video
+
+Below is a demo video showcasing the usage of the `watch_directory` tool in a development environment.
+
+[![Watch the demo](./images/tool_images/2.png)](https://drive.google.com/file/d/1OEjcS2iwwymss99zLidbeBjcblferKBX/view?usp=drive_link) 
