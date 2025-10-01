@@ -17,7 +17,7 @@ An MCP server that indexes local code into a graph database to provide context t
 ![Using the MCP server](images/Usecase.gif)
 
 ## Project Details
-- **Version:** 0.1.11
+- **Version:** 0.1.13
 - **Authors:** Shashank Shekhar Singh <shashankshekharsingh1205@gmail.com>
 - **License:** MIT License (See [LICENSE](LICENSE) for details)
 - **Website:** [CodeGraphContext](http://codegraphcontext.vercel.app/)
@@ -52,6 +52,8 @@ If you’re using CodeGraphContext in your project, feel free to open a PR and a
 - `rich>=13.7.0`
 - `inquirerpy>=0.3.4`
 - `python-dotenv>=1.0.0`
+- `tree-sitter==0.20.4`
+- `tree-sitter-languages==1.10.2`
 
 ## Getting Started
 
