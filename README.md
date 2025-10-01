@@ -71,6 +71,7 @@ If you’re using CodeGraphContext in your project, feel free to open a PR and a
     *   Windsurf
     *   Claude
     *   Gemini CLI
+    *   ChatGPT Codex
 
     Upon successful configuration, `cgc setup` will generate and place the necessary configuration files:
     *   It creates an `mcp.json` file in your current directory for reference.

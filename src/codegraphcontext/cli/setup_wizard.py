@@ -87,7 +87,7 @@ def _configure_ide(mcp_config):
     questions = [
         {
             "type": "confirm",
-            "message": "Automatically configure your IDE/CLI (VS Code, Cursor, Windsurf, Claude, Gemini, Cline, RooCode, Amazon Q Developer)?",
+            "message": "Automatically configure your IDE/CLI (VS Code, Cursor, Windsurf, Claude, Gemini, Cline, RooCode, ChatGPT Codex, Amazon Q Developer)?",
             "name": "configure_ide",
             "default": True,
         }
@@ -101,7 +101,7 @@ def _configure_ide(mcp_config):
         {
             "type": "list",
             "message": "Choose your IDE/CLI to configure:",
-            "choices": ["VS Code", "Cursor", "Windsurf", "Claude code", "Gemini CLI", "Cline", "RooCode", "Amazon Q Developer", "None of the above"],
+            "choices": ["VS Code", "Cursor", "Windsurf", "Claude code", "Gemini CLI", "ChatGPT Codex", "Cline", "RooCode", "Amazon Q Developer", "None of the above"],
             "name": "ide_choice",
         }
     ]
@@ -112,7 +112,7 @@ def _configure_ide(mcp_config):
         console.print("\n[cyan]You can add the MCP server manually to your IDE/CLI.[/cyan]")
         return
 
-    if ide_choice in ["VS Code", "Cursor", "Claude code", "Gemini CLI" , "Cline", "Windsurf", "RooCode", "Amazon Q Developer"]:
+    if ide_choice in ["VS Code", "Cursor", "Claude code", "Gemini CLI", "ChatGPT Codex", "Cline", "Windsurf", "RooCode", "Amazon Q Developer"]:
         console.print(f"\n[bold cyan]Configuring for {ide_choice}...[/bold cyan]")
 
         if ide_choice == "Amazon Q Developer":
@@ -144,6 +144,11 @@ def _configure_ide(mcp_config):
             ],
             "Gemini CLI": [
                 Path.home() / ".gemini" / "settings.json"
+            ],
+            "ChatGPT Codex": [
+                Path.home() / ".openai" / "mcp_settings.json",
+                Path.home() / ".config" / "openai" / "settings.json",
+                Path.home() / "AppData" / "Roaming" / "OpenAI" / "settings.json"
             ],
             "Cline": [
                 Path.home() / ".config" / "Code" / "User" / "globalStorage" / "saoudrizwan.claude-dev" / "settings" / "cline_mcp_settings.json",
