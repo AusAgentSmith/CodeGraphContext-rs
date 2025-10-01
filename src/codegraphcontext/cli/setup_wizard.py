@@ -101,7 +101,7 @@ def _configure_ide(mcp_config):
         {
             "type": "list",
             "message": "Choose your IDE/CLI to configure:",
-            "choices": ["VS Code", "Cursor", "Windsurf", "Claude code", "Gemini CLI", "ChatGPT Codex", "Cline", "RooCode", "Amazon Q Developer", "None of the above"],
+            "choices": ["VS Code", "Cursor", "Windsurf", "Claude code", "Gemini CLI", "ChatGPT Codex", "Cline", "RooCode", "Amazon Q Developer", "JetBrainsAI" , "None of the above"],
             "name": "ide_choice",
         }
     ]
@@ -112,7 +112,7 @@ def _configure_ide(mcp_config):
         console.print("\n[cyan]You can add the MCP server manually to your IDE/CLI.[/cyan]")
         return
 
-    if ide_choice in ["VS Code", "Cursor", "Claude code", "Gemini CLI", "ChatGPT Codex", "Cline", "Windsurf", "RooCode", "Amazon Q Developer"]:
+    if ide_choice in ["VS Code", "Cursor", "Claude code", "Gemini CLI", "ChatGPT Codex", "Cline", "Windsurf", "RooCode", "Amazon Q Developer , JetBrainsAI"]:
         console.print(f"\n[bold cyan]Configuring for {ide_choice}...[/bold cyan]")
 
         if ide_choice == "Amazon Q Developer":
@@ -155,6 +155,12 @@ def _configure_ide(mcp_config):
                 Path.home() / ".config" / "Code - OSS" / "User" / "globalStorage" / "saoudrizwan.claude-dev" / "settings" / "cline_mcp_settings.json",
                 Path.home() / "Library" / "Application Support" / "Code" / "User" / "globalStorage" / "saoudrizwan.claude-dev" / "settings" / "cline_mcp_settings.json",
                 Path.home() / "AppData" / "Roaming" / "Code" / "User" / "globalStorage" / "saoudrizwan.claude-dev" / "settings" / "cline_mcp_settings.json"
+            ],
+            "JetBrainsAI": [
+                Path.home() / ".config" / "Code" / "User" / "globalStorage" / "jetbrains.jetbrains-ai-assistant",
+                Path.home() / ".config" / "Code - OSS" / "User" / "globalStorage" / "jetbrains.jetbrains-ai-assistant/",
+                Path.home() / "Library" / "Application Support" / "Code" / "User" / "globalStorage" / "jetbrains.jetbrains-ai-assistant/",
+                Path.home() / "AppData" / "Roaming" / "Code" / "User" / "globalStorage" / "jetbrains.jetbrains-ai-assistant/",
             ],
             "RooCode": [
                 Path.home() / ".config" / "Code" / "User" / "settings.json",   # Linux 
