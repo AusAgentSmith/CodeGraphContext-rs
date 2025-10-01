@@ -3,6 +3,8 @@ import { Badge } from "@/components/ui/badge";
 import { Github, Download, ExternalLink } from "lucide-react";
 import heroGraph from "@/assets/hero-graph.jpg";
 import { useState, useEffect } from "react";
+import ShowDownloads from "./ShowDownloads";
+import ShowStarGraph from "./ShowStarGraph";
 
 const HeroSection = () => {
   const [stars, setStars] = useState(null);
@@ -77,7 +79,7 @@ const HeroSection = () => {
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 bg-graph-node-3 rounded-full animate-graph-pulse" style={{animationDelay: '1s'}} />
-              <span>Python 3.8+</span>
+              <span><ShowDownloads /></span>
             </div>
           </div>
         </div>
