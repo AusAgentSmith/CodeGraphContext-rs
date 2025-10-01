@@ -19,10 +19,8 @@ From the repository root (`CodeGraphContext/`):
 ```powershell
 py -3.11 -m venv venv
 .\venv\Scripts\python.exe -m pip install --upgrade pip
-.\venv\Scripts\python.exe -m pip install -e ".[dev]"
 ```
 
-- These commands install CodeGraphContext in editable mode and pull in dev tools like `pytest`.
 - On Windows, Neo4j driver 6.x can crash with `AttributeError: socket.EAI_ADDRFAMILY`. If you see that, run:
   ```powershell
   .\venv\Scripts\python.exe -m pip install "neo4j<6"
