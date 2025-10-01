@@ -17,7 +17,7 @@ export default function ShowDownloads() {
   useEffect(() => {
     async function fetchStats() {
       try {
-        const res = await fetch("https://pypistats.org/api/packages/codegraphcontext/recent");
+        const res = await fetch("/api/pypi/packages/codegraphcontext/recent");
 
         if (!res.ok) {
           throw new Error(`API error: ${res.status}`);
