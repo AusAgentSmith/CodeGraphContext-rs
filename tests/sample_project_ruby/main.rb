@@ -5,7 +5,7 @@ require_relative 'mixins_example'
 
 puts "=== Ruby Sample Project ==="
 
-greeter = Greeter.new("Pablo")
+greeter = Greeter.new("Name")
 puts greeter.greet
 
 dog = Dog.new("Rex")

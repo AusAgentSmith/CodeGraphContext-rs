@@ -11,5 +11,5 @@ class DynamicGreeter
 end
 
 dg = DynamicGreeter.new
-puts dg.hello("Pablo")
+puts dg.hello("Name")
 puts dg.foobar("X")
