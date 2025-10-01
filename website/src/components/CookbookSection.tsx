@@ -160,9 +160,9 @@ const CookbookSection = () => {
     <Collapsible open={isOpen} onOpenChange={onToggle}>
       <CollapsibleTrigger asChild>
         <Card className="cursor-pointer hover:bg-muted/30 transition-all duration-200 border border-border/50">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div>
+          <CardHeader>
+            <div className="flex flex-col-reverse gap-5 md:gap-0 md:flex-row items-center md:items-start justify-between">
+              <div className="text-center md:text-left">
                 <CardTitle className="text-base font-medium text-foreground">
                   {example.title}
                 </CardTitle>
