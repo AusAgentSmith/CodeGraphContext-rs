@@ -7,7 +7,28 @@ import { useState, useEffect } from "react";
 const HeroSection = () => {
   const [stars, setStars] = useState(null);
   const [forks, setForks] = useState(null);
+   const [version, setVersion] = useState("");
+  useEffect(() => {
+    async function fetchVersion() {
+      try {
+        const res = await fetch(
+          "https://raw.githubusercontent.com/Shashankss1205/CodeGraphContext/main/README.md"
+        );
+        if (!res.ok) throw new Error("Failed to fetch README");
 
+        const text = await res.text();
+        const match = text.match(
+          /\*\*Version:\*\*\s*([0-9]+\.[0-9]+\.[0-9]+)/i
+        );
+        setVersion(match ? match[1] : "N/A");
+      } catch (err) {
+        console.error(err);
+        setVersion("N/A");
+      }
+    }
+
+    fetchVersion();
+  }, []);
   useEffect(() => {
     fetch("https://api.github.com/repos/Shashankss1205/CodeGraphContext")
       .then((response) => response.json())
@@ -34,7 +55,7 @@ const HeroSection = () => {
         <div className="animate-float-up">
           <Badge variant="secondary" className="mb-6 text-sm font-medium">
             <div className="w-2 h-2 bg-accent rounded-full mr-2 animate-graph-pulse" />
-            Version 0.1.10 • MIT License
+            Version {version} • MIT License
           </Badge>
           
           <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold mb-6 bg-gradient-primary bg-clip-text text-transparent leading-tight">
