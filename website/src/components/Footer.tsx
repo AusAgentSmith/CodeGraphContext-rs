@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Github, ExternalLink, Mail, MapPin, Phone } from "lucide-react";
+import { FaDiscord } from "react-icons/fa";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -58,6 +59,16 @@ const Footer = () => {
                   >
                     <Github className="h-4 w-4 mr-2" />
                     GitHub
+                  </a>
+                </Button>
+                <Button variant="outline" size="sm" asChild>
+                  <a
+                    href="https://discord.com/invite/dR4QY32uYQ"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <FaDiscord className="h-4 w-4 mr-2" />
+                    Discord
                   </a>
                 </Button>
                 <Button variant="outline" size="sm" asChild>
