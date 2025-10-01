@@ -8,10 +8,10 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 8080,
     proxy: {
-      "/pypi": {
+      "/api/pypi": {
         target: "https://pypistats.org",
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/pypi/, ""),
+        rewrite: (path) => path.replace(/^\/api\/pypi/, "/api"),
       },
     },
   },
