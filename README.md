@@ -68,6 +68,7 @@ If you’re using CodeGraphContext in your project, feel free to open a PR and a
     After setting up your database, the wizard will ask to configure your development environment. It can automatically detect and configure the following:
     *   VS Code
     *   Cursor
+    *   Windsurf
     *   Claude
     *   Gemini CLI
 
