@@ -76,7 +76,7 @@ def _configure_ide(mcp_config):
     questions = [
         {
             "type": "confirm",
-            "message": "Automatically configure your IDE/CLI (VS Code, Cursor, Claude, Gemini , Cline)?",
+            "message": "Automatically configure your IDE/CLI (VS Code, Cursor, Windsurf, Claude, Gemini, Cline)?",
             "name": "configure_ide",
             "default": True,
         }
@@ -90,7 +90,7 @@ def _configure_ide(mcp_config):
         {
             "type": "list",
             "message": "Choose your IDE/CLI to configure:",
-            "choices": ["VS Code", "Cursor", "Claude code", "Gemini CLI", "Cline", "None of the above"],
+            "choices": ["VS Code", "Cursor", "Windsurf", "Claude code", "Gemini CLI", "Cline", "None of the above"],
             "name": "ide_choice",
         }
     ]
@@ -101,7 +101,7 @@ def _configure_ide(mcp_config):
         console.print("\n[cyan]You can add the MCP server manually to your IDE/CLI.[/cyan]")
         return
 
-    if ide_choice in ["VS Code", "Cursor", "Claude code", "Gemini CLI" , "Cline"]:
+    if ide_choice in ["VS Code", "Cursor", "Claude code", "Gemini CLI" , "Cline", "Windsurf"]:
         console.print(f"\n[bold cyan]Configuring for {ide_choice}...[/bold cyan]")
         
         config_paths = {
@@ -116,6 +116,13 @@ def _configure_ide(mcp_config):
                 Path.home() / "Library" / "Application Support" / "cursor" / "settings.json",
                 Path.home() / "AppData" / "Roaming" / "cursor" / "settings.json",
                 Path.home() / ".config" / "Cursor" / "User" / "settings.json",
+            ],
+            "Windsurf": [
+                Path.home() / ".windsurf" / "settings.json",
+                Path.home() / ".config" / "windsurf" / "settings.json",
+                Path.home() / "Library" / "Application Support" / "windsurf" / "settings.json",
+                Path.home() / "AppData" / "Roaming" / "windsurf" / "settings.json",
+                Path.home() / ".config" / "Windsurf" / "User" / "settings.json",
             ],
             "Claude code": [
                 Path.home() / ".claude.json"
