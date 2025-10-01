@@ -3,11 +3,17 @@ import { Github, ExternalLink, Mail, MapPin, Phone } from "lucide-react";
 import { FaDiscord } from "react-icons/fa";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY
+);
 
 const Footer = () => {
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-   const [version, setVersion] = useState("");
+  const [version, setVersion] = useState("");
   useEffect(() => {
     async function fetchVersion() {
       try {
@@ -45,10 +51,23 @@ const Footer = () => {
     setIsLoading(true);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      toast.success("Thank you for subscribing to our newsletter!");
-      setEmail("");
-    } catch (error) {
+      const { data, error } = await supabase
+        .from("subscribers")
+        .insert([{ email }]);
+
+      if (error) {
+        if (error.code === "23505") {
+          // Duplicate email
+          toast("You are already subscribed!");
+        } else {
+          toast.error(error.message);
+        }
+      } else {
+        toast.success("Thank you for subscribing to our newsletter!");
+        setEmail("");
+      }
+    } catch (err) {
+      console.error(err);
       toast.error("Failed to subscribe. Please try again later.");
     } finally {
       setIsLoading(false);
