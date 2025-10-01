@@ -10,7 +10,7 @@ The `find_code` tool allows users to search for code snippets, functions, classe
 
 Below is a demo video showcasing the usage of the `find_code` tool in action.
 
-[![Watch the demo video](https://drive.google.com/file/d/1LG_csXN9q4SQG9FJz05XzMVMTPGikk0D/view?usp=drive_link)](https://drive.google.com/file/d/1ojCDIIAwcir9e3jgHHIVC5weZ9nuIQcs/view?usp=drive_link)
+[![Watch the demo video](./images/tool_images/1.png)](https://drive.google.com/file/d/1ojCDIIAwcir9e3jgHHIVC5weZ9nuIQcs/view?usp=drive_link)
 
 
 
