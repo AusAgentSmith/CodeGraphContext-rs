@@ -15,6 +15,7 @@ export default function ShowStarGraph() {
   
   // Add cache busting parameter to force updates
   const starHistoryImageUrl = `${baseStarHistoryImageUrl}&t=${refreshKey}`;
+  const starHistoryDarkImageUrl = `${baseStarHistoryImageUrl}&theme=dark&t=${refreshKey}`;
   
   const githubRepoUrl = "https://github.com/Shashankss1205/CodeGraphContext";
   const starHistoryUrl =
@@ -107,16 +108,19 @@ export default function ShowStarGraph() {
                   </div>
                 )}
 
-                <img
-                  src={starHistoryImageUrl}
-                  alt="CodeGraphContext Star History"
-                  className={`w-full h-auto rounded-lg transition-opacity duration-300 ${
-                    imageLoaded && !isRefreshing ? "opacity-100" : "opacity-0 absolute inset-0"
-                  } ${imageError ? "hidden" : "block"}`}
-                  onLoad={handleImageLoad}
-                  onError={handleImageError}
-                  key={refreshKey}
-                />
+                <picture key={refreshKey}>
+                  <source media="(prefers-color-scheme: dark)" srcSet={starHistoryDarkImageUrl} />
+                  <source media="(prefers-color-scheme: light)" srcSet={starHistoryImageUrl} />
+                  <img
+                    src={starHistoryImageUrl}
+                    alt="CodeGraphContext Star History"
+                    className={`w-full h-auto rounded-lg transition-opacity duration-300 ${
+                      imageLoaded && !isRefreshing ? "opacity-100" : "opacity-0 absolute inset-0"
+                    } ${imageError ? "hidden" : "block"}`}
+                    onLoad={handleImageLoad}
+                    onError={handleImageError}
+                  />
+                </picture>
               </div>
 
               {imageLoaded && !isRefreshing && (
