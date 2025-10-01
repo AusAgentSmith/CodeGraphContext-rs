@@ -8,6 +8,9 @@ env/
 venv/
 .venv/
 ./.env
+.venv311/
+venv311/
+docker-compose.yml
 
 # PyPI
 dist/
