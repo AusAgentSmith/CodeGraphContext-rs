@@ -190,6 +190,6 @@ Once the server is running, you can interact with it through your AI assistant u
 
 Contributions are welcome! 🎉  
 Please see our [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
-If you have ideas for new features, integrations, or improvements, open an [issue](https://github.com/Shashankss1205/CodeGraphContext/issues) or submit a PR.
+If you have ideas for new features, integrations, or improvements, open an [issue](https://github.com/Shashankss1205/CodeGraphContext/issues) or submit a Pull Request.
 
 Join discussions and help shape the future of CodeGraphContext.
