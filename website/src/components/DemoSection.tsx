@@ -33,7 +33,7 @@ const DemoSection = () => {
     <section className="py-20 px-4 bg-gradient-to-b from-background to-secondary/10">
       <div className="container mx-auto max-w-7xl">
         <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-primary via-primary to-accent bg-clip-text text-transparent">
+          <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-primary via-primary to-accent bg-clip-text text-transparent">
             See CodeGraphContext in Action
           </h2>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-12">
