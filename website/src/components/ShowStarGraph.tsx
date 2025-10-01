@@ -1,15 +1,21 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Star, TrendingUp } from "lucide-react";
-import { useState } from "react";
+import { ExternalLink, Star, TrendingUp, RefreshCw } from "lucide-react";
+import { useState, useCallback } from "react";
 
 export default function ShowStarGraph() {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const starHistoryImageUrl =
+  const baseStarHistoryImageUrl =
     "https://api.star-history.com/svg?repos=Shashankss1205/CodeGraphContext&type=Date";
+  
+  // Add cache busting parameter to force updates
+  const starHistoryImageUrl = `${baseStarHistoryImageUrl}&t=${refreshKey}`;
+  
   const githubRepoUrl = "https://github.com/Shashankss1205/CodeGraphContext";
   const starHistoryUrl =
     "https://star-history.com/#Shashankss1205/CodeGraphContext&Date";
@@ -17,12 +23,21 @@ export default function ShowStarGraph() {
   const handleImageLoad = () => {
     setImageLoaded(true);
     setImageError(false);
+    setIsRefreshing(false);
   };
 
   const handleImageError = () => {
     setImageError(true);
     setImageLoaded(false);
+    setIsRefreshing(false);
   };
+
+  const handleRefresh = useCallback(() => {
+    setIsRefreshing(true);
+    setImageLoaded(false);
+    setImageError(false);
+    setRefreshKey(prev => prev + 1);
+  }, []);
 
   return (
     <>
@@ -50,16 +65,25 @@ export default function ShowStarGraph() {
                 <Badge variant="outline" className="ml-2">
                   Updated Daily
                 </Badge>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                  className="ml-2 h-8 w-8 p-0"
+                >
+                  <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                </Button>
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6">
               <div className="relative">
-                {!imageLoaded && !imageError && (
+                {(!imageLoaded && !imageError) || isRefreshing && (
                   <div className="w-full h-64 bg-muted rounded-lg flex items-center justify-center">
                     <div className="text-center">
                       <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-2"></div>
                       <p className="text-muted-foreground">
-                        Loading star history...
+                        {isRefreshing ? 'Refreshing star history...' : 'Loading star history...'}
                       </p>
                     </div>
                   </div>
@@ -87,14 +111,15 @@ export default function ShowStarGraph() {
                   src={starHistoryImageUrl}
                   alt="CodeGraphContext Star History"
                   className={`w-full h-auto rounded-lg transition-opacity duration-300 ${
-                    imageLoaded ? "opacity-100" : "opacity-0 absolute inset-0"
+                    imageLoaded && !isRefreshing ? "opacity-100" : "opacity-0 absolute inset-0"
                   } ${imageError ? "hidden" : "block"}`}
                   onLoad={handleImageLoad}
                   onError={handleImageError}
+                  key={refreshKey}
                 />
               </div>
 
-              {imageLoaded && (
+              {imageLoaded && !isRefreshing && (
                 <div className="mt-6 flex flex-col sm:flex-row gap-4 justify-center items-center">
                   <Button
                     variant="outline"
@@ -114,6 +139,16 @@ export default function ShowStarGraph() {
                     <TrendingUp className="h-4 w-4" />
                     View Full History
                     <ExternalLink className="h-4 w-4" />
+                  </Button>
+
+                  <Button
+                    variant="secondary"
+                    onClick={handleRefresh}
+                    disabled={isRefreshing}
+                    className="flex items-center gap-2"
+                  >
+                    <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                    Refresh Graph
                   </Button>
                 </div>
               )}
