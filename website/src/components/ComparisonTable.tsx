@@ -247,7 +247,7 @@ export default function ComparisonTable() {
                             Cursor
                           </motion.span>
                         </th>
-                        <th className="p-4 sm:p-6 text-center font-bold text-primary text-sm sm:text-base min-w-[140px] relative">
+                        <th className="p-4 sm:p-6 text-center font-bold text-foreground text-sm sm:text-base min-w-[140px] relative">
                           <motion.span
                             initial={{ opacity: 0, y: -20 }}
                             animate={isInView ? { opacity: 1, y: 0 } : {}}
@@ -318,14 +318,14 @@ export default function ComparisonTable() {
                                 text={row.cgc.text}
                               />
                             </div>
-                            {row.cgc.status === "good" && (
+                            {/* {row.cgc.status === "good" && (
                               <motion.div
                                 className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-lg"
                                 initial={{ opacity: 0 }}
                                 whileHover={{ opacity: 1 }}
                                 transition={{ duration: 0.3 }}
                               />
-                            )}
+                            )} */}
                           </td>
                         </motion.tr>
                       ))}
