@@ -176,13 +176,13 @@ This cookbook provides examples of how to use the `mcp` tool to query and unders
 ![Query 13](../images/13.png)
 
 ### 14. Find functions by argument name
-- **Natural Language:** "Find all functions that take `request` as an argument."
+- **Natural Language:** "Find all functions that take `self` as an argument."
 - **Tool:** `analyze_code_relationships`
 - **JSON Arguments:**
   ```json
   {
     "query_type": "find_functions_by_argument",
-    "target": "request"
+    "target": "self"
   }
   ```
 
