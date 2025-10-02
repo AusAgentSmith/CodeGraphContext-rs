@@ -352,15 +352,7 @@ export default function ComparisonTable() {
             >
               Experience the power of graph-based code understanding
             </motion.p>
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              transition={{ type: "spring", stiffness: 400, damping: 17 }}
-            >
-              <button className="bg-gradient-to-r from-primary to-accent text-white px-6 py-3 rounded-2xl font-semibold text-base shadow-2xl shadow-primary/25 hover:shadow-primary/40 transition-all duration-300">
-                Get Started Today
-              </button>
-            </motion.div>
+            
           </motion.div>
         </AnimatedCard>
       </div>
