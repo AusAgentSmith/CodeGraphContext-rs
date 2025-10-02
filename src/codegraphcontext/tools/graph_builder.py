@@ -209,18 +209,38 @@ class GraphBuilder:
                     """, context=item["context"], file_path=file_path_str, name=item["name"], line_number=item["line_number"])
 
             # Handle imports and create IMPORTS relationships
-            for imp in file_data['imports']:
-                session.run("""
-                    MATCH (f:File {path: $file_path})
-                    MERGE (m:Module {name: $name})
-                    ON CREATE SET m.full_import_name = $full_import_name
-                    ON MATCH SET m.full_import_name = $full_import_name
-                    MERGE (f)-[:IMPORTS {alias: $rel_alias}]->(m)
-                """,
-                file_path=file_path_str,
-                name=imp.get('name'),
-                full_import_name=imp.get('full_import_name', imp.get('name')),
-                rel_alias=imp.get('alias'))
+            for imp in file_data.get('imports', []):
+                logger.info(f"Processing import: {imp}")
+                lang = file_data.get('lang')
+                if lang == 'javascript':
+                    # New, correct logic for JS
+                    module_name = imp.get('source')
+                    if not module_name: continue
+
+                    # Use a map for relationship properties to handle optional alias
+                    rel_props = {'imported_name': imp.get('name', '*')}
+                    if imp.get('alias'):
+                        rel_props['alias'] = imp.get('alias')
+
+                    session.run("""
+                        MATCH (f:File {path: $file_path})
+                        MERGE (m:Module {name: $module_name})
+                        MERGE (f)-[r:IMPORTS]->(m)
+                        SET r += $props
+                    """, file_path=file_path_str, module_name=module_name, props=rel_props)
+                else:
+                    # Existing logic for Python (and other languages)
+                    set_clauses = ["m.alias = $alias"]
+                    if 'full_import_name' in imp:
+                        set_clauses.append("m.full_import_name = $full_import_name")
+                    set_clause_str = ", ".join(set_clauses)
+
+                    session.run(f"""
+                        MATCH (f:File {{path: $file_path}})
+                        MERGE (m:Module {{name: $name}})
+                        SET {set_clause_str}
+                        MERGE (f)-[:IMPORTS]->(m)
+                    """, file_path=file_path_str, **imp)
 
             # Handle CONTAINS relationship between class to their children like variables
             for func in file_data.get('functions', []):

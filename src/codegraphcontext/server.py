@@ -1,4 +1,5 @@
 # src/codegraphcontext/server.py
+import urllib.parse
 import asyncio
 import json
 import logging
@@ -223,6 +224,17 @@ class MCPServer:
                     },
                     "required": ["repo_path"]
                 }
+            },
+            "visualize_graph_query": {
+                "name": "visualize_graph_query",
+                "description": "Generates a URL to visualize the results of a Cypher query in the Neo4j Browser. The user can open this URL in their web browser to see the graph visualization.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "cypher_query": {"type": "string", "description": "The Cypher query to visualize."}
+                    },
+                    "required": ["cypher_query"]
+                }
             }
         }    
 
@@ -423,6 +435,25 @@ class MCPServer:
         except Exception as e:
             debug_log(f"Error deleting repository: {str(e)}")
             return {"error": f"Failed to delete repository: {str(e)}"}
+
+    def visualize_graph_query_tool(self, **args) -> Dict[str, Any]:
+        """Tool to generate a Neo4j browser visualization URL for a Cypher query."""
+        cypher_query = args.get("cypher_query")
+        if not cypher_query:
+            return {"error": "Cypher query cannot be empty."}
+
+        try:
+            encoded_query = urllib.parse.quote(cypher_query)
+            visualization_url = f"http://localhost:7474/browser/?cmd=edit&arg={encoded_query}"
+            
+            return {
+                "success": True,
+                "visualization_url": visualization_url,
+                "message": "Open the URL in your browser to visualize the graph query. The query will be pre-filled for editing."
+            }
+        except Exception as e:
+            debug_log(f"Error generating visualization URL: {str(e)}")
+            return {"error": f"Failed to generate visualization URL: {str(e)}"}
 
     def watch_directory_tool(self, **args) -> Dict[str, Any]:
         """
@@ -746,7 +777,8 @@ class MCPServer:
             "calculate_cyclomatic_complexity": self.calculate_cyclomatic_complexity_tool,
             "find_most_complex_functions": self.find_most_complex_functions_tool,
             "list_indexed_repositories": self.list_indexed_repositories_tool,
-            "delete_repository": self.delete_repository_tool
+            "delete_repository": self.delete_repository_tool,
+            "visualize_graph_query": self.visualize_graph_query_tool
         }
         handler = tool_map.get(tool_name)
         if handler:
