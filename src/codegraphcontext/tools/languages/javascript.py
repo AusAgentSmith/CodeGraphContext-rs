@@ -344,61 +344,56 @@ class JavascriptTreeSitterParser:
         imports = []
         query = self.queries['imports']
         for node, capture_name in query.captures(root_node):
-            if capture_name == 'import':
-                line_number = node.start_point[0] + 1
-                if node.type == 'import_statement':
-                    source_node = node.child_by_field_name('source')
-                    if not source_node: continue
-                    source = self._get_node_text(source_node).strip('\'"')
+            if capture_name != 'import':
+                continue
 
-                    import_clause = next((c for c in node.children if c.type == 'import_clause'), None)
-                    if not import_clause: # e.g. import "source"
-                        imports.append({"name": source, "full_import_name": source, "alias": source, "line_number": line_number, "context": None, "lang": self.language_name, "is_dependency": False})
-                        continue
-                    
-                    # default import
-                    default_node = next((c for c in import_clause.children if c.type == 'identifier'), None)
-                    if default_node:
-                        alias = self._get_node_text(default_node)
-                        imports.append({"name": "default", "full_import_name": source, "alias": alias, "line_number": line_number, "context": None, "lang": self.language_name, "is_dependency": False})
+            line_number = node.start_point[0] + 1
+            
+            if node.type == 'import_statement':
+                source = self._get_node_text(node.child_by_field_name('source')).strip('\'"')
+                
+                # Look for different import structures
+                import_clause = node.child_by_field_name('import')
+                if not import_clause:
+                    imports.append({'name': source, 'source': source, 'alias': None, 'line_number': line_number, 'lang': self.language_name})
+                    continue
 
-                    # namespace import
-                    namespace_node = next((c for c in import_clause.children if c.type == 'namespace_import'), None)
-                    if namespace_node:
-                        alias_node = None
-                        for child in namespace_node.children:
-                            if child.type == 'identifier':
-                                alias_node = child
-                                break
-                        if alias_node:
-                            alias = self._get_node_text(alias_node)
-                            imports.append({"name": "*", "full_import_name": source, "alias": alias, "line_number": line_number, "context": None, "lang": self.language_name, "is_dependency": False})
-                    
-                    # named imports
-                    named_imports_node = next((c for c in import_clause.children if c.type == 'named_imports'), None)
-                    if named_imports_node:
-                        for specifier in named_imports_node.children:
-                            if specifier.type == 'import_specifier':
-                                name_node = specifier.child_by_field_name('name')
-                                alias_node = specifier.child_by_field_name('alias')
-                                name = self._get_node_text(name_node)
-                                alias = self._get_node_text(alias_node) if alias_node else name
-                                imports.append({"name": name, "full_import_name": f"{source}/{name}", "alias": alias, "line_number": line_number, "context": None, "lang": self.language_name, "is_dependency": False})
+                # Default import: import defaultExport from '...'
+                if import_clause.type == 'identifier':
+                    alias = self._get_node_text(import_clause)
+                    imports.append({'name': 'default', 'source': source, 'alias': alias, 'line_number': line_number, 'lang': self.language_name})
 
-                elif node.type == 'call_expression': # require
-                    args_node = node.child_by_field_name('arguments')
-                    if not args_node or args_node.named_child_count == 0: continue
-                    path_node = args_node.named_child(0)
-                    if not path_node or path_node.type != 'string': continue
-                    path = self._get_node_text(path_node).strip('\'"')
-                    
-                    alias = None
-                    if node.parent.type == 'variable_declarator':
-                        alias_node = node.parent.child_by_field_name('name')
-                        if alias_node:
-                            alias = self._get_node_text(alias_node)
-                    
-                    imports.append({"name": path, "full_import_name": path, "alias": alias if alias else path, "line_number": line_number, "context": None, "lang": self.language_name, "is_dependency": False})
+                # Namespace import: import * as name from '...'
+                elif import_clause.type == 'namespace_import':
+                    alias_node = import_clause.child_by_field_name('alias')
+                    if alias_node:
+                        alias = self._get_node_text(alias_node)
+                        imports.append({'name': '*', 'source': source, 'alias': alias, 'line_number': line_number, 'lang': self.language_name})
+
+                # Named imports: import { name, name as alias } from '...'
+                elif import_clause.type == 'named_imports':
+                    for specifier in import_clause.children:
+                        if specifier.type == 'import_specifier':
+                            name_node = specifier.child_by_field_name('name')
+                            alias_node = specifier.child_by_field_name('alias')
+                            original_name = self._get_node_text(name_node)
+                            alias = self._get_node_text(alias_node) if alias_node else None
+                            imports.append({'name': original_name, 'source': source, 'alias': alias, 'line_number': line_number, 'lang': self.language_name})
+
+            elif node.type == 'call_expression': # require('...')
+                args = node.child_by_field_name('arguments')
+                if not args or args.named_child_count == 0: continue
+                source_node = args.named_child(0)
+                if not source_node or source_node.type != 'string': continue
+                source = self._get_node_text(source_node).strip('\'"')
+                
+                alias = None
+                if node.parent.type == 'variable_declarator':
+                    alias_node = node.parent.child_by_field_name('name')
+                    if alias_node:
+                        alias = self._get_node_text(alias_node)
+                imports.append({'name': source, 'source': source, 'alias': alias, 'line_number': line_number, 'lang': self.language_name})
+
         return imports
 
     def _find_calls(self, root_node):
