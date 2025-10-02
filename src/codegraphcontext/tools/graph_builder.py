@@ -522,8 +522,16 @@ class GraphBuilder:
             if job_id:
                 self.job_manager.update_job(job_id, status=JobStatus.COMPLETED, end_time=datetime.now())
         except Exception as e:
-            logger.error(f"Failed to build graph for path {path}: {e}", exc_info=True)
+            error_message=str(e)
+            logger.error(f"Failed to build graph for path {path}: {error_message}", exc_info=True)
             if job_id:
+                '''checking if the repo got deleted '''
+                if "no such file found" in error_message or "deleted" in error_message or "not found" in error_message:
+                    status=JobStatus.CANCELLED
+                    
+                else:
+                    status=JobStatus.FAILED
+
                 self.job_manager.update_job(
                     job_id, status=JobStatus.FAILED, end_time=datetime.now(), errors=[str(e)]
                 )
