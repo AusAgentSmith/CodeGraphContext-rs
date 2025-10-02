@@ -25,7 +25,7 @@ class RepositoryEventHandler(FileSystemEventHandler):
     to build a baseline and then uses this cached state to perform efficient
     updates when files are changed, created, or deleted.
     """
-    def __init__(self, graph_builder: "GraphBuilder", repo_path: Path, debounce_interval=2.0):
+    def __init__(self, graph_builder: "GraphBuilder", repo_path: Path, debounce_interval=2.0, perform_initial_scan: bool = True):
         """
         Initializes the event handler.
 
@@ -33,6 +33,7 @@ class RepositoryEventHandler(FileSystemEventHandler):
             graph_builder: An instance of the GraphBuilder to perform graph operations.
             repo_path: The absolute path to the repository directory to watch.
             debounce_interval: The time in seconds to wait for more changes before processing an event.
+            perform_initial_scan: Whether to perform an initial scan of the repository.
         """
         super().__init__()
         self.graph_builder = graph_builder
@@ -45,7 +46,8 @@ class RepositoryEventHandler(FileSystemEventHandler):
         self.imports_map = {}
         
         # Perform the initial scan and linking when the watcher is created.
-        self._initial_scan()
+        if perform_initial_scan:
+            self._initial_scan()
 
     def _initial_scan(self):
         """Scans the entire repository, parses all files, and builds the initial graph."""
@@ -82,30 +84,39 @@ class RepositoryEventHandler(FileSystemEventHandler):
     def _handle_modification(self, event_path_str: str):
         """
         Orchestrates the complete update cycle for a modified or created file.
-        This involves updating the graph and then re-linking the relationships.
+        This involves re-scanning the entire repo to update cross-file relationships.
         """
-        logger.info(f"File change detected, starting full update for: {event_path_str}")
+        logger.info(f"File change detected, starting full repository refresh for: {event_path_str}")
         modified_path = Path(event_path_str)
 
-        # 1. Update the specific file in the graph (delete old nodes, create new ones).
-        new_file_data = self.graph_builder.update_file_in_graph(
+        # 1. Get all supported files in the repository.
+        supported_extensions = self.graph_builder.parsers.keys()
+        all_files = [f for f in self.repo_path.rglob("*") if f.is_file() and f.suffix in supported_extensions]
+
+        # 2. Re-scan all files to get a fresh, global map of all symbols.
+        self.imports_map = self.graph_builder._pre_scan_for_imports(all_files)
+        logger.info("Refreshed global imports map.")
+
+        # 3. Update the specific file that changed in the graph.
+        # This deletes old nodes and adds new ones for the single file.
+        self.graph_builder.update_file_in_graph(
             modified_path, self.repo_path, self.imports_map
         )
 
-        if not new_file_data:
-            logger.error(f"Update failed for {event_path_str}, skipping re-link.")
-            return
+        # 4. Re-parse all files to have a complete, in-memory representation for the linking pass.
+        # This is necessary because a change in one file can affect relationships in others.
+        self.all_file_data = []
+        for f in all_files:
+            parsed_data = self.graph_builder.parse_file(self.repo_path, f)
+            if "error" not in parsed_data:
+                self.all_file_data.append(parsed_data)
+        logger.info("Refreshed in-memory cache of all file data.")
 
-        # 2. Update the in-memory cache of the repository's state.
-        self.all_file_data = [d for d in self.all_file_data if d.get("file_path") != event_path_str]
-        if not new_file_data.get("deleted"):
-            self.all_file_data.append(new_file_data)
-
-        # 3. CRITICAL: Re-link the entire graph's call relationships using the updated cache.
-        # This is necessary because a change in one file can affect its relationship with any other file.
-        logger.info("Re-linking the call graph with updated information...")
+        # 5. CRITICAL: Re-link the entire graph using the fully updated cache and imports map.
+        logger.info("Re-linking the entire graph for calls and inheritance...")
         self.graph_builder._create_all_function_calls(self.all_file_data, self.imports_map)
-        logger.info(f"Graph update for {event_path_str} complete! ✅")
+        self.graph_builder._create_all_inheritance_links(self.all_file_data, self.imports_map)
+        logger.info(f"Graph refresh for change in {event_path_str} complete! ✅")
 
     # The following methods are called by the watchdog observer when a file event occurs.
     def on_created(self, event):
@@ -136,8 +147,9 @@ class CodeWatcher:
         self.graph_builder = graph_builder
         self.observer = Observer()
         self.watched_paths = set() # Keep track of paths already being watched.
+        self.watches = {} # Store watch objects to allow unscheduling
 
-    def watch_directory(self, path: str):
+    def watch_directory(self, path: str, perform_initial_scan: bool = True):
         """Schedules a directory to be watched for changes."""
         path_obj = Path(path).resolve()
         path_str = str(path_obj)
@@ -147,13 +159,34 @@ class CodeWatcher:
             return {"message": f"Path already being watched: {path_str}"}
         
         # Create a new, dedicated event handler for this specific repository path.
-        event_handler = RepositoryEventHandler(self.graph_builder, path_obj)
+        event_handler = RepositoryEventHandler(self.graph_builder, path_obj, perform_initial_scan=perform_initial_scan)
         
-        self.observer.schedule(event_handler, path_str, recursive=True)
+        watch = self.observer.schedule(event_handler, path_str, recursive=True)
+        self.watches[path_str] = watch
         self.watched_paths.add(path_str)
         logger.info(f"Started watching for code changes in: {path_str}")
         
-        return {"message": f"Started watching {path_str}. Initial scan is in progress."}
+        return {"message": f"Started watching {path_str}."}
+    def unwatch_directory(self, path: str):
+        """Stops watching a directory for changes."""
+        path_obj = Path(path).resolve()
+        path_str = str(path_obj)
+
+        if path_str not in self.watched_paths:
+            logger.warning(f"Attempted to unwatch a path that is not being watched: {path_str}")
+            return {"error": f"Path not currently being watched: {path_str}"}
+
+        watch = self.watches.pop(path_str, None)
+        if watch:
+            self.observer.unschedule(watch)
+        
+        self.watched_paths.discard(path_str)
+        logger.info(f"Stopped watching for code changes in: {path_str}")
+        return {"message": f"Stopped watching {path_str}."}
+
+    def list_watched_paths(self) -> list:
+        """Returns a list of all currently watched directory paths."""
+        return list(self.watched_paths)
 
     def start(self):
         """Starts the observer thread."""

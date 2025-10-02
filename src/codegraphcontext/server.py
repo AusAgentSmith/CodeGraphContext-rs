@@ -235,6 +235,22 @@ class MCPServer:
                     },
                     "required": ["cypher_query"]
                 }
+            },
+            "list_watched_paths": {
+                "name": "list_watched_paths",
+                "description": "Lists all directories currently being watched for live file changes.",
+                "inputSchema": {"type": "object", "properties": {}}
+            },
+            "unwatch_directory": {
+                "name": "unwatch_directory",
+                "description": "Stops watching a directory for live file changes.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {"type": "string", "description": "The absolute path of the directory to stop watching."}
+                    },
+                    "required": ["path"]
+                }
             }
         }    
 
@@ -455,40 +471,74 @@ class MCPServer:
             debug_log(f"Error generating visualization URL: {str(e)}")
             return {"error": f"Failed to generate visualization URL: {str(e)}"}
 
+    def list_watched_paths_tool(self, **args) -> Dict[str, Any]:
+        """Tool to list all currently watched directory paths."""
+        try:
+            paths = self.code_watcher.list_watched_paths()
+            return {"success": True, "watched_paths": paths}
+        except Exception as e:
+            return {"error": f"Failed to list watched paths: {str(e)}"}
+
+    def unwatch_directory_tool(self, **args) -> Dict[str, Any]:
+        """Tool to stop watching a directory."""
+        path = args.get("path")
+        if not path:
+            return {"error": "Path is a required argument."}
+        # The watcher class handles the logic of checking if the path is watched
+        # and returns an error dictionary if not, so we can just call it.
+        return self.code_watcher.unwatch_directory(path)
+
     def watch_directory_tool(self, **args) -> Dict[str, Any]:
         """
         Tool implementation to start watching a directory for changes.
-
-        This process involves two steps:
-        1. Kicking off a background job to do an initial scan of the directory.
-        2. Starting the file watcher to catch live changes.
+        This tool is now smart: it checks if the path exists and if it has already been indexed.
         """
         path = args.get("path")
-        if not path or not Path(path).is_dir():
-            return {"error": f"Invalid path provided: {path}. Must be a directory."}
+        if not path:
+            return {"error": "Path is a required argument."}
+
+        path_obj = Path(path).resolve()
+        path_str = str(path_obj)
+
+        # 1. Validate the path before the try...except block
+        if not path_obj.is_dir():
+            return {"error": f"Invalid path provided: '{path_str}'. Path must be an existing directory."}
 
         try:
-            # First, ensure the code is added/scanned by calling the appropriate tool.
-            scan_job_result = self.add_code_to_graph_tool(path=path, is_dependency=False)
-            if "error" in scan_job_result:
-                return scan_job_result
+            # Check if already watching
+            if path_str in self.code_watcher.watched_paths:
+                return {"success": True, "message": f"Already watching directory: {path_str}"}
 
-            # Now, start the file system watcher.
-            watch_result = self.code_watcher.watch_directory(path)
-            
-            # Combine results into a single, informative response.
-            final_result = {
-                "success": True,
-                "message": f"Initial scan started for {path}. Now watching for live changes.",
-                "job_id": scan_job_result.get("job_id"),
-                "details": watch_result
-            }
-            return final_result
+            # 2. Check if the repository is already indexed
+            indexed_repos = self.list_indexed_repositories_tool().get("repositories", [])
+            is_already_indexed = any(Path(repo["path"]).resolve() == path_obj for repo in indexed_repos)
+
+            # 3. Decide whether to perform an initial scan
+            if is_already_indexed:
+                # If already indexed, just start the watcher without a scan
+                self.code_watcher.watch_directory(path_str, perform_initial_scan=False)
+                return {
+                    "success": True,
+                    "message": f"Path '{path_str}' is already indexed. Now watching for live changes."
+                }
+            else:
+                # If not indexed, perform the scan AND start the watcher
+                scan_job_result = self.add_code_to_graph_tool(path=path_str, is_dependency=False)
+                if "error" in scan_job_result:
+                    return scan_job_result
+                
+                self.code_watcher.watch_directory(path_str, perform_initial_scan=True)
+                
+                return {
+                    "success": True,
+                    "message": f"Path '{path_str}' was not indexed. Started initial scan and now watching for live changes.",
+                    "job_id": scan_job_result.get("job_id"),
+                    "details": "Use check_job_status to monitor the initial scan."
+                }
             
         except Exception as e:
             logger.error(f"Failed to start watching directory {path}: {e}")
-            return {"error": f"Failed to start watching directory: {str(e)}"}
-        
+            return {"error": f"Failed to start watching directory: {str(e)}"}        
     def list_imports_tool(self, **args) -> Dict[str, Any]:
         """Tool to list all imports from code files"""        
         path = args.get("path")
@@ -778,7 +828,9 @@ class MCPServer:
             "find_most_complex_functions": self.find_most_complex_functions_tool,
             "list_indexed_repositories": self.list_indexed_repositories_tool,
             "delete_repository": self.delete_repository_tool,
-            "visualize_graph_query": self.visualize_graph_query_tool
+            "visualize_graph_query": self.visualize_graph_query_tool,
+            "list_watched_paths": self.list_watched_paths_tool,
+            "unwatch_directory": self.unwatch_directory_tool
         }
         handler = tool_map.get(tool_name)
         if handler:
