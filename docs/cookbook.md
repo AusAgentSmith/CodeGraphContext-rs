@@ -347,7 +347,7 @@ These examples use the `execute_cypher_query` tool for more specific and complex
 - **JSON Arguments:**
   ```json
   {
-    "cypher_query": "MATCH (c:Class) OPTIONAL MATCH path = (c)-[:INHERITS_FROM*]->(parent:Class) RETURN c.name, c.file_path, length(path) AS depth ORDER BY depth DESC"
+    "cypher_query": "MATCH (c:Class) OPTIONAL MATCH path = (c)-[:INHERITS*]->(parent:Class) RETURN c.name, c.file_path, length(path) AS depth ORDER BY depth DESC"
   }
   ```
 
@@ -391,7 +391,7 @@ These examples use the `execute_cypher_query` tool for more specific and complex
 - **JSON Arguments:**
   ```json
   {
-    "cypher_query": "MATCH (c:Class)-[:INHERITS_FROM]->(p:Class), (c)-[:CONTAINS]->(m:Function), (p)-[:CONTAINS]->(m_parent:Function) WHERE m.name = m_parent.name RETURN m.name as method, c.name as child_class, p.name as parent_class"
+    "cypher_query": "MATCH (c:Class)-[:INHERITS]->(p:Class), (c)-[:CONTAINS]->(m:Function), (p)-[:CONTAINS]->(m_parent:Function) WHERE m.name = m_parent.name RETURN m.name as method, c.name as child_class, p.name as parent_class"
   }
   ```
 
