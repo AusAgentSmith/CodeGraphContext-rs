@@ -80,7 +80,7 @@
 
   .light {
     /* Light mode fallback - CodeGraphContext works best in dark */
-    --background: 0 0% 100%;
+    --background: 0 0% 95%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
@@ -91,7 +91,7 @@
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
     --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted-foreground: 215.4 16.3% 16.9%;
     --accent: 180 100% 40%;
     --accent-foreground: 210 40% 98%;
     --destructive: 0 84.2% 60.2%;
@@ -99,6 +99,8 @@
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 263 70% 55%;
+    --gradient-primary: linear-gradient(135deg, hsl(263, 49%, 40%), hsl(180, 45%, 47%));
+
   }
   .theme {
     --animate-orbit: orbit calc(var(--duration)*1s) linear infinite;
