@@ -12,6 +12,7 @@ Commands:
 """
 import typer
 from rich.console import Console
+from rich.table import Table
 import asyncio
 import logging
 import json
@@ -56,55 +57,57 @@ def setup():
     """
     run_setup_wizard()
 
-@app.command()
-def start():
+def _load_credentials():
     """
-    Starts the CodeGraphContext MCP server, which listens for JSON-RPC requests from stdin.
-    It first attempts to load Neo4j credentials from various sources before starting.
+    Loads Neo4j credentials from various sources into environment variables.
+    Priority order:
+    1. Local `mcp.json`
+    2. Global `~/.codegraphcontext/.env`
+    3. Any `.env` file found in the directory tree.
     """
-    console.print("[bold green]Starting CodeGraphContext Server...[/bold green]")
-
-    # The server needs Neo4j credentials. It attempts to load them in the following order of priority:
-    # 1. From a local `mcp.json` file in the current working directory.
-    # 2. From a global `.env` file at `~/.codegraphcontext/.env`.
-    # 3. From any `.env` file found by searching upwards from the current directory.
-
-    # 1. Prefer loading environment variables from mcp.json in the current directory.
+    # 1. Prefer loading from mcp.json
     mcp_file_path = Path.cwd() / "mcp.json"
     if mcp_file_path.exists():
         try:
             with open(mcp_file_path, "r") as f:
                 mcp_config = json.load(f)
-
             server_env = mcp_config.get("mcpServers", {}).get("CodeGraphContext", {}).get("env", {})
             for key, value in server_env.items():
                 os.environ[key] = value
             console.print("[green]Loaded Neo4j credentials from local mcp.json.[/green]")
+            return
         except Exception as e:
             console.print(f"[bold red]Error loading mcp.json:[/bold red] {e}")
-            console.print("[yellow]Attempting to start server without mcp.json environment variables.[/yellow]")
-    else:
-        # 2. If no local mcp.json, try to load from the global config directory.
-        global_env_path = Path.home() / ".codegraphcontext" / ".env"
-        if global_env_path.exists():
-            try:
-                load_dotenv(dotenv_path=global_env_path)
-                console.print(f"[green]Loaded Neo4j credentials from global .env file: {global_env_path}[/green]")
-            except Exception as e:
-                console.print(f"[bold red]Error loading global .env file from {global_env_path}:[/bold red] {e}")
-                console.print("[yellow]Attempting to start server without .env environment variables.[/yellow]")
+    
+    # 2. Try global .env file
+    global_env_path = Path.home() / ".codegraphcontext" / ".env"
+    if global_env_path.exists():
+        try:
+            load_dotenv(dotenv_path=global_env_path)
+            console.print(f"[green]Loaded Neo4j credentials from global .env file: {global_env_path}[/green]")
+            return
+        except Exception as e:
+            console.print(f"[bold red]Error loading global .env file from {global_env_path}:[/bold red] {e}")
+
+    # 3. Fallback to any discovered .env
+    try:
+        dotenv_path = find_dotenv(usecwd=True, raise_error_if_not_found=False)
+        if dotenv_path:
+            load_dotenv(dotenv_path)
+            console.print(f"[green]Loaded Neo4j credentials from discovered .env file: {dotenv_path}[/green]")
         else:
-            # 3. Fallback: try to load from any .env file found by searching up the directory tree.
-            try:
-                dotenv_path = find_dotenv(usecwd=True, raise_error_if_not_found=False)
-                if dotenv_path:
-                    load_dotenv(dotenv_path)
-                    console.print(f"[green]Loaded Neo4j credentials from discovered .env file: {dotenv_path}[/green]")
-                else:
-                    console.print("[yellow]No local mcp.json or global .env file found. Attempting to start server without explicit Neo4j credentials.[/yellow]")
-            except Exception as e:
-                console.print(f"[bold red]Error loading .env file:[/bold red] {e}")
-                console.print("[yellow]Attempting to start server without .env environment variables.[/yellow]")
+            console.print("[yellow]No local mcp.json or .env file found. Credentials may not be set.[/yellow]")
+    except Exception as e:
+        console.print(f"[bold red]Error loading .env file:[/bold red] {e}")
+
+
+@app.command()
+def start():
+    """
+    Starts the CodeGraphContext MCP server, which listens for JSON-RPC requests from stdin.
+    """
+    console.print("[bold green]Starting CodeGraphContext Server...[/bold green]")
+    _load_credentials()
 
     server = None
     loop = asyncio.new_event_loop()
@@ -141,6 +144,35 @@ def tool(
     """
     console.print(f"Calling tool [bold cyan]{name}[/bold cyan] with args: {args}")
     console.print("[yellow]Note: This is a placeholder for direct tool invocation.[/yellow]")
+
+
+@app.command(name="list")
+def list_tools():
+    """
+    Lists all available tools and their descriptions.
+    """
+    _load_credentials()
+    console.print("[bold green]Available Tools:[/bold green]")
+    try:
+        # Instantiate the server to access the tool definitions.
+        server = MCPServer()
+        tools = server.tools.values()
+
+        table = Table(show_header=True, header_style="bold magenta")
+        table.add_column("Tool Name", style="dim", width=30)
+        table.add_column("Description")
+
+        for tool in sorted(tools, key=lambda t: t['name']):
+            table.add_row(tool['name'], tool['description'])
+
+        console.print(table)
+
+    except ValueError as e:
+        console.print(f"[bold red]Error loading tools:[/bold red] {e}")
+        console.print("Please ensure your Neo4j credentials are set up correctly (`cgc setup`), as they are needed to initialize the server.")
+    except Exception as e:
+        console.print(f"[bold red]An unexpected error occurred:[/bold red] {e}")
+
 
 @app.command()
 def help(ctx: typer.Context):
