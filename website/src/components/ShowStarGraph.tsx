@@ -166,20 +166,6 @@ export default function ShowStarGraph() {
             </CardContent>
           </Card>
 
-          <div className="text-center mt-8">
-            <p className="text-sm text-muted-foreground">
-              Data provided by{" "}
-              <a
-                href="https://star-history.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:underline"
-              >
-                Star History
-              </a>{" "}
-              • Updated with a delay
-            </p>
-          </div>
         </div>
       </section>
       <br />
