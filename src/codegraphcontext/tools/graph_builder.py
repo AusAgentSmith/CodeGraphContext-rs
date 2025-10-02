@@ -210,17 +210,17 @@ class GraphBuilder:
 
             # Handle imports and create IMPORTS relationships
             for imp in file_data['imports']:
-                set_clauses = ["m.alias = $alias"]
-                if 'full_import_name' in imp:
-                    set_clauses.append("m.full_import_name = $full_import_name")
-                set_clause_str = ", ".join(set_clauses)
-
-                session.run(f"""
-                    MATCH (f:File {{path: $file_path}})
-                    MERGE (m:Module {{name: $name}})
-                    SET {set_clause_str}
-                    MERGE (f)-[:IMPORTS]->(m)
-                """, file_path=file_path_str, **imp)
+                session.run("""
+                    MATCH (f:File {path: $file_path})
+                    MERGE (m:Module {name: $name})
+                    ON CREATE SET m.full_import_name = $full_import_name
+                    ON MATCH SET m.full_import_name = $full_import_name
+                    MERGE (f)-[:IMPORTS {alias: $rel_alias}]->(m)
+                """,
+                file_path=file_path_str,
+                name=imp.get('name'),
+                full_import_name=imp.get('full_import_name', imp.get('name')),
+                rel_alias=imp.get('alias'))
 
             # Handle CONTAINS relationship between class to their children like variables
             for func in file_data.get('functions', []):
@@ -522,8 +522,16 @@ class GraphBuilder:
             if job_id:
                 self.job_manager.update_job(job_id, status=JobStatus.COMPLETED, end_time=datetime.now())
         except Exception as e:
-            logger.error(f"Failed to build graph for path {path}: {e}", exc_info=True)
+            error_message=str(e)
+            logger.error(f"Failed to build graph for path {path}: {error_message}", exc_info=True)
             if job_id:
+                '''checking if the repo got deleted '''
+                if "no such file found" in error_message or "deleted" in error_message or "not found" in error_message:
+                    status=JobStatus.CANCELLED
+                    
+                else:
+                    status=JobStatus.FAILED
+
                 self.job_manager.update_job(
                     job_id, status=JobStatus.FAILED, end_time=datetime.now(), errors=[str(e)]
                 )

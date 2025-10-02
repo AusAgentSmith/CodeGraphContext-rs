@@ -102,6 +102,9 @@
     --gradient-primary: linear-gradient(135deg, hsl(263, 49%, 40%), hsl(180, 45%, 47%));
 
   }
+  .theme {
+    --animate-orbit: orbit calc(var(--duration)*1s) linear infinite;
+  }
 }
 
 @layer base {
@@ -163,12 +166,32 @@
     animation: code-highlight 2s ease-in-out infinite;
   }
 
+  /* Orbiting circles animation (Tailwind v3 friendly) */
+  .animate-orbit {
+    animation: orbit calc(var(--duration) * 1s) linear infinite;
+  }
+
+  @keyframes orbit {
+    0% {
+      transform: rotate(calc(var(--angle) * 1deg))
+        translateY(calc(var(--radius) * 1px))
+        rotate(calc(var(--angle) * -1deg));
+    }
+    100% {
+      transform: rotate(calc(var(--angle) * 1deg + 360deg))
+        translateY(calc(var(--radius) * 1px))
+        rotate(calc((var(--angle) * -1deg) - 360deg));
+    }
+  }
+
   /* Graph visualization styles */
   .graph-node {
     @apply rounded-full border-2 border-primary/20 transition-all duration-300;
     background: hsl(var(--gradient-primary));
     box-shadow: var(--shadow-glow);
   }
+
+  
 
   .graph-edge {
     @apply stroke-graph-edge transition-all duration-300;
@@ -188,5 +211,25 @@
     @apply bg-card border border-border rounded-lg p-4 font-mono text-sm;
     background: var(--gradient-card);
     box-shadow: var(--shadow-card);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@theme inline {
+  @keyframes orbit {
+  0% {
+    transform: rotate(calc(var(--angle) * 1deg)) translateY(calc(var(--radius) * 1px)) rotate(calc(var(--angle) * -1deg));
+    }
+  100% {
+    transform: rotate(calc(var(--angle) * 1deg + 360deg)) translateY(calc(var(--radius) * 1px)) rotate(calc((var(--angle) * -1deg) - 360deg));
+    }
   }
 }

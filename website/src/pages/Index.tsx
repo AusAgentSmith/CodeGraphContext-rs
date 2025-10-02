@@ -5,6 +5,7 @@ import DemoSection from "@/components/DemoSection";
 import ExamplesSection from "@/components/ExamplesSection";
 import CookbookSection from "@/components/CookbookSection";
 import Footer from "@/components/Footer";
+import TestimonialSection from "@/components/TestimonialSection";
 import ComparisonTable from "@/components/ComparisonTable";
 
 const Index = () => {
@@ -16,6 +17,7 @@ const Index = () => {
       <FeaturesSection />
       <InstallationSection />
       <ExamplesSection />
+      <TestimonialSection />
       <CookbookSection />
       <Footer />
     </main>

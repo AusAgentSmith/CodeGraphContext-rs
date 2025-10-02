@@ -57,38 +57,14 @@ JS_QUERIES = {
         )
     """,
     "classes": """
-        (class_declaration name: (identifier) @name)
-        (class name: (identifier) @name) @class_node
+        (class_declaration) @class
+        (class) @class
     """,
     "imports": """
-        (import_statement
-            source: (string) @import_path
-        )
-        (import_statement
-            (import_clause
-                (identifier) @default_import_name  ; default import
-            )
-            source: (string) @import_path
-        )
-        (import_statement
-            (import_clause
-                (named_imports
-                    (import_specifier (identifier) @imported_name)  ; named import
-                    (import_specifier name: (identifier) @imported_name alias: (identifier) @imported_alias) ; named import with alias
-                )
-            )
-            source: (string) @import_path
-        )
-        (import_statement
-            (import_clause
-                (namespace_import (identifier) @namespace_name)  ; namespace import
-            )
-            source: (string) @import_path
-        )
+        (import_statement) @import
         (call_expression
             function: (identifier) @require_call (#eq? @require_call "require")
-            arguments: (arguments (string) @require_path)
-        )
+        ) @import
     """,
     "calls": """
         (call_expression function: (identifier) @name)
@@ -332,27 +308,31 @@ class JavascriptTreeSitterParser:
     def _find_classes(self, root_node):
         classes = []
         query = self.queries['classes']
-        for match in query.captures(root_node):
-            capture_name = match[1]
-            node = match[0]
+        for class_node, capture_name in query.captures(root_node):
+            if capture_name == 'class':
+                name_node = class_node.child_by_field_name('name')
+                if not name_node: continue
+                name = self._get_node_text(name_node)
 
-            # Placeholder for JS class extraction logic
-            if capture_name == 'name':
-                class_node = node.parent
-                name = self._get_node_text(node)
-                
-                # Simplified bases extraction for now
                 bases = []
-                # Need to find extends clause for JS classes
+                heritage_node = next((child for child in class_node.children if child.type == 'class_heritage'), None)
+                if heritage_node:
+                    if heritage_node.named_child_count > 0:
+                        base_expr_node = heritage_node.named_child(0)
+                        bases.append(self._get_node_text(base_expr_node))
+                    elif heritage_node.child_count > 0:
+                        # Fallback for anonymous nodes
+                        base_expr_node = heritage_node.child(heritage_node.child_count - 1)
+                        bases.append(self._get_node_text(base_expr_node))
 
                 class_data = {
                     "name": name,
-                    "line_number": node.start_point[0] + 1,
+                    "line_number": class_node.start_point[0] + 1,
                     "end_line": class_node.end_point[0] + 1,
                     "bases": bases,
                     "source": self._get_node_text(class_node),
-                    "docstring": self._get_docstring(class_node), # Placeholder
-                    "context": None, # Placeholder
+                    "docstring": self._get_docstring(class_node),
+                    "context": None,
                     "decorators": [],
                     "lang": self.language_name,
                     "is_dependency": False,
@@ -362,24 +342,63 @@ class JavascriptTreeSitterParser:
 
     def _find_imports(self, root_node):
         imports = []
-        seen_modules = set()
         query = self.queries['imports']
         for node, capture_name in query.captures(root_node):
-            # Placeholder for JS import extraction logic
-            # This will need to handle ES6 imports and CommonJS requires
-            if capture_name in ('import_path', 'imported_name', 'namespace_name', 'default_name', 'require_path'):
-                module_name = self._get_node_text(node)
-                if module_name not in seen_modules:
-                    seen_modules.add(module_name)
-                    imports.append({
-                        "name": module_name,
-                        "full_import_name": module_name,
-                        "line_number": node.start_point[0] + 1,
-                        "alias": None,
-                        "context": None, # Placeholder
-                        "lang": self.language_name,
-                        "is_dependency": False,
-                    })
+            if capture_name == 'import':
+                line_number = node.start_point[0] + 1
+                if node.type == 'import_statement':
+                    source_node = node.child_by_field_name('source')
+                    if not source_node: continue
+                    source = self._get_node_text(source_node).strip('\'"')
+
+                    import_clause = next((c for c in node.children if c.type == 'import_clause'), None)
+                    if not import_clause: # e.g. import "source"
+                        imports.append({"name": source, "full_import_name": source, "alias": source, "line_number": line_number, "context": None, "lang": self.language_name, "is_dependency": False})
+                        continue
+                    
+                    # default import
+                    default_node = next((c for c in import_clause.children if c.type == 'identifier'), None)
+                    if default_node:
+                        alias = self._get_node_text(default_node)
+                        imports.append({"name": "default", "full_import_name": source, "alias": alias, "line_number": line_number, "context": None, "lang": self.language_name, "is_dependency": False})
+
+                    # namespace import
+                    namespace_node = next((c for c in import_clause.children if c.type == 'namespace_import'), None)
+                    if namespace_node:
+                        alias_node = None
+                        for child in namespace_node.children:
+                            if child.type == 'identifier':
+                                alias_node = child
+                                break
+                        if alias_node:
+                            alias = self._get_node_text(alias_node)
+                            imports.append({"name": "*", "full_import_name": source, "alias": alias, "line_number": line_number, "context": None, "lang": self.language_name, "is_dependency": False})
+                    
+                    # named imports
+                    named_imports_node = next((c for c in import_clause.children if c.type == 'named_imports'), None)
+                    if named_imports_node:
+                        for specifier in named_imports_node.children:
+                            if specifier.type == 'import_specifier':
+                                name_node = specifier.child_by_field_name('name')
+                                alias_node = specifier.child_by_field_name('alias')
+                                name = self._get_node_text(name_node)
+                                alias = self._get_node_text(alias_node) if alias_node else name
+                                imports.append({"name": name, "full_import_name": f"{source}/{name}", "alias": alias, "line_number": line_number, "context": None, "lang": self.language_name, "is_dependency": False})
+
+                elif node.type == 'call_expression': # require
+                    args_node = node.child_by_field_name('arguments')
+                    if not args_node or args_node.named_child_count == 0: continue
+                    path_node = args_node.named_child(0)
+                    if not path_node or path_node.type != 'string': continue
+                    path = self._get_node_text(path_node).strip('\'"')
+                    
+                    alias = None
+                    if node.parent.type == 'variable_declarator':
+                        alias_node = node.parent.child_by_field_name('name')
+                        if alias_node:
+                            alias = self._get_node_text(alias_node)
+                    
+                    imports.append({"name": path, "full_import_name": path, "alias": alias if alias else path, "line_number": line_number, "context": None, "lang": self.language_name, "is_dependency": False})
         return imports
 
     def _find_calls(self, root_node):
