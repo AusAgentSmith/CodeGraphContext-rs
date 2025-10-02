@@ -18,3 +18,24 @@ Below is an embedded link to a demo video showcasing the usage of the `watch_dir
 [![Watch the demo](./images/tool_images/2.png)](https://drive.google.com/file/d/1OEjcS2iwwymss99zLidbeBjcblferKBX/view?usp=drive_link) 
 
 ---
+
+## analyze_code_relationships Tool
+
+The `analyze_code_relationships` tool in CodeGraphContext is designed to let users query and explore the various relationships between code elements in a codebase, represented as a graph in Neo4j. 
+
+### Relationship Types That Can Be Analyzed
+
+- **CALLS:** Finds which functions call or are called by a function.
+- **CALLED_BY:** Finds all functions that directly or indirectly call a target function (inverse of CALLS).
+- **INHERITS_FROM:** Finds class inheritance relationships; which classes inherit from which.
+- **CONTAINS:** Shows containment (which classes/functions are inside which modules or files).
+- **IMPLEMENTS:** Shows which classes implement an interface.
+- **IMPORTS:** Identifies which files or modules import a specific module.
+- **DEFINED_IN:** Locates where an entity (function/class) is defined.
+- **HAS_ARGUMENT:** Shows relationships from functions to their arguments.
+- **DECLARES:** Finds variables declared in functions or classes.
+
+Below is an embedded link to a demo video showcasing the usage of the `analyse_code_relationships` tool.
+[![Watch the demo](./images/tool_images/3.png)](https://drive.google.com/file/d/154M_lTPbg9_Gj9bd2ErnAVbJArSbcb2M/view?usp=drive_link) 
+
+---
