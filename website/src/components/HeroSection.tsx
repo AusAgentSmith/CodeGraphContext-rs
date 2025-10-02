@@ -68,7 +68,7 @@ const HeroSection = () => {
             Version {version} • MIT License
           </Badge>
           
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold mb-6 bg-gradient-primary bg-clip-text text-transparent leading-tight">
+          <h1 className="py-3 text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold mb-6 bg-gradient-primary bg-clip-text text-transparent leading-tight">
             CodeGraphContext
           </h1>
           
