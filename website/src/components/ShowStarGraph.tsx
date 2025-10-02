@@ -108,19 +108,26 @@ export default function ShowStarGraph() {
                   </div>
                 )}
 
-                <picture key={refreshKey}>
-                  <source media="(prefers-color-scheme: dark)" srcSet={starHistoryDarkImageUrl} />
-                  <source media="(prefers-color-scheme: light)" srcSet={starHistoryImageUrl} />
+                <div key={refreshKey}>
                   <img
                     src={starHistoryImageUrl}
                     alt="CodeGraphContext Star History"
-                    className={`w-full h-auto rounded-lg transition-opacity duration-300 ${
+                    className={`w-full h-auto rounded-lg transition-opacity duration-300 dark:hidden ${
                       imageLoaded && !isRefreshing ? "opacity-100" : "opacity-0 absolute inset-0"
                     } ${imageError ? "hidden" : "block"}`}
                     onLoad={handleImageLoad}
                     onError={handleImageError}
                   />
-                </picture>
+                  <img
+                    src={starHistoryDarkImageUrl}
+                    alt="CodeGraphContext Star History"
+                    className={`w-full h-auto rounded-lg transition-opacity duration-300 hidden dark:block ${
+                      imageLoaded && !isRefreshing ? "opacity-100" : "opacity-0 absolute inset-0"
+                    } ${imageError ? "hidden" : "block"}`}
+                    onLoad={handleImageLoad}
+                    onError={handleImageError}
+                  />
+                </div>
               </div>
 
               {imageLoaded && !isRefreshing && (
