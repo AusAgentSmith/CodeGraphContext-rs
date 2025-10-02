@@ -319,7 +319,7 @@ const CookbookSection = () => {
             </p>
             <Button variant="outline" asChild>
               <a 
-                href="https://github.com/Shashankss1205/CodeGraphContext/blob/main/cookbook.md" 
+                href="https://github.com/Shashankss1205/CodeGraphContext/blob/main/docs/cookbook.md" 
                 target="_blank" 
                 rel="noopener noreferrer"
               >
