@@ -97,9 +97,9 @@ const StatusBadge = ({ status, text }: { status: string; text: string }) => {
       transition={{ type: "spring", stiffness: 400, damping: 17 }}
     >
       <Badge
-        className={`
+        className={` 
           ${getStatusStyles()} 
-          border-2 font-medium text-xs px-3 py-2 
+          border-2 font-medium text-[0.65rem] px-3 py-1.5 
           backdrop-blur-sm relative overflow-hidden
           transition-all duration-300 hover:shadow-xl
         `}
@@ -189,7 +189,7 @@ export default function ComparisonTable() {
         <AnimatedCard delay={0.1}>
           <div className="text-center mb-16">
             <motion.h2
-              className="text-3xl sm:text-5xl md:text-6xl font-bold mb-6 pb-4 bg-gradient-to-r from-primary via-primary/90 to-accent bg-clip-text text-transparent"
+              className="text-2xl sm:text-4xl md:text-5xl font-bold mb-6 pb-4 bg-gradient-to-r from-primary via-primary/90 to-accent bg-clip-text text-transparent"
               initial={{ opacity: 0, y: 30 }}
               animate={isInView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.8, delay: 0.2 }}
@@ -197,7 +197,7 @@ export default function ComparisonTable() {
               Why CodeGraphContext?
             </motion.h2>
             <motion.p
-              className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed"
+              className="text-lg text-muted-foreground max-w-3xl mx-auto leading-relaxed"
               initial={{ opacity: 0, y: 20 }}
               animate={isInView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.8, delay: 0.4 }}
@@ -220,7 +220,7 @@ export default function ComparisonTable() {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-border/20 bg-gradient-to-r from-secondary/10 via-secondary/5 to-secondary/10 backdrop-blur-sm">
-                        <th className="p-6 sm:p-8 text-left font-bold text-foreground text-base sm:text-lg">
+                        <th className="p-4 sm:p-6 text-left font-bold text-foreground text-sm sm:text-base">
                           <motion.span
                             initial={{ opacity: 0, x: -20 }}
                             animate={isInView ? { opacity: 1, x: 0 } : {}}
@@ -229,7 +229,7 @@ export default function ComparisonTable() {
                             Feature
                           </motion.span>
                         </th>
-                        <th className="p-6 sm:p-8 text-center font-bold text-foreground text-base sm:text-lg min-w-[160px]">
+                        <th className="p-4 sm:p-6 text-center font-bold text-foreground text-sm sm:text-base min-w-[140px]">
                           <motion.span
                             initial={{ opacity: 0, y: -20 }}
                             animate={isInView ? { opacity: 1, y: 0 } : {}}
@@ -238,7 +238,7 @@ export default function ComparisonTable() {
                             GitHub Copilot
                           </motion.span>
                         </th>
-                        <th className="p-6 sm:p-8 text-center font-bold text-foreground text-base sm:text-lg min-w-[160px]">
+                        <th className="p-4 sm:p-6 text-center font-bold text-foreground text-sm sm:text-base min-w-[140px]">
                           <motion.span
                             initial={{ opacity: 0, y: -20 }}
                             animate={isInView ? { opacity: 1, y: 0 } : {}}
@@ -247,7 +247,7 @@ export default function ComparisonTable() {
                             Cursor
                           </motion.span>
                         </th>
-                        <th className="p-6 sm:p-8 text-center font-bold text-primary text-base sm:text-lg min-w-[160px] relative">
+                        <th className="p-4 sm:p-6 text-center font-bold text-primary text-sm sm:text-base min-w-[140px] relative">
                           <motion.span
                             initial={{ opacity: 0, y: -20 }}
                             animate={isInView ? { opacity: 1, y: 0 } : {}}
@@ -255,7 +255,6 @@ export default function ComparisonTable() {
                             className="relative"
                           >
                             CodeGraphContext
-                          
                           </motion.span>
                         </th>
                       </tr>
@@ -281,7 +280,7 @@ export default function ComparisonTable() {
                           `}
                         >
                           <motion.td
-                            className="p-6 sm:p-8 text-foreground font-semibold text-sm sm:text-base relative z-10"
+                            className="p-4 sm:p-6 text-foreground font-semibold text-xs sm:text-sm relative z-10"
                             whileHover={{ x: 8 }}
                             transition={{
                               type: "spring",
@@ -296,7 +295,7 @@ export default function ComparisonTable() {
                               whileHover={{ height: "100%" }}
                             />
                           </motion.td>
-                          <td className="p-6 sm:p-8 text-center">
+                          <td className="p-4 sm:p-6 text-center">
                             <div className="flex justify-center">
                               <StatusBadge
                                 status={row.copilot.status}
@@ -304,7 +303,7 @@ export default function ComparisonTable() {
                               />
                             </div>
                           </td>
-                          <td className="p-6 sm:p-8 text-center">
+                          <td className="p-4 sm:p-6 text-center">
                             <div className="flex justify-center">
                               <StatusBadge
                                 status={row.cursor.status}
@@ -312,7 +311,7 @@ export default function ComparisonTable() {
                               />
                             </div>
                           </td>
-                          <td className="p-6 sm:p-8 text-center relative">
+                          <td className="p-4 sm:p-6 text-center relative">
                             <div className="flex justify-center">
                               <StatusBadge
                                 status={row.cgc.status}
@@ -346,7 +345,7 @@ export default function ComparisonTable() {
             transition={{ duration: 0.8, delay: 1.5 }}
           >
             <motion.p
-              className="text-lg text-muted-foreground mb-6"
+              className="text-base text-muted-foreground mb-6"
               initial={{ opacity: 0 }}
               animate={isInView ? { opacity: 1 } : {}}
               transition={{ duration: 0.8, delay: 1.7 }}
@@ -358,7 +357,7 @@ export default function ComparisonTable() {
               whileTap={{ scale: 0.95 }}
               transition={{ type: "spring", stiffness: 400, damping: 17 }}
             >
-              <button className="bg-gradient-to-r from-primary to-accent text-white px-8 py-4 rounded-2xl font-semibold text-lg shadow-2xl shadow-primary/25 hover:shadow-primary/40 transition-all duration-300">
+              <button className="bg-gradient-to-r from-primary to-accent text-white px-6 py-3 rounded-2xl font-semibold text-base shadow-2xl shadow-primary/25 hover:shadow-primary/40 transition-all duration-300">
                 Get Started Today
               </button>
             </motion.div>
