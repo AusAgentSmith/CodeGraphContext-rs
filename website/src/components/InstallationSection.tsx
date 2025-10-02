@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Copy, Terminal, Play, Settings } from "lucide-react";
 import { toast } from "sonner";
+import ShowStarGraph from "./ShowStarGraph";
 
 const installSteps = [
   {
@@ -32,6 +33,8 @@ const copyToClipboard = (text: string) => {
 
 const InstallationSection = () => {
   return (
+    <>
+    <ShowStarGraph />
     <section className="py-24 px-4 bg-muted/20">
       <div className="container mx-auto max-w-5xl">
         <div className="text-center mb-16">
@@ -47,7 +50,7 @@ const InstallationSection = () => {
           {installSteps.map((step, index) => (
             <Card 
               key={index}
-              className="bg-gradient-card border-border/50 hover:border-primary/30 transition-smooth animate-float-up"
+              className="border-border/50 hover:border-primary/30 transition-smooth animate-float-up dark:bg-gradient-card dark:bg-card/50 dark:border-border/30 dark:hover:border-primary/40 bg-white/95 border-gray-200/50 hover:border-primary/50 shadow-sm"
               style={{ animationDelay: `${index * 0.2}s` }}
             >
               <CardHeader className="pb-4">
@@ -62,7 +65,7 @@ const InstallationSection = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="code-block flex items-center justify-between group">
+                <div className="code-block flex items-center justify-between group bg-white/95 bg-none border border-gray-200 shadow-sm dark:bg-card dark:border-border dark:shadow-lg">
                   <code className="text-accent font-mono animate-code-highlight">
                     $ {step.command}
                   </code>
@@ -81,7 +84,7 @@ const InstallationSection = () => {
         </div>
         
         {/* Setup Options */}
-        <Card className="bg-gradient-card border-border/50">
+        <Card className="dark:bg-gradient-card dark:bg-card/50 dark:border-border/30 bg-white/95 border-gray-200/50">
           <CardHeader>
             <CardTitle className="flex items-center gap-3">
               <Settings className="h-6 w-6 text-primary" />
@@ -127,6 +130,7 @@ const InstallationSection = () => {
         </Card>
       </div>
     </section>
+    </>
   );
 };
 

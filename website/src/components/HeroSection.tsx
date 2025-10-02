@@ -3,11 +3,35 @@ import { Badge } from "@/components/ui/badge";
 import { Github, Download, ExternalLink } from "lucide-react";
 import heroGraph from "@/assets/hero-graph.jpg";
 import { useState, useEffect } from "react";
+import ShowDownloads from "./ShowDownloads";
+import ShowStarGraph from "./ShowStarGraph";
+import { ThemeToggle } from "./ThemeToggle";
 
 const HeroSection = () => {
   const [stars, setStars] = useState(null);
   const [forks, setForks] = useState(null);
+   const [version, setVersion] = useState("");
+  useEffect(() => {
+    async function fetchVersion() {
+      try {
+        const res = await fetch(
+          "https://raw.githubusercontent.com/Shashankss1205/CodeGraphContext/main/README.md"
+        );
+        if (!res.ok) throw new Error("Failed to fetch README");
 
+        const text = await res.text();
+        const match = text.match(
+          /\*\*Version:\*\*\s*([0-9]+\.[0-9]+\.[0-9]+)/i
+        );
+        setVersion(match ? match[1] : "N/A");
+      } catch (err) {
+        console.error(err);
+        setVersion("N/A");
+      }
+    }
+
+    fetchVersion();
+  }, []);
   useEffect(() => {
     fetch("https://api.github.com/repos/Shashankss1205/CodeGraphContext")
       .then((response) => response.json())
@@ -20,24 +44,33 @@ const HeroSection = () => {
 
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+      {/* Header with Theme Toggle */}
+      <div className="absolute top-0 left-0 right-0 z-20 p-4">
+        <div className="container mx-auto flex justify-end">
+          <div className="rounded-full bg-white/60 backdrop-blur-md border border-gray-200 shadow-sm p-2 dark:bg-transparent dark:border-transparent dark:shadow-none">
+            <ThemeToggle />
+          </div>
+        </div>
+      </div>
+
       {/* Background Image */}
       <div 
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-30"
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-20 brightness-110 saturate-110 dark:opacity-30 dark:brightness-100 dark:saturate-100"
         style={{ backgroundImage: `url(${heroGraph})` }}
       />
       
       {/* Gradient Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-b from-background/90 via-background/80 to-background/90" />
+      <div className="absolute inset-0 bg-gradient-to-b from-white/60 via-white/40 to-white/80 dark:from-background/90 dark:via-background/80 dark:to-background/90" />
       
       {/* Content */}
       <div className="relative z-10 container mx-auto px-4 text-center max-w-5xl">
         <div className="animate-float-up">
           <Badge variant="secondary" className="mb-6 text-sm font-medium">
             <div className="w-2 h-2 bg-accent rounded-full mr-2 animate-graph-pulse" />
-            Version 0.1.10 • MIT License
+            Version {version} • MIT License
           </Badge>
           
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold mb-6 bg-gradient-primary bg-clip-text text-transparent leading-tight">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold mb-6 bg-gradient-to-r from-purple-700 via-indigo-700 to-purple-900 dark:bg-gradient-primary bg-clip-text text-transparent leading-tight tracking-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.15)]">
             CodeGraphContext
           </h1>
           
@@ -49,14 +82,14 @@ const HeroSection = () => {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
-            <Button size="lg" className="bg-gradient-primary hover:opacity-90 transition-all duration-300 shadow-glow" asChild>
+            <Button size="lg" className="bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-800 text-primary-foreground hover:opacity-90 transition-all duration-300 shadow-glow ring-1 ring-primary/20 dark:bg-gradient-primary" asChild>
               <a href="https://pypi.org/project/codegraphcontext/" target="_blank" rel="noopener noreferrer">
                 <Download className="mr-2 h-5 w-5" />
                 pip install codegraphcontext
               </a>
             </Button>
             
-            <Button variant="outline" size="lg" asChild className="border-primary/30 hover:border-primary/60 transition-smooth">
+            <Button variant="outline" size="lg" asChild className="border-gray-300 hover:border-primary/60 bg-white/80 backdrop-blur-sm shadow-sm transition-smooth text-gray-900 dark:bg-transparent dark:text-foreground dark:border-primary/30">
               <a href="https://github.com/Shashankss1205/CodeGraphContext" target="_blank" rel="noopener noreferrer">
                 <Github className="mr-2 h-5 w-5" />
                 View on GitHub
@@ -77,7 +110,7 @@ const HeroSection = () => {
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 bg-graph-node-3 rounded-full animate-graph-pulse" style={{animationDelay: '1s'}} />
-              <span>Python 3.8+</span>
+              <span><ShowDownloads /></span>
             </div>
           </div>
         </div>
