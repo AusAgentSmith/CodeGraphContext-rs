@@ -502,8 +502,11 @@ class MCPServer:
 
         # 1. Validate the path before the try...except block
         if not path_obj.is_dir():
-            return {"error": f"Invalid path provided: '{path_str}'. Path must be an existing directory."}
-
+            return {
+                "success": True,
+                "status": "path_not_found",
+                "message": f"Path '{path_str}' does not exist or is not a directory."
+            }
         try:
             # Check if already watching
             if path_str in self.code_watcher.watched_paths:
@@ -601,7 +604,11 @@ class MCPServer:
             path_obj = Path(path).resolve()
 
             if not path_obj.exists():
-                return {"error": f"Path {path} does not exist"}
+                return {
+                    "success": True,
+                    "status": "path_not_found",
+                    "message": f"Path '{path}' does not exist."
+                }
 
             # Prevent re-indexing the same repository.
             indexed_repos = self.list_indexed_repositories_tool().get("repositories", [])
@@ -693,12 +700,18 @@ class MCPServer:
     def check_job_status_tool(self, **args) -> Dict[str, Any]:
         """Tool to check job status"""
         job_id = args.get("job_id")
+        if not job_id:
+            return {"error": "Job ID is a required argument."}
                 
         try:
             job = self.job_manager.get_job(job_id)
             
             if not job:
-                return {"error": f"Job {job_id} not found"}
+                return {
+                    "success": True, # Return success to avoid generic error wrapper
+                    "status": "not_found",
+                    "message": f"Job with ID '{job_id}' not found. The ID may be incorrect or the job may have been cleared after a server restart."
+                }
             
             job_dict = asdict(job)
             
