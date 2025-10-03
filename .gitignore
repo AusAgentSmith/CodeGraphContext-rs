@@ -40,6 +40,10 @@ mcp.json
 docker-compose.yml 
 
 # yaml file for amazon Q developer
-devfile.yaml javascript.py.bak
+devfile.yaml 
+
+# local scratch
+
+javascript.py.bak
 src/codegraphcontext/cli/nl.py
 *.bak
