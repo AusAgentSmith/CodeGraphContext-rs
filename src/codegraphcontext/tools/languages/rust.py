@@ -10,27 +10,35 @@ RUST_QUERIES = {
     "functions": """
         (function_item
             name: (identifier) @name
+            parameters: (parameters) @params
         ) @function_node
     """,
     "classes": """
-        (struct_item
-            name: (type_identifier) @name
-        ) @class
+        [
+            (struct_item name: (type_identifier) @name)
+            (enum_item name: (type_identifier) @name)
+            (trait_item name: (type_identifier) @name)
+        ] @class
     """,
     "imports": """
         (use_declaration) @import
     """,
     "calls": """
         (call_expression
-            function: (identifier) @name
+            function: [
+                (identifier) @name
+                (field_expression field: (field_identifier) @name)
+                (scoped_identifier name: (identifier) @name)
+            ]
         )
     """,
 }
 
+
 class RustTreeSitterParser:
     """A Rust-specific parser using tree-sitter."""
 
-    def __init__(self, generic_parser_wrapper):
+    def __init__(self, generic_parser_wrapper: Any):
         self.generic_parser_wrapper = generic_parser_wrapper
         self.language_name = "rust"
         self.language = generic_parser_wrapper.language
@@ -41,10 +49,10 @@ class RustTreeSitterParser:
             for name, query_str in RUST_QUERIES.items()
         }
 
-    def _get_node_text(self, node) -> str:
-        return node.text.decode('utf-8')
+    def _get_node_text(self, node: Any) -> str:
+        return node.text.decode("utf-8")
 
-    def parse(self, file_path: Path, is_dependency: bool = False) -> Dict:
+    def parse(self, file_path: Path, is_dependency: bool = False) -> Dict[str, Any]:
         """Parses a Rust file and returns its structure."""
         with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
             source_code = f.read()
@@ -53,68 +61,129 @@ class RustTreeSitterParser:
         root_node = tree.root_node
 
         functions = self._find_functions(root_node)
-        classes = self._find_structs(root_node) # In Rust, structs are like classes
+        classes = self._find_structs(
+            root_node
+        )  # In Rust, this now includes structs, enums, and traits
         imports = self._find_imports(root_node)
-        
+        function_calls = self._find_calls(root_node)
+
         return {
             "file_path": str(file_path),
             "functions": functions,
             "classes": classes,
             "variables": [],  # Placeholder
             "imports": imports,
-            "function_calls": [],  # Placeholder
+            "function_calls": function_calls,
             "is_dependency": is_dependency,
             "lang": self.language_name,
         }
 
-    def _find_functions(self, root_node):
+    def _parse_function_args(self, params_node: Any) -> list[Dict[str, Any]]:
+        """Helper to parse function arguments from a (parameters) node."""
+        args = []
+        for param in params_node.named_children:
+            arg_info: Dict[str, Any] = {"name": "", "type": None}
+            if param.type == "parameter":
+                pattern_node = param.child_by_field_name("pattern")
+                type_node = param.child_by_field_name("type")
+                if pattern_node:
+                    arg_info["name"] = self._get_node_text(pattern_node)
+                if type_node:
+                    arg_info["type"] = self._get_node_text(type_node)
+                args.append(arg_info)
+            elif param.type == "self_parameter":
+                arg_info["name"] = self._get_node_text(param)
+                arg_info["type"] = "self"
+                args.append(arg_info)
+        return args
+
+    def _find_functions(self, root_node: Any) -> list[Dict[str, Any]]:
         functions = []
-        query = self.queries['functions']
-        for match in query.captures(root_node):
-            capture_name = match[1]
-            node = match[0]
-            if capture_name == 'name':
-                func_node = node.parent
-                name = self._get_node_text(node)
-                functions.append({
-                    "name": name,
-                    "line_number": node.start_point[0] + 1,
-                    "end_line": func_node.end_point[0] + 1,
-                    "source_code": self._get_node_text(func_node),
-                    "args": [], # Placeholder
-                })
+        query = self.queries["functions"]
+        for match in query.matches(root_node):
+            captures = {name: node for node, name in match.captures}
+
+            func_node = captures.get("function_node")
+            name_node = captures.get("name")
+            params_node = captures.get("params")
+
+            if func_node and name_node:
+                name = self._get_node_text(name_node)
+                args = self._parse_function_args(params_node) if params_node else []
+
+                functions.append(
+                    {
+                        "name": name,
+                        "line_number": name_node.start_point[0] + 1,
+                        "end_line": func_node.end_point[0] + 1,
+                        "source_code": self._get_node_text(func_node),
+                        "args": args,
+                    }
+                )
         return functions
 
-    def _find_structs(self, root_node):
+    def _find_structs(self, root_node: Any) -> list[Dict[str, Any]]:
         structs = []
-        query = self.queries['classes']
-        for match in query.captures(root_node):
-            capture_name = match[1]
-            node = match[0]
-            if capture_name == 'name':
-                class_node = node.parent
-                name = self._get_node_text(node)
-                structs.append({
-                    "name": name,
-                    "line_number": node.start_point[0] + 1,
-                    "end_line": class_node.end_point[0] + 1,
-                    "source_code": self._get_node_text(class_node),
-                    "bases": [], # Placeholder
-                })
+        query = self.queries["classes"]
+        for match in query.matches(root_node):
+            captures = {name: node for node, name in match.captures}
+            class_node = captures.get("class")
+            name_node = captures.get("name")
+
+            if class_node and name_node:
+                name = self._get_node_text(name_node)
+                structs.append(
+                    {
+                        "name": name,
+                        "line_number": name_node.start_point[0] + 1,
+                        "end_line": class_node.end_point[0] + 1,
+                        "source_code": self._get_node_text(class_node),
+                        "bases": [],  # Placeholder
+                    }
+                )
         return structs
 
-    def _find_imports(self, root_node):
+    def _find_imports(self, root_node: Any) -> list[Dict[str, Any]]:
         imports = []
-        query = self.queries['imports']
-        for match in query.captures(root_node):
-            capture_name = match[1]
-            node = match[0]
-            if capture_name == 'import':
-                path = self._get_node_text(node)
-                imports.append({
-                    "name": path,
-                    "full_import_name": path,
+        query = self.queries["imports"]
+        for node, _ in query.captures(root_node):
+            full_import_name = self._get_node_text(node)
+            alias = None
+
+            alias_match = re.search(r"as\s+(\w+)\s*;?$", full_import_name)
+            if alias_match:
+                alias = alias_match.group(1)
+                name = alias
+            else:
+                cleaned_path = re.sub(r";$", "", full_import_name).strip()
+                last_part = cleaned_path.split("::")[-1]
+                if last_part.strip() == "*":
+                    name = "*"
+                else:
+                    name_match = re.findall(r"(\w+)", last_part)
+                    name = name_match[-1] if name_match else last_part
+
+            imports.append(
+                {
+                    "name": name,
+                    "full_import_name": full_import_name,
                     "line_number": node.start_point[0] + 1,
-                    "alias": None,
-                })
+                    "alias": alias,
+                }
+            )
         return imports
+
+    def _find_calls(self, root_node: Any) -> list[Dict[str, Any]]:
+        """Finds all function and method calls."""
+        calls = []
+        query = self.queries["calls"]
+        for node, capture_name in query.captures(root_node):
+            if capture_name == "name":
+                call_name = self._get_node_text(node)
+                calls.append(
+                    {
+                        "name": call_name,
+                        "line_number": node.start_point[0] + 1,
+                    }
+                )
+        return calls
