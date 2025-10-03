@@ -38,7 +38,7 @@ const InstallationSection = () => {
     <section className="py-24 px-4 bg-muted/20">
       <div className="container mx-auto max-w-5xl">
         <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold mb-6">
+          <h2 className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-primary via-primary to-accent bg-clip-text text-transparent">
             Get Started in Minutes
           </h2>
           <p className="text-xl text-muted-foreground">
@@ -50,7 +50,7 @@ const InstallationSection = () => {
           {installSteps.map((step, index) => (
             <Card 
               key={index}
-              className="border-border/50 hover:border-primary/30 transition-smooth animate-float-up dark:bg-gradient-card dark:bg-card/50 dark:border-border/30 dark:hover:border-primary/40 bg-white/95 border-gray-200/50 hover:border-primary/50 shadow-sm"
+              className="border-border/50 transition-smooth animate-float-up dark:bg-gradient-card dark:bg-card/50 dark:border-border/30 dark:hover:border-primary/40 bg-white/95 border-gray-200/50 hover:border-primary/50 shadow-sm"
               style={{ animationDelay: `${index * 0.2}s` }}
             >
               <CardHeader className="pb-4">
@@ -66,7 +66,7 @@ const InstallationSection = () => {
               </CardHeader>
               <CardContent>
                 <div className="code-block flex items-center justify-between group bg-white/95 bg-none border border-gray-200 shadow-sm dark:bg-card dark:border-border dark:shadow-lg">
-                  <code className="text-accent font-mono animate-code-highlight">
+                  <code className="dark:text-accent font-mono animate-code-highlight text-">
                     $ {step.command}
                   </code>
                   <Button
