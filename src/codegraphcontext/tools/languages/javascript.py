@@ -1,39 +1,7 @@
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 import logging
-import re
-import ast  # Not strictly needed for JS, but kept for consistency if AST manipulation is added
-
-# --- Helpers to classify JS methods ---
-_GETTER_RE = re.compile(r"^\s*(?:static\s+)?get\b")
-_SETTER_RE = re.compile(r"^\s*(?:static\s+)?set\b")
-_STATIC_RE = re.compile(r"^\s*static\b")
-
-
-def _first_line_before_body(text: str) -> str:
-    """
-    Best-effort header extraction: take text before the first '{'
-    (covers class/object methods). Fallback to the first line.
-    """
-    head = text.split("{", 1)[0]
-    if not head.strip():
-        return text.splitlines()[0] if text.splitlines() else text
-    return head
-
-
-def _classify_method_kind(header: str) -> Optional[str]:
-    """
-    Return 'getter' | 'setter' | 'static' | None.
-    Prefer 'getter'/'setter' over 'static' when both appear.
-    """
-    if _GETTER_RE.search(header):
-        return "getter"
-    if _SETTER_RE.search(header):
-        return "setter"
-    if _STATIC_RE.search(header):
-        return "static"
-    return None
-
+import ast # Not strictly needed for JS, but kept for consistency if AST manipulation is added
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +78,6 @@ JS_QUERIES = {
     """,
 }
 
-
 class JavascriptTreeSitterParser:
     """A JavaScript-specific parser using tree-sitter, encapsulating language-specific logic."""
 
@@ -146,14 +113,14 @@ class JavascriptTreeSitterParser:
             "logical_expression", "binary_expression", "catch_clause"
         }
         count = 1
-
+        
         def traverse(n):
             nonlocal count
             if n.type in complexity_nodes:
                 count += 1
             for child in n.children:
                 traverse(child)
-
+        
         traverse(node)
         return count
 
@@ -166,7 +133,7 @@ class JavascriptTreeSitterParser:
         """Parses a file and returns its structure in a standardized dictionary format."""
         with open(file_path, "r", encoding="utf-8") as f:
             source_code = f.read()
-
+        
         tree = self.parser.parse(bytes(source_code, "utf8"))
         root_node = tree.root_node
 
@@ -190,114 +157,100 @@ class JavascriptTreeSitterParser:
     def _find_functions(self, root_node):
         functions = []
         query = self.queries['functions']
-
-    # Local helpers so we don't depend on class attrs being present
-        def _fn_for_name(name_node):
-            current = name_node.parent
-            while current:
-                if current.type in ('function_declaration', 'function', 'arrow_function', 'method_definition'):
-                    return current
-                elif current.type in ('variable_declarator', 'assignment_expression'):
-                    for child in current.children:
-                        if child.type in ('function', 'arrow_function'):
-                            return child
-                current = current.parent
-            return None
-
-        def _fn_for_params(params_node):
-            current = params_node.parent
-            while current:
-                if current.type in ('function_declaration', 'function', 'arrow_function', 'method_definition'):
-                    return current
-                current = current.parent
-            return None
-        # stable keys so the same function only gets one bucket
-        def _key(n):  # start/end byte + type is stable across captures
-            return (n.start_byte, n.end_byte, n.type)
-
-        # Collect captures grouped by function node
+        
+        # Collect all captures and group them by the function they belong to
         captures_by_function = {}
-        def _bucket_for(node):
-            fid = id(node)
-            return captures_by_function.setdefault(fid, {
-                'node': node, 'name': None, 'params': None, 'single_param': None
-            })
-
+        
         for node, capture_name in query.captures(root_node):
             if capture_name == 'function_node':
-                _bucket_for(node)
+                func_id = id(node)
+                if func_id not in captures_by_function:
+                    captures_by_function[func_id] = {
+                        'node': node,
+                        'name': None,
+                        'params': None,
+                        'single_param': None
+                    }
             elif capture_name == 'name':
-                fn = _fn_for_name(node)
-                if fn:
-                    b = _bucket_for(fn)
-                    b['name'] = self._get_node_text(node)
+                # Find which function this name belongs to
+                func_node = self._find_function_node_for_name(node)
+                if func_node:
+                    func_id = id(func_node)
+                    if func_id not in captures_by_function:
+                        captures_by_function[func_id] = {
+                            'node': func_node,
+                            'name': None,
+                            'params': None,
+                            'single_param': None
+                        }
+                    captures_by_function[func_id]['name'] = self._get_node_text(node)
             elif capture_name == 'params':
-                fn = _fn_for_params(node)
-                if fn:
-                    b = _bucket_for(fn)
-                    b['params'] = node
+                # Find which function these params belong to
+                func_node = self._find_function_node_for_params(node)
+                if func_node:
+                    func_id = id(func_node)
+                    if func_id not in captures_by_function:
+                        captures_by_function[func_id] = {
+                            'node': func_node,
+                            'name': None,
+                            'params': None,
+                            'single_param': None
+                        }
+                    captures_by_function[func_id]['params'] = node
             elif capture_name == 'single_param':
-                fn = _fn_for_params(node)
-                if fn:
-                    b = _bucket_for(fn)
-                    b['single_param'] = node
-
-        # Build Function entries
-        for _, data in captures_by_function.items():
-            func_node = data['node']
-
-            # Backfill name for method_definition if query didn't capture it
-            name = data.get('name')
-            if not name and func_node.type == 'method_definition':
-                nm = func_node.child_by_field_name('name')
-                if nm:
-                    name = self._get_node_text(nm)
-            if not name:
-                continue  # skip nameless functions
-
-            # Parameters
-            args = []
-            if data.get('params'):
-                args = self._extract_parameters(data['params'])
-            elif data.get('single_param'):
-                args = [self._get_node_text(data['single_param'])]
-
-            # Context & docstring
-            context, context_type, _ = self._get_parent_context(func_node)
-            class_context = context if context_type == 'class_declaration' else None
-            docstring = self._get_jsdoc_comment(func_node)
-
-            # Classify getter/setter/static (methods only)
-            js_kind = None
-            if func_node.type == 'method_definition':
-                header = _first_line_before_body(self._get_node_text(func_node))
-                js_kind = _classify_method_kind(header)
-
-            func_data = {
-                "name": name,
-                "line_number": func_node.start_point[0] + 1,
-                "end_line": func_node.end_point[0] + 1,
-                "args": args,
-                "source": self._get_node_text(func_node),
-                "source_code": self._get_node_text(func_node),
-                "docstring": docstring,
-                "cyclomatic_complexity": self._calculate_complexity(func_node),
-                "context": context,
-                "context_type": context_type,
-                "class_context": class_context,
-                "decorators": [],
-                "lang": self.language_name,
-                "is_dependency": False,
-            }
-            if js_kind is not None:
-                func_data["type"] = js_kind
-
-            functions.append(func_data)
-
+                # Find which function this single param belongs to
+                func_node = self._find_function_node_for_params(node)
+                if func_node:
+                    func_id = id(func_node)
+                    if func_id not in captures_by_function:
+                        captures_by_function[func_id] = {
+                            'node': func_node,
+                            'name': None,
+                            'params': None,
+                            'single_param': None
+                        }
+                    captures_by_function[func_id]['single_param'] = node
+        
+        # Process each function
+        for func_id, data in captures_by_function.items():
+            if data['name']:  # Only process if we have a name
+                func_node = data['node']
+                name = data['name']
+                
+                # Extract parameters
+                args = []
+                if data['params']:
+                    args = self._extract_parameters(data['params'])
+                elif data['single_param']:
+                    args = [self._get_node_text(data['single_param'])]
+                
+                # Get context information
+                context, context_type, context_line = self._get_parent_context(func_node)
+                class_context = context if context_type == 'class_declaration' else None
+                
+                # Extract JSDoc comment if available
+                docstring = self._get_jsdoc_comment(func_node)
+                
+                func_data = {
+                    "name": name,
+                    "line_number": func_node.start_point[0] + 1,
+                    "end_line": func_node.end_point[0] + 1,
+                    "args": args,
+                    "source": self._get_node_text(func_node),
+                    "source_code": self._get_node_text(func_node),
+                    "docstring": docstring,
+                    "cyclomatic_complexity": self._calculate_complexity(func_node),
+                    "context": context,
+                    "context_type": context_type,
+                    "class_context": class_context,
+                    "decorators": [],  # JS doesn't have decorators like Python
+                    "lang": self.language_name,
+                    "is_dependency": False,
+                }
+                functions.append(func_data)
+        
         return functions
-
-
-
+    
     def _find_function_node_for_name(self, name_node):
         """Find the function node that contains this name node."""
         current = name_node.parent
@@ -311,8 +264,7 @@ class JavascriptTreeSitterParser:
                         return child
             current = current.parent
         return None
-
-
+    
     def _find_function_node_for_params(self, params_node):
         """Find the function node that contains this parameters node."""
         current = params_node.parent
@@ -320,10 +272,8 @@ class JavascriptTreeSitterParser:
             if current.type in ('function_declaration', 'function', 'arrow_function', 'method_definition'):
                 return current
             current = current.parent
-
         return None
-
-
+    
     def _extract_parameters(self, params_node):
         """Extract parameter names from formal_parameters node."""
         params = []
@@ -342,8 +292,7 @@ class JavascriptTreeSitterParser:
                     if argument and argument.type == 'identifier':
                         params.append(f"...{self._get_node_text(argument)}")
         return params
-
-
+    
     def _get_jsdoc_comment(self, func_node):
         """Extract JSDoc comment preceding the function."""
         # Look for comments before the function
@@ -355,7 +304,6 @@ class JavascriptTreeSitterParser:
                     return comment_text.strip()
             prev_sibling = prev_sibling.prev_sibling
         return None
-
 
     def _find_classes(self, root_node):
         classes = []
@@ -392,7 +340,6 @@ class JavascriptTreeSitterParser:
                 classes.append(class_data)
         return classes
 
-
     def _find_imports(self, root_node):
         imports = []
         query = self.queries['imports']
@@ -401,30 +348,27 @@ class JavascriptTreeSitterParser:
                 continue
 
             line_number = node.start_point[0] + 1
-
+            
             if node.type == 'import_statement':
                 source = self._get_node_text(node.child_by_field_name('source')).strip('\'"')
-
+                
                 # Look for different import structures
                 import_clause = node.child_by_field_name('import')
                 if not import_clause:
-                    imports.append({'name': source, 'source': source, 'alias': None, 'line_number': line_number,
-                                    'lang': self.language_name})
+                    imports.append({'name': source, 'source': source, 'alias': None, 'line_number': line_number, 'lang': self.language_name})
                     continue
 
                 # Default import: import defaultExport from '...'
                 if import_clause.type == 'identifier':
                     alias = self._get_node_text(import_clause)
-                    imports.append({'name': 'default', 'source': source, 'alias': alias, 'line_number': line_number,
-                                    'lang': self.language_name})
+                    imports.append({'name': 'default', 'source': source, 'alias': alias, 'line_number': line_number, 'lang': self.language_name})
 
                 # Namespace import: import * as name from '...'
                 elif import_clause.type == 'namespace_import':
                     alias_node = import_clause.child_by_field_name('alias')
                     if alias_node:
                         alias = self._get_node_text(alias_node)
-                        imports.append({'name': '*', 'source': source, 'alias': alias, 'line_number': line_number,
-                                        'lang': self.language_name})
+                        imports.append({'name': '*', 'source': source, 'alias': alias, 'line_number': line_number, 'lang': self.language_name})
 
                 # Named imports: import { name, name as alias } from '...'
                 elif import_clause.type == 'named_imports':
@@ -434,27 +378,23 @@ class JavascriptTreeSitterParser:
                             alias_node = specifier.child_by_field_name('alias')
                             original_name = self._get_node_text(name_node)
                             alias = self._get_node_text(alias_node) if alias_node else None
-                            imports.append(
-                                {'name': original_name, 'source': source, 'alias': alias, 'line_number': line_number,
-                                 'lang': self.language_name})
+                            imports.append({'name': original_name, 'source': source, 'alias': alias, 'line_number': line_number, 'lang': self.language_name})
 
-            elif node.type == 'call_expression':  # require('...')
+            elif node.type == 'call_expression': # require('...')
                 args = node.child_by_field_name('arguments')
                 if not args or args.named_child_count == 0: continue
                 source_node = args.named_child(0)
                 if not source_node or source_node.type != 'string': continue
                 source = self._get_node_text(source_node).strip('\'"')
-
+                
                 alias = None
                 if node.parent.type == 'variable_declarator':
                     alias_node = node.parent.child_by_field_name('name')
                     if alias_node:
                         alias = self._get_node_text(alias_node)
-                imports.append({'name': source, 'source': source, 'alias': alias, 'line_number': line_number,
-                                'lang': self.language_name})
+                imports.append({'name': source, 'source': source, 'alias': alias, 'line_number': line_number, 'lang': self.language_name})
 
         return imports
-
 
     def _find_calls(self, root_node):
         calls = []
@@ -464,24 +404,23 @@ class JavascriptTreeSitterParser:
             if capture_name == 'name':
                 call_node = node.parent
                 name = self._get_node_text(node)
-
+                
                 # Simplified args extraction for now
                 args = []
 
                 call_data = {
                     "name": name,
-                    "full_name": self._get_node_text(call_node),  # This might need refinement
+                    "full_name": self._get_node_text(call_node), # This might need refinement
                     "line_number": node.start_point[0] + 1,
                     "args": args,
                     "inferred_obj_type": None,
-                    "context": None,  # Placeholder
-                    "class_context": None,  # Placeholder
+                    "context": None, # Placeholder
+                    "class_context": None, # Placeholder
                     "lang": self.language_name,
                     "is_dependency": False,
                 }
                 calls.append(call_data)
         return calls
-
 
     def _find_variables(self, root_node):
         variables = []
@@ -494,22 +433,21 @@ class JavascriptTreeSitterParser:
             if capture_name == 'name':
                 var_node = node.parent
                 name = self._get_node_text(node)
-                value = None  # Placeholder
-                type_text = None  # Placeholder
+                value = None # Placeholder
+                type_text = None # Placeholder
 
                 variable_data = {
                     "name": name,
                     "line_number": node.start_point[0] + 1,
                     "value": value,
                     "type": type_text,
-                    "context": None,  # Placeholder
-                    "class_context": None,  # Placeholder
+                    "context": None, # Placeholder
+                    "class_context": None, # Placeholder
                     "lang": self.language_name,
                     "is_dependency": False,
                 }
                 variables.append(variable_data)
         return variables
-
 
 def pre_scan_javascript(files: list[Path], parser_wrapper) -> dict:
     """Scans JavaScript files to create a map of class/function names to their file paths."""
@@ -534,12 +472,12 @@ def pre_scan_javascript(files: list[Path], parser_wrapper) -> dict:
         )
     """
     query = parser_wrapper.language.query(query_str)
-
+    
     for file_path in files:
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 tree = parser_wrapper.parser.parse(bytes(f.read(), "utf8"))
-
+            
             for capture, _ in query.captures(tree.root_node):
                 name = capture.text.decode('utf-8')
                 if name not in imports_map:
