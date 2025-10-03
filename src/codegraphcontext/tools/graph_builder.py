@@ -108,7 +108,7 @@ class GraphBuilder:
         if '.py' in files_by_lang:
             from .languages import python as python_lang_module
             imports_map.update(python_lang_module.pre_scan_python(files_by_lang['.py'], self.parsers['.py']))
-        if '.js' in files_by_lang:
+        elif '.js' in files_by_lang:
             from .languages import javascript as js_lang_module
             imports_map.update(js_lang_module.pre_scan_javascript(files_by_lang['.js'], self.parsers['.js']))
             
