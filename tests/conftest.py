@@ -6,6 +6,8 @@ import pytest
 
 # Path to the sample project used in tests
 SAMPLE_PROJECT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "sample_project"))
+# SAMPLE_PROJECT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "sample_project_javascript"))
+
 
 # Helper function to call a tool, now shared across all tests
 def call_tool(server, name, args):
@@ -32,16 +34,6 @@ def server():
     in this file and provides a communication helper function.
     """
     print("\n--- Setting up server fixture ---")
-    
-    env_content = """
-NEO4J_URI=neo4j+s://44df5fd5.databases.neo4j.io
-NEO4J_USERNAME=44df5fd5
-NEO4J_PASSWORD=vSwK0dBCmaaMEQKFvWWFc7bPAdYlMAXFBlND-Tj-OEA
-"""
-    env_path = os.path.join(os.path.dirname(__file__), "..", ".env")
-    with open(env_path, "w") as f:
-        f.write(env_content)
-    print(f"Created .env file at {env_path}")
 
     process = None
     try:
@@ -88,9 +80,6 @@ NEO4J_PASSWORD=vSwK0dBCmaaMEQKFvWWFc7bPAdYlMAXFBlND-Tj-OEA
             process.terminate()
             process.wait()
             print("Server process terminated.")
-        if os.path.exists(env_path):
-            os.remove(env_path)
-            print("Removed .env file.")
 
 def pytest_addoption(parser):
     parser.addoption(
