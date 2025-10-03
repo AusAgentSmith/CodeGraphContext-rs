@@ -51,7 +51,7 @@ export default function TestimonialSection() {
     <section className="py-24 px-4">
       <div className="container mx-auto max-w-6xl">
         <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-primary bg-clip-text text-transparent">
+          <h2 className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-primary via-primary to-accent bg-clip-text text-transparent">
             What teams are saying
           </h2>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
