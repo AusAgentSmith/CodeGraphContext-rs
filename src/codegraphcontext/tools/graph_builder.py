@@ -39,6 +39,12 @@ class TreeSitterParser:
         elif self.language_name == 'javascript':
             from .languages.javascript import JavascriptTreeSitterParser
             self.language_specific_parser = JavascriptTreeSitterParser(self)
+        elif self.language_name == 'cpp':
+            from .languages.cpp import CppTreeSitterParser
+            self.language_specific_parser = CppTreeSitterParser(self)
+        elif self.language_name == 'rust':
+            from .languages.rust import RustTreeSitterParser
+            self.language_specific_parser = RustTreeSitterParser(self)
 
     def parse(self, file_path: Path, is_dependency: bool = False) -> Dict:
         """Dispatches parsing to the language-specific parser."""
@@ -61,6 +67,10 @@ class GraphBuilder:
             '.jsx': TreeSitterParser('javascript'),
             '.mjs': TreeSitterParser('javascript'),
             '.cjs': TreeSitterParser('javascript'),
+            '.cpp': TreeSitterParser('cpp'),
+            '.h': TreeSitterParser('cpp'),
+            '.hpp': TreeSitterParser('cpp'),
+            '.rs': TreeSitterParser('rust'),
         }
         self.create_schema()
 
