@@ -23,10 +23,10 @@
 An MCP server that indexes local code into a graph database to provide context to AI assistants.
 
 ### Indexing a codebase
-![Indexing using an MCP client](images/Indexing.gif)
+![Indexing using an MCP client](https://github.com/Shashankss1205/CodeGraphContext/blob/main/images/Indexing.gif)
 
 ### Using the MCP server
-![Using the MCP server](images/Usecase.gif)
+![Using the MCP server](https://github.com/Shashankss1205/CodeGraphContext/blob/main/images/Usecase.gif)
 
 ## Project Details
 - **Version:** 0.1.13
