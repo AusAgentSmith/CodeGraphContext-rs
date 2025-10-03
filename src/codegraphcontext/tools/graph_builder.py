@@ -58,6 +58,9 @@ class GraphBuilder:
         self.parsers = {
             '.py': TreeSitterParser('python'),
             '.js': TreeSitterParser('javascript'), # Added JavaScript parser
+            '.jsx': TreeSitterParser('javascript'),
+            '.mjs': TreeSitterParser('javascript'),
+            '.cjs': TreeSitterParser('javascript'),
         }
         self.create_schema()
 
