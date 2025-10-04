@@ -2,11 +2,9 @@
 # src/codegraphcontext/tools/graph_builder.py
 import asyncio
 import logging
-import os
 from pathlib import Path
 from typing import Any, Coroutine, Dict, Optional, Tuple
 from datetime import datetime
-import ast
 
 from ..core.database import DatabaseManager
 from ..core.jobs import JobManager, JobStatus
@@ -92,7 +90,7 @@ class GraphBuilder:
             '.hpp': TreeSitterParser('cpp'),
             '.rs': TreeSitterParser('rust'),
             '.c': TreeSitterParser('c'),
-            '.h': TreeSitterParser('c'),
+            # '.h': TreeSitterParser('c'), # Need to write an algo for distinguishing C vs C++ headers
             '.java': TreeSitterParser('java'),
             '.rb': TreeSitterParser('ruby')
         }
@@ -142,15 +140,45 @@ class GraphBuilder:
         if '.py' in files_by_lang:
             from .languages import python as python_lang_module
             imports_map.update(python_lang_module.pre_scan_python(files_by_lang['.py'], self.parsers['.py']))
+        elif '.ipynb' in files_by_lang:
+            from .languages import python as python_lang_module
+            imports_map.update(python_lang_module.pre_scan_python(files_by_lang['.ipynb'], self.parsers['.ipynb']))
         elif '.js' in files_by_lang:
             from .languages import javascript as js_lang_module
             imports_map.update(js_lang_module.pre_scan_javascript(files_by_lang['.js'], self.parsers['.js']))
-        elif '.c' in files_by_lang:
-            from .languages import c as c_lang_module
-            imports_map.update(c_lang_module.pre_scan_c(files_by_lang['.c'], self.parsers['.c']))
+        elif '.jsx' in files_by_lang:
+            from .languages import javascript as js_lang_module
+            imports_map.update(js_lang_module.pre_scan_javascript(files_by_lang['.jsx'], self.parsers['.jsx']))
+        elif '.mjs' in files_by_lang:
+            from .languages import javascript as js_lang_module
+            imports_map.update(js_lang_module.pre_scan_javascript(files_by_lang['.mjs'], self.parsers['.mjs']))
+        elif '.cjs' in files_by_lang:
+            from .languages import javascript as js_lang_module
+            imports_map.update(js_lang_module.pre_scan_javascript(files_by_lang['.cjs'], self.parsers['.cjs']))
         elif '.go' in files_by_lang:
              from .languages import go as go_lang_module
              imports_map.update(go_lang_module.pre_scan_go(files_by_lang['.go'], self.parsers['.go']))
+        elif '.ts' in files_by_lang:
+            from .languages import typescript as ts_lang_module
+            imports_map.update(ts_lang_module.pre_scan_typescript(files_by_lang['.ts'], self.parsers['.ts']))
+        elif '.tsx' in files_by_lang:
+            from .languages import typescript as ts_lang_module
+            imports_map.update(ts_lang_module.pre_scan_typescript(files_by_lang['.tsx'], self.parsers['.tsx']))
+        elif '.cpp' in files_by_lang:
+            from .languages import cpp as cpp_lang_module
+            imports_map.update(cpp_lang_module.pre_scan_cpp(files_by_lang['.cpp'], self.parsers['.cpp']))
+        elif '.h' in files_by_lang:
+            from .languages import cpp as cpp_lang_module
+            imports_map.update(cpp_lang_module.pre_scan_cpp(files_by_lang['.h'], self.parsers['.h']))
+        elif '.hpp' in files_by_lang:
+            from .languages import cpp as cpp_lang_module
+            imports_map.update(cpp_lang_module.pre_scan_cpp(files_by_lang['.hpp'], self.parsers['.hpp']))
+        elif '.rs' in files_by_lang:
+            from .languages import rust as rust_lang_module
+            imports_map.update(rust_lang_module.pre_scan_rust(files_by_lang['.rs'], self.parsers['.rs']))
+        elif '.c' in files_by_lang:
+            from .languages import c as c_lang_module
+            imports_map.update(c_lang_module.pre_scan_c(files_by_lang['.c'], self.parsers['.c']))
         elif '.java' in files_by_lang:
             from .languages import java as java_lang_module
             imports_map.update(java_lang_module.pre_scan_java(files_by_lang['.java'], self.parsers['.java']))
