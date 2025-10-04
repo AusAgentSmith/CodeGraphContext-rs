@@ -57,6 +57,9 @@ class TreeSitterParser:
         elif self.language_name == 'java':
             from .languages.java import JavaTreeSitterParser
             self.language_specific_parser = JavaTreeSitterParser(self)
+        elif self.language_name == 'ruby':
+            from .languages.ruby import RubyTreeSitterParser
+            self.language_specific_parser = RubyTreeSitterParser(self)
 
 
     def parse(self, file_path: Path, is_dependency: bool = False, is_notebook: bool = False) -> Dict:
@@ -92,7 +95,8 @@ class GraphBuilder:
             '.rs': TreeSitterParser('rust'),
             '.c': TreeSitterParser('c'),
             '.h': TreeSitterParser('c'),
-            '.java': TreeSitterParser('java')
+            '.java': TreeSitterParser('java'),
+            '.rb': TreeSitterParser('ruby')
         }
         self.create_schema()
 
@@ -152,6 +156,9 @@ class GraphBuilder:
         elif '.java' in files_by_lang:
             from .languages import java as java_lang_module
             imports_map.update(java_lang_module.pre_scan_java(files_by_lang['.java'], self.parsers['.java']))
+        elif '.rb' in files_by_lang:
+            from .languages import ruby as ruby_lang_module
+            imports_map.update(ruby_lang_module.pre_scan_ruby(files_by_lang['.rb'], self.parsers['.rb']))
             
         return imports_map
 
