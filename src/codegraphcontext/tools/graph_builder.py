@@ -39,11 +39,9 @@ class TreeSitterParser:
         elif self.language_name == 'javascript':
             from .languages.javascript import JavascriptTreeSitterParser
             self.language_specific_parser = JavascriptTreeSitterParser(self)
-
         elif self.language_name == 'go':
              from .languages.go import GoTreeSitterParser
              self.language_specific_parser = GoTreeSitterParser(self)
-
         elif self.language_name == 'typescript':
             from .languages.typescript import TypescriptTreeSitterParser
             self.language_specific_parser = TypescriptTreeSitterParser(self)
@@ -82,12 +80,12 @@ class GraphBuilder:
             '.py': TreeSitterParser('python'),
             '.ipynb': TreeSitterParser('python'),
             '.js': TreeSitterParser('javascript'),
-            '.go': TreeSitterParser('go'),
             '.jsx': TreeSitterParser('javascript'),
-            '.ts': TreeSitterParser('typescript'),
-            '.tsx': TreeSitterParser('typescript'),
             '.mjs': TreeSitterParser('javascript'),
             '.cjs': TreeSitterParser('javascript'),
+            '.go': TreeSitterParser('go'),
+            '.ts': TreeSitterParser('typescript'),
+            '.tsx': TreeSitterParser('typescript'),
             '.cpp': TreeSitterParser('cpp'),
             '.h': TreeSitterParser('cpp'),
             '.hpp': TreeSitterParser('cpp'),

@@ -26,7 +26,9 @@ dependencies = [
     "tree-sitter==0.20.4",                   
     "tree-sitter-languages==1.10.2",
     "pyyaml",
-    "pytest"
+    "pytest",
+    "nbformat",
+    "nbconvert>=7.16.6"
 ]
 
 [project.urls]
