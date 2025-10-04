@@ -62,12 +62,10 @@ class TreeSitterParser:
             self.language_specific_parser = RubyTreeSitterParser(self)
 
 
-    def parse(self, file_path: Path, is_dependency: bool = False, is_notebook: bool = False) -> Dict:
+    def parse(self, file_path: Path, is_dependency: bool = False, **kwargs) -> Dict:
         """Dispatches parsing to the language-specific parser."""
         if self.language_specific_parser:
-            if self.language_name == 'python':
-                return self.language_specific_parser.parse(file_path, is_dependency, is_notebook=is_notebook)
-            return self.language_specific_parser.parse(file_path, is_dependency)
+            return self.language_specific_parser.parse(file_path, is_dependency, **kwargs)
         else:
             raise NotImplementedError(f"No language-specific parser implemented for {self.language_name}")
 
@@ -605,5 +603,5 @@ class GraphBuilder:
                     status=JobStatus.FAILED
 
                 self.job_manager.update_job(
-                    job_id, status=JobStatus.FAILED, end_time=datetime.now(), errors=[str(e)]
+                    job_id, status=status, end_time=datetime.now(), errors=[str(e)]
                 )
