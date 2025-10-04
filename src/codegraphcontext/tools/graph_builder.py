@@ -56,6 +56,9 @@ class TreeSitterParser:
         elif self.language_name == 'c':
             from .languages.c import CTreeSitterParser
             self.language_specific_parser = CTreeSitterParser(self)
+        elif self.language_name == 'java':
+            from .languages.java import JavaTreeSitterParser
+            self.language_specific_parser = JavaTreeSitterParser(self)
 
 
     def parse(self, file_path: Path, is_dependency: bool = False) -> Dict:
@@ -87,7 +90,8 @@ class GraphBuilder:
             '.h': TreeSitterParser('cpp'),
             '.hpp': TreeSitterParser('cpp'),
             '.rs': TreeSitterParser('rust'),
-            '.c': TreeSitterParser('c'),  # Added C parser
+            '.c': TreeSitterParser('c'),
+            '.java': TreeSitterParser('java'),
 
         }
         self.create_schema()
@@ -142,6 +146,9 @@ class GraphBuilder:
         elif '.go' in files_by_lang:
              from .languages import go as go_lang_module
              imports_map.update(go_lang_module.pre_scan_go(files_by_lang['.go'], self.parsers['.go']))
+        elif '.java' in files_by_lang:
+            from .languages import java as java_lang_module
+            imports_map.update(java_lang_module.pre_scan_java(files_by_lang['.java'], self.parsers['.java']))
             
         return imports_map
 
