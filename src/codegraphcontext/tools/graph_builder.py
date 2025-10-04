@@ -143,6 +143,9 @@ class GraphBuilder:
         elif '.js' in files_by_lang:
             from .languages import javascript as js_lang_module
             imports_map.update(js_lang_module.pre_scan_javascript(files_by_lang['.js'], self.parsers['.js']))
+        elif '.c' in files_by_lang:
+            from .languages import c as c_lang_module
+            imports_map.update(c_lang_module.pre_scan_c(files_by_lang['.c'], self.parsers['.c']))
         elif '.go' in files_by_lang:
              from .languages import go as go_lang_module
              imports_map.update(go_lang_module.pre_scan_go(files_by_lang['.go'], self.parsers['.go']))
