@@ -58,9 +58,11 @@ class TreeSitterParser:
             self.language_specific_parser = CTreeSitterParser(self)
 
 
-    def parse(self, file_path: Path, is_dependency: bool = False) -> Dict:
+    def parse(self, file_path: Path, is_dependency: bool = False, is_notebook: bool = False) -> Dict:
         """Dispatches parsing to the language-specific parser."""
         if self.language_specific_parser:
+            if self.language_name == 'python':
+                return self.language_specific_parser.parse(file_path, is_dependency, is_notebook=is_notebook)
             return self.language_specific_parser.parse(file_path, is_dependency)
         else:
             raise NotImplementedError(f"No language-specific parser implemented for {self.language_name}")
@@ -75,8 +77,8 @@ class GraphBuilder:
         self.driver = self.db_manager.get_driver()
         self.parsers = {
             '.py': TreeSitterParser('python'),
-            '.js': TreeSitterParser('javascript'), # Added JavaScript parser
-
+            '.ipynb': TreeSitterParser('python'),
+            '.js': TreeSitterParser('javascript'),
             '.go': TreeSitterParser('go'),
             '.jsx': TreeSitterParser('javascript'),
             '.ts': TreeSitterParser('typescript'),
@@ -87,7 +89,8 @@ class GraphBuilder:
             '.h': TreeSitterParser('cpp'),
             '.hpp': TreeSitterParser('cpp'),
             '.rs': TreeSitterParser('rust'),
-            '.c': TreeSitterParser('c'),  # Added C parser
+            '.c': TreeSitterParser('c'),
+            '.h': TreeSitterParser('c')
 
         }
         self.create_schema()
@@ -502,7 +505,8 @@ class GraphBuilder:
 
         debug_log(f"[parse_file] Starting parsing for: {file_path} with {parser.language_name} parser")
         try:
-            file_data = parser.parse(file_path, is_dependency)
+            is_notebook = file_path.suffix == '.ipynb'
+            file_data = parser.parse(file_path, is_dependency, is_notebook=is_notebook)
             file_data['repo_path'] = str(repo_path)
             if debug_mode:
                 debug_log(f"[parse_file] Successfully parsed: {file_path}")
