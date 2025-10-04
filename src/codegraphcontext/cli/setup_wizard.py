@@ -252,10 +252,11 @@ def run_setup_wizard():
     questions = [
         {
             "type": "list",
-            "message": "Where is your Neo4j database located? We can help you get one, if you don't have.",
+            "message": "Where do you want to setup your Neo4j database?",
             "choices": [
                 "Local (Recommended: I'll help you run it on this machine)",
                 "Hosted (Connect to a remote database like AuraDB)",
+                "I already have an existing neo4j instance running.",
             ],
             "name": "db_location",
         }
@@ -265,9 +266,10 @@ def run_setup_wizard():
 
     if db_location and "Hosted" in db_location:
         setup_hosted_db()
-    elif db_location:
+    elif db_location and "Local" in db_location:
         setup_local_db()
-
+    elif db_location:
+        setup_existing_db()
 
 def find_latest_neo4j_creds_file():
     """Finds the latest Neo4j credentials file in the Downloads folder."""
@@ -282,6 +284,83 @@ def find_latest_neo4j_creds_file():
     latest_file = max(cred_files, key=lambda f: f.stat().st_mtime)
     return latest_file
 
+
+def setup_existing_db():
+    """Guides user to configure an existing Neo4j instance."""
+    console.print("\nTo connect to an existing Neo4j database, you'll need your connection credentials.")
+    console.print("If you don't have credentials for the database, you can create a new one using 'Local' installation in the previous menu.")
+    
+    questions = [
+
+        {
+            "type": "list",
+            "message": "How would you like to add your Neo4j credentials?",
+            "choices": ["Add credentials from file", "Add credentials manually"],
+            "name": "cred_method",
+        }
+    ]
+    result = prompt(questions)
+    cred_method = result.get("cred_method")
+
+    creds = {}
+    if cred_method and "file" in cred_method:
+        latest_file = find_latest_neo4j_creds_file()
+        file_to_parse = None
+        if latest_file:
+            confirm_questions = [
+                {
+                    "type": "confirm",
+                    "message": f"Found a credentials file: {latest_file}. Use this file?",
+                    "name": "use_latest",
+                    "default": True,
+                }
+            ]
+            if prompt(confirm_questions).get("use_latest"):
+                file_to_parse = latest_file
+
+        if not file_to_parse:
+            path_questions = [
+                {"type": "input", "message": "Please enter the path to your credentials file:", "name": "cred_file_path"}
+            ]
+            file_path_str = prompt(path_questions).get("cred_file_path", "")
+            file_path = Path(file_path_str.strip())
+            if file_path.exists() and file_path.is_file():
+                file_to_parse = file_path
+            else:
+                console.print("[red]❌ The specified file path does not exist or is not a file.[/red]")
+                return
+
+        if file_to_parse:
+            try:
+                with open(file_to_parse, "r") as f:
+                    for line in f:
+                        if "=" in line:
+                            key, value = line.strip().split("=", 1)
+                            if key == "NEO4J_URI":
+                                creds["uri"] = value
+                            elif key == "NEO4J_USERNAME":
+                                creds["username"] = value
+                            elif key == "NEO4J_PASSWORD":
+                                creds["password"] = value
+            except Exception as e:
+                console.print(f"[red]❌ Failed to parse credentials file: {e}[/red]")
+                return
+
+    elif cred_method:  # Manual entry
+        console.print("Please enter your remote Neo4j connection details.")
+        questions = [
+            {"type": "input", "message": "URI (e.g., 'neo4j://localhost:7687'):", "name": "uri", "default": "neo4j://localhost:7687"},
+            {"type": "input", "message": "Username:", "name": "username", "default": "neo4j"},
+            {"type": "password", "message": "Password:", "name": "password"},
+        ]
+        manual_creds = prompt(questions)
+        if not manual_creds: return  # User cancelled
+        creds = manual_creds
+
+    if creds.get("uri") and creds.get("password"):
+        _generate_mcp_json(creds)
+    else:
+        console.print("[red]❌ Incomplete credentials. Please try again.[/red]")
 
 
 def setup_hosted_db():
