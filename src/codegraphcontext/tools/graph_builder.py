@@ -48,6 +48,9 @@ class TreeSitterParser:
         elif self.language_name == 'rust':
             from .languages.rust import RustTreeSitterParser
             self.language_specific_parser = RustTreeSitterParser(self)
+        elif self.language_name == 'c':
+            from .languages.c import CTreeSitterParser
+            self.language_specific_parser = CTreeSitterParser(self)
 
     def parse(self, file_path: Path, is_dependency: bool = False) -> Dict:
         """Dispatches parsing to the language-specific parser."""
@@ -76,6 +79,7 @@ class GraphBuilder:
             '.h': TreeSitterParser('cpp'),
             '.hpp': TreeSitterParser('cpp'),
             '.rs': TreeSitterParser('rust'),
+            '.c': TreeSitterParser('c'),  # Added C parser
         }
         self.create_schema()
 
