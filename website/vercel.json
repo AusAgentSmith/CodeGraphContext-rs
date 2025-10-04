@@ -1,6 +1,4 @@
 {
-  "buildCommand": "bash ./vercel_deploy.sh",
-  "ignoreCommand": "if [ \"$VERCEL_GIT_COMMIT_AUTHOR_LOGIN\" != \"Shashankss1205\" ]; then exit 0; fi; git diff HEAD^ HEAD --quiet -- .",
   "rewrites": [
     {
       "source": "/api/pypi/:path*",
