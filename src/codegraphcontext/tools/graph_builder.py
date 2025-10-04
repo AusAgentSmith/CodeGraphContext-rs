@@ -14,7 +14,7 @@ from ..utils.debug_log import debug_log
 
 # New imports for tree-sitter
 from tree_sitter import Language, Parser
-from tree_sitter_languages import get_language
+from tree_sitter_language_pack import get_language
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +39,9 @@ class TreeSitterParser:
         elif self.language_name == 'javascript':
             from .languages.javascript import JavascriptTreeSitterParser
             self.language_specific_parser = JavascriptTreeSitterParser(self)
+        elif self.language_name == 'go':
+             from .languages.go import GoTreeSitterParser
+             self.language_specific_parser = GoTreeSitterParser(self)
 
     def parse(self, file_path: Path, is_dependency: bool = False) -> Dict:
         """Dispatches parsing to the language-specific parser."""
@@ -58,6 +61,7 @@ class GraphBuilder:
         self.parsers = {
             '.py': TreeSitterParser('python'),
             '.js': TreeSitterParser('javascript'), # Added JavaScript parser
+            '.go': TreeSitterParser('go'),
         }
         self.create_schema()
 
@@ -108,6 +112,9 @@ class GraphBuilder:
         elif '.js' in files_by_lang:
             from .languages import javascript as js_lang_module
             imports_map.update(js_lang_module.pre_scan_javascript(files_by_lang['.js'], self.parsers['.js']))
+        elif '.go' in files_by_lang:
+             from .languages import go as go_lang_module
+             imports_map.update(go_lang_module.pre_scan_go(files_by_lang['.go'], self.parsers['.go']))
             
         return imports_map
 
