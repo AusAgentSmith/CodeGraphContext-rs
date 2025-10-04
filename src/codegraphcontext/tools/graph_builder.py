@@ -39,6 +39,9 @@ class TreeSitterParser:
         elif self.language_name == 'javascript':
             from .languages.javascript import JavascriptTreeSitterParser
             self.language_specific_parser = JavascriptTreeSitterParser(self)
+        elif self.language_name == 'typescript':
+            from .languages.typescript import TypescriptTreeSitterParser
+            self.language_specific_parser = TypescriptTreeSitterParser(self)
         elif self.language_name == 'cpp':
             from .languages.cpp import CppTreeSitterParser
             self.language_specific_parser = CppTreeSitterParser(self)
@@ -65,6 +68,8 @@ class GraphBuilder:
             '.py': TreeSitterParser('python'),
             '.js': TreeSitterParser('javascript'), # Added JavaScript parser
             '.jsx': TreeSitterParser('javascript'),
+            '.ts': TreeSitterParser('typescript'),
+            '.tsx': TreeSitterParser('typescript'),
             '.mjs': TreeSitterParser('javascript'),
             '.cjs': TreeSitterParser('javascript'),
             '.cpp': TreeSitterParser('cpp'),
