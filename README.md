@@ -1,8 +1,6 @@
 # CodeGraphContext
 
 <!-- ====== Project stats ====== -->
-<!-- ====== Project stats ====== -->
-
 [![Stars](https://img.shields.io/github/stars/Shashankss1205/CodeGraphContext?logo=github)](https://github.com/Shashankss1205/CodeGraphContext/stargazers)
 [![Forks](https://img.shields.io/github/forks/Shashankss1205/CodeGraphContext?logo=github)](https://github.com/Shashankss1205/CodeGraphContext/network/members)
 [![Open Issues](https://img.shields.io/github/issues-raw/Shashankss1205/CodeGraphContext?logo=github)](https://github.com/Shashankss1205/CodeGraphContext/issues)
@@ -40,8 +38,8 @@ An MCP server that indexes local code into a graph database to provide context t
 
 ## Features
 
--   **Code Indexing:** Analyzes Python code and builds a knowledge graph of its components.
--   **Relationship Analysis:** Query for callers, callees, class hierarchies, and more.
+-   **Code Indexing:** Analyzes code and builds a knowledge graph of its components.
+-   **Relationship Analysis:** Query for callers, callees, class hierarchies, call chains and more.
 -   **Live Updates:** Watches local files for changes and automatically updates the graph.
 -   **Interactive Setup:** A user-friendly command-line wizard for easy setup.
 
@@ -50,7 +48,7 @@ An MCP server that indexes local code into a graph database to provide context t
 CodeGraphContext is already being explored by developers and projects for:
 
 - **Static code analysis in AI assistants**
-- **Graph-based visualization of Python projects**
+- **Graph-based visualization of projects**
 - **Dead code and complexity detection**
 
 If you’re using CodeGraphContext in your project, feel free to open a PR and add it here! 🚀
@@ -87,6 +85,9 @@ If you’re using CodeGraphContext in your project, feel free to open a PR and a
     *   Claude
     *   Gemini CLI
     *   ChatGPT Codex
+    *   Cline
+    *   RooCode
+    *   Amazon Q Developer
 
     Upon successful configuration, `cgc setup` will generate and place the necessary configuration files:
     *   It creates an `mcp.json` file in your current directory for reference.
@@ -94,7 +95,6 @@ If you’re using CodeGraphContext in your project, feel free to open a PR and a
     *   It updates the settings file of your chosen IDE/CLI (e.g., `.claude.json` or VS Code's `settings.json`).
 
 3.  **Start:** `cgc start`
-
 
 ## MCP Client Configuration
 
