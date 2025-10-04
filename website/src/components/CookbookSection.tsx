@@ -227,7 +227,7 @@ const CookbookSection = () => {
             <div className="p-2 rounded-lg bg-primary/10 border border-primary/20">
               <BookOpen className="h-6 w-6 text-primary" />
             </div>
-            <h2 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+            <h2 className="text-4xl font-bold bg-gradient-to-r from-primary via-primary to-accent bg-clip-text text-transparent">
               MCP Tool Cookbook
             </h2>
           </div>

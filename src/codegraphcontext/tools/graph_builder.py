@@ -39,9 +39,24 @@ class TreeSitterParser:
         elif self.language_name == 'javascript':
             from .languages.javascript import JavascriptTreeSitterParser
             self.language_specific_parser = JavascriptTreeSitterParser(self)
+
         elif self.language_name == 'go':
              from .languages.go import GoTreeSitterParser
              self.language_specific_parser = GoTreeSitterParser(self)
+
+        elif self.language_name == 'typescript':
+            from .languages.typescript import TypescriptTreeSitterParser
+            self.language_specific_parser = TypescriptTreeSitterParser(self)
+        elif self.language_name == 'cpp':
+            from .languages.cpp import CppTreeSitterParser
+            self.language_specific_parser = CppTreeSitterParser(self)
+        elif self.language_name == 'rust':
+            from .languages.rust import RustTreeSitterParser
+            self.language_specific_parser = RustTreeSitterParser(self)
+        elif self.language_name == 'c':
+            from .languages.c import CTreeSitterParser
+            self.language_specific_parser = CTreeSitterParser(self)
+
 
     def parse(self, file_path: Path, is_dependency: bool = False) -> Dict:
         """Dispatches parsing to the language-specific parser."""
@@ -61,7 +76,19 @@ class GraphBuilder:
         self.parsers = {
             '.py': TreeSitterParser('python'),
             '.js': TreeSitterParser('javascript'), # Added JavaScript parser
+
             '.go': TreeSitterParser('go'),
+            '.jsx': TreeSitterParser('javascript'),
+            '.ts': TreeSitterParser('typescript'),
+            '.tsx': TreeSitterParser('typescript'),
+            '.mjs': TreeSitterParser('javascript'),
+            '.cjs': TreeSitterParser('javascript'),
+            '.cpp': TreeSitterParser('cpp'),
+            '.h': TreeSitterParser('cpp'),
+            '.hpp': TreeSitterParser('cpp'),
+            '.rs': TreeSitterParser('rust'),
+            '.c': TreeSitterParser('c'),  # Added C parser
+
         }
         self.create_schema()
 

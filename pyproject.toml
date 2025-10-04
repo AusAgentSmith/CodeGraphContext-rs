@@ -1,6 +1,6 @@
 [project]
 name = "codegraphcontext"
-version = "0.1.13"
+version = "0.1.14"
 description = "An MCP server that indexes local code into a graph database to provide context to AI assistants."
 authors = [{ name = "Shashank Shekhar Singh", email = "shashankshekharsingh1205@gmail.com" }]
 readme = "README.md"
@@ -24,7 +24,9 @@ dependencies = [
     "inquirerpy>=0.3.4",
     "python-dotenv>=1.0.0",
     "tree-sitter==0.20.4",                   
-    "tree-sitter-languages==1.10.2"
+    "tree-sitter-languages==1.10.2",
+    "pyyaml",
+    "pytest"
 ]
 
 [project.urls]

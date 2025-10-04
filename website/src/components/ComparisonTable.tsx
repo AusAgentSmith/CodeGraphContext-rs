@@ -67,13 +67,13 @@ const StatusBadge = ({ status, text }: { status: string; text: string }) => {
   const getStatusStyles = () => {
     switch (status) {
       case "good":
-        return "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-lg shadow-emerald-500/10";
+        return "bg-emerald-100 text-emerald-700 border border-emerald-300 shadow-sm dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/40 dark:shadow-lg dark:shadow-emerald-500/10";
       case "warning":
-        return "bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-lg shadow-amber-500/10";
+        return "bg-amber-100 text-amber-700 border border-amber-300 shadow-sm dark: bg - amber - 500 / 20 dark: text - amber - 300 dark: border - amber - 500 / 40 dark: shadow - lg dark: shadow - amber - 500 / 10";
       case "bad":
-        return "bg-red-500/20 text-red-300 border-red-500/40 shadow-lg shadow-red-500/10";
+        return "bg-red-100 text-red-700 border border-red-300 shadow-sm dark:bg-red-500/20 dark:text-red-300 dark:border-red-500/40 dark:shadow-lg dark:shadow-red-500/10";
       default:
-        return "bg-secondary/50 text-muted-foreground";
+        return "bg-gray-200 text-gray-700 border border-gray-300 dark:bg-secondary/50 dark:text-muted-foreground";
     }
   };
 
@@ -272,10 +272,9 @@ export default function ComparisonTable() {
                           className={`
                             border-b border-border/10 transition-all duration-300 
                             hover:bg-primary/5 group relative overflow-hidden
-                            ${
-                              index % 2 === 0
-                                ? "bg-background/30"
-                                : "bg-secondary/3"
+                            ${index % 2 === 0
+                              ? "bg-background/30"
+                              : "bg-secondary/3"
                             }
                           `}
                         >
@@ -352,7 +351,7 @@ export default function ComparisonTable() {
             >
               Experience the power of graph-based code understanding
             </motion.p>
-            
+
           </motion.div>
         </AnimatedCard>
       </div>
