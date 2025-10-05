@@ -112,7 +112,6 @@ Add the following server configuration to your client's settings file (e.g., VS 
       },
       "tools": {
         "alwaysAllow": [
-          "list_imports",
           "add_code_to_graph",
           "add_package_to_graph",
           "check_job_status",

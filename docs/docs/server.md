@@ -11,7 +11,6 @@ The server is initialized with an asyncio event loop. Upon initialization, it se
 -   `CodeWatcher`: Monitors the file system for changes to keep the code graph up-to-date.
 -   `GraphBuilder`: Builds the code graph from the source code.
 -   `CodeFinder`: Provides tools for searching and analyzing the code graph.
--   `ImportExtractor`: Extracts import statements from code files.
 
 ## Tool Manifest
 
@@ -59,9 +58,6 @@ The code graph has the following structure:
 
 ### `add_package_to_graph`
 Add a Python package to Neo4j graph by discovering its location. Returns immediately with job ID.
-
-### `list_imports`
-Extract all package imports from code files in a directory or file.
 
 ### `find_dead_code`
 Find potentially unused functions (dead code) across the entire indexed codebase, optionally excluding functions with specific decorators.

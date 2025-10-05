@@ -190,11 +190,11 @@ This cookbook provides examples of how to use the `mcp` tool to query and unders
 
 ### 15. List all python package imports from a directory
 - **Natural Language:** "List all python package imports from my project directory."
-- **Tool:** `list_imports`
+- **Tool:** `execute_cypher_query`
 - **JSON Arguments:**
   ```json
   {
-    "path": "/teamspace/studios/this_studio/demo/CodeGraphContext/tests/sample_project"
+    "cypher_query": "MATCH (f:File)-[:IMPORTS]->(m:Module) WHERE f.path ENDS WITH '.py' RETURN DISTINCT m.name"
   }
   ```
 

@@ -22,7 +22,6 @@ from .core.jobs import JobManager, JobStatus
 from .core.watcher import CodeWatcher
 from .tools.graph_builder import GraphBuilder
 from .tools.code_finder import CodeFinder
-from .tools.import_extractor import ImportExtractor
 from .utils.debug_log import debug_log
 
 logger = logging.getLogger(__name__)
@@ -70,7 +69,6 @@ class MCPServer:
         # Initialize all the tool handlers, passing them the necessary managers and the event loop.
         self.graph_builder = GraphBuilder(self.db_manager, self.job_manager, loop)
         self.code_finder = CodeFinder(self.db_manager)
-        self.import_extractor = ImportExtractor()
         self.code_watcher = CodeWatcher(self.graph_builder, self.job_manager)
         
         # Define the tool manifest that will be exposed to the AI assistant.
@@ -159,19 +157,6 @@ class MCPServer:
                         "is_dependency": {"type": "boolean", "description": "Mark as a dependency", "default": True}
                     },
                     "required": ["package_name"]
-                }
-            },
-            "list_imports": {
-                "name": "list_imports",
-                "description": "Extract all package imports from code files in a directory or file",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "path": {"type": "string", "description": "Path to file or directory to analyze"},
-                        "language": {"type": "string", "description": "Programming language (python, javascript, etc.)", "default": "python"},
-                        "recursive": {"type": "boolean", "description": "Whether to analyze subdirectories recursively", "default": True}
-                    },
-                    "required": ["path"]
                 }
             },
             "find_dead_code": {
@@ -542,53 +527,6 @@ class MCPServer:
         except Exception as e:
             logger.error(f"Failed to start watching directory {path}: {e}")
             return {"error": f"Failed to start watching directory: {str(e)}"}        
-    def list_imports_tool(self, **args) -> Dict[str, Any]:
-        """Tool to list all imports from code files"""        
-        path = args.get("path")
-        language = args.get("language", "python")
-        recursive = args.get("recursive", True)
-        all_imports = set()
-        file_extensions = {
-            'python': ['.py'], 'javascript': ['.js', '.jsx', '.mjs'],
-            'typescript': ['.ts', '.tsx'], 'java': ['.java'],
-        }
-        
-        extensions = file_extensions.get(language, ['.py'])
-        extract_func = {
-            'python': self.import_extractor.extract_python_imports,
-            'javascript': self.import_extractor.extract_javascript_imports,
-            'typescript': self.import_extractor.extract_javascript_imports,
-            'java': self.import_extractor.extract_java_imports,
-        }.get(language, self.import_extractor.extract_python_imports)
-        
-        try:
-            path_obj = Path(path)
-            
-            if path_obj.is_file():
-                if any(str(path_obj).endswith(ext) for ext in extensions):
-                    all_imports.update(extract_func(str(path_obj)))
-            elif path_obj.is_dir():
-                pattern = "**/*" if recursive else "*"
-                for ext in extensions:
-                    for file_path in path_obj.glob(f"{pattern}{ext}"):
-                        if file_path.is_file():
-                            all_imports.update(extract_func(str(file_path)))
-            else:
-                return {"error": f"Path {path} does not exist"}
-            
-            # Removed standard library filtering as per user request.
-            # if language == 'python':
-            #     # Get the list of stdlib modules for the current Python version
-            #     stdlib_modules = set(stdlibs.module_names)
-            #     all_imports = all_imports - stdlib_modules
-            
-            return {
-                "imports": sorted(list(all_imports)), "language": language,
-                "path": path, "count": len(all_imports)
-            }
-        
-        except Exception as e:
-            return {"error": f"Failed to analyze imports: {str(e)}"}
     
     def add_code_to_graph_tool(self, **args) -> Dict[str, Any]:
         """
@@ -827,7 +765,6 @@ class MCPServer:
             A dictionary containing the result of the tool execution.
         """
         tool_map: Dict[str, Coroutine] = {
-            "list_imports": self.list_imports_tool,
             "add_package_to_graph": self.add_package_to_graph_tool,
             "find_dead_code": self.find_dead_code_tool,
             "find_code": self.find_code_tool,

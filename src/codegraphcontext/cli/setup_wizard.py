@@ -36,12 +36,13 @@ def _generate_mcp_json(creds):
                 },
                 "tools": {
                     "alwaysAllow": [
-                        "list_imports", "add_code_to_graph", "add_package_to_graph",
+                        "add_code_to_graph", "add_package_to_graph",
                         "check_job_status", "list_jobs", "find_code",
                         "analyze_code_relationships", "watch_directory",
                         "find_dead_code", "execute_cypher_query",
                         "calculate_cyclomatic_complexity", "find_most_complex_functions",
-                        "list_indexed_repositories", "delete_repository"
+                        "list_indexed_repositories", "delete_repository", "list_watched_paths", 
+                        "unwatch_directory", "visualize_graph_query"
                     ],
                     "disabled": False
                 },
