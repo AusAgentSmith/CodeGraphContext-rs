@@ -12,7 +12,6 @@ CPP_QUERIES = {
                 declarator: (identifier) @name
                 parameters: (parameter_list) @params
             )
-            type: (_) @return_type
             body: (compound_statement) @body
         ) @function_node
     """,
