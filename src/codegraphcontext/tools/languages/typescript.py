@@ -59,6 +59,16 @@ TS_QUERIES = {
         (class_declaration) @class
         (class) @class
     """,
+    "interfaces": """
+        (interface_declaration
+            name: (type_identifier) @name
+        ) @interface_node
+    """,
+    "type_aliases": """
+        (type_alias_declaration
+            name: (type_identifier) @name
+        ) @type_alias_node
+    """,
     "imports": """
         (import_statement) @import
         (call_expression
@@ -133,6 +143,8 @@ class TypescriptTreeSitterParser:
 
         functions = self._find_functions(root_node)
         classes = self._find_classes(root_node)
+        interfaces = self._find_interfaces(root_node)
+        type_aliases = self._find_type_aliases(root_node)
         imports = self._find_imports(root_node)
         function_calls = self._find_calls(root_node)
         variables = self._find_variables(root_node)
@@ -141,6 +153,8 @@ class TypescriptTreeSitterParser:
             "file_path": str(file_path),
             "functions": functions,
             "classes": classes,
+            "interfaces": interfaces,
+            "type_aliases": type_aliases,
             "variables": variables,
             "imports": imports,
             "function_calls": function_calls,
@@ -279,6 +293,42 @@ class TypescriptTreeSitterParser:
                 }
                 classes.append(class_data)
         return classes
+    
+    def _find_interfaces(self, root_node):
+        interfaces = []
+        query = self.queries['interfaces']
+        for node, capture_name in query.captures(root_node):
+            if capture_name == 'interface_node':
+                name_node = node.child_by_field_name('name')
+                if not name_node: continue
+                
+                name = self._get_node_text(name_node)
+                interface_data = {
+                    "name": name,
+                    "line_number": node.start_point[0] + 1,
+                    "end_line": node.end_point[0] + 1,
+                    "source_code": self._get_node_text(node),
+                }
+                interfaces.append(interface_data)
+        return interfaces
+
+    def _find_type_aliases(self, root_node):
+        type_aliases = []
+        query = self.queries['type_aliases']
+        for node, capture_name in query.captures(root_node):
+            if capture_name == 'type_alias_node':
+                name_node = node.child_by_field_name('name')
+                if not name_node: continue
+
+                name = self._get_node_text(name_node)
+                type_alias_data = {
+                    "name": name,
+                    "line_number": node.start_point[0] + 1,
+                    "end_line": node.end_point[0] + 1,
+                    "source_code": self._get_node_text(node),
+                }
+                type_aliases.append(type_alias_data)
+        return type_aliases
 
     def _find_imports(self, root_node):
         imports = []
@@ -396,6 +446,9 @@ def pre_scan_typescript(files: list[Path], parser_wrapper) -> dict:
             )
             right: (arrow_function)
         )
+        (interface_declaration name: (type_identifier) @name)
+        (type_alias_declaration name: (type_identifier) @name)
+
     """
     query = parser_wrapper.language.query(query_str)
     for file_path in files:
