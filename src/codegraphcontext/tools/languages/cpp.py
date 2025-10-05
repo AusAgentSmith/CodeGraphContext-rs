@@ -51,7 +51,6 @@ CPP_QUERIES = {
                 declarator: (field_identifier) @name
                 parameters: (parameter_list) @params
             )
-            type: (_) @return_type
         ) @method
     """,
     "variables": """
