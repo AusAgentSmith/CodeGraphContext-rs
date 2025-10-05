@@ -55,6 +55,65 @@ def _get_npm_package_path(package_name: str) -> Optional[str]:
         debug_log(f"Error getting npm package path for {package_name}: {e}")
         return None
 
+def _get_c_package_path(package_name: str) -> Optional[str]:
+    """
+    Finds the local installation path of a C package.
+    """
+    try:
+        debug_log(f"Getting local path for C package: {package_name}")
+        
+        # Try using pkg-config to find the package
+        try:
+            result = subprocess.run(
+                ["pkg-config", "--variable=includedir", package_name],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                include_dir = Path(result.stdout.strip())
+                package_path = include_dir / package_name
+                if package_path.exists():
+                    return str(package_path.resolve())
+                if include_dir.exists():
+                    return str(include_dir.resolve())
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            debug_log(f"pkg-config not available or timed out for {package_name}")
+        
+        # Search in standard system include directories
+        common_include_paths = [
+            "/usr/include",
+            "/usr/local/include",
+            "/opt/homebrew/include",
+            "/opt/local/include",
+            Path.home() / ".local" / "include",
+        ]
+        
+        for base_path in common_include_paths:
+            base_path = Path(base_path)
+            if not base_path.exists():
+                continue
+            
+            # Check if package exists as a directory
+            package_dir = base_path / package_name
+            if package_dir.exists() and package_dir.is_dir():
+                return str(package_dir.resolve())
+            
+            # Check for header files with package name
+            header_file = base_path / f"{package_name}.h"
+            if header_file.exists():
+                return str(header_file.resolve())
+        
+        # Check current directory for local installations
+        local_package = Path(f"./{package_name}")
+        if local_package.exists():
+            return str(local_package.resolve())
+        
+        return None
+    except Exception as e:
+        debug_log(f"Error getting C package path for {package_name}: {e}")
+        return None
+
 def get_local_package_path(package_name: str, language: str) -> Optional[str]:
     """
     Dispatches to the correct package path finder based on the language.
@@ -62,6 +121,7 @@ def get_local_package_path(package_name: str, language: str) -> Optional[str]:
     finders = {
         "python": _get_python_package_path,
         "javascript": _get_npm_package_path,
+        "c": _get_c_package_path,
     }
     finder = finders.get(language)
     if finder:
