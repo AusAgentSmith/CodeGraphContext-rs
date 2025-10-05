@@ -1,15 +1,17 @@
-# Installation
+## 🧩 Installation Guide
 
-This page details the installation process for CodeGraphContext.
+Welcome to **CodeGraphContext**! This guide provides a clear and seamless path to installing and configuring the tool, from prerequisites to launching your server.
 
-## Prerequisites
+## ⚙️ Prerequisites
 
-Before you begin, ensure you have the following installed:
+Ensure the following are installed before you begin:
 
--   **Python:** Version 3.8 or higher.
--   **AI Agentic Coding Tool:** An MCP-compatible AI assistant (e.g., Gemini, Claude, etc.) if you plan to use the MCP server.
+- **Python**: Version 3.8 or higher.
+- **AI Agentic Coding Tool**: An MCP-compatible AI assistant (e.g., Gemini, Claude) if you plan to use the MCP server.
 
-## Getting Started
+## 🚀 Getting Started
+
+Follow these steps to set up **CodeGraphContext** effortlessly.
 
 ### 1. Install from PyPI
 
@@ -19,77 +21,91 @@ Install the `codegraphcontext` package directly from PyPI using pip:
 pip install codegraphcontext
 ```
 
-### 2. Configure the Server
+### 2. Run the Setup Wizard
 
-Run the interactive setup wizard to configure your Neo4j database connection and development environment:
+Launch the interactive setup wizard to configure your Neo4j database and development environment:
 
 ```bash
 cgc setup
 ```
 
-The setup wizard will guide you through the following options:
+The wizard guides you through a series of intuitive prompts to tailor your setup.
 
-!!! details "Step-by-step guide for the setup wizard"
+## 🧭 "Step-by-Step Guide for the Setup Wizard"
 
-    When you run `cgc setup`, you will be presented with a series of questions. Here’s a guide on how to answer them:
+When you run `cgc setup`, the wizard offers a thoughtful journey through configuration. Follow these steps to complete your setup with ease:
 
-    **1. Database Location:**
+**1. Select Your Database Location**
 
-    You will first be asked where you want to set up your Neo4j database.
+Choose where your Neo4j database will reside:
 
-    *   **Local (Recommended):** Choose this if you want to run Neo4j on your own machine. This is the easiest option if you have Docker installed.
-        *   **Docker:** The wizard will automatically create a `docker-compose.yml` file and start a Neo4j container.
-        *   **Local Binary:** For Debian-based systems, the wizard can install Neo4j for you.
-    *   **Hosted:** Choose this if you have a remote Neo4j database like AuraDB. You will be prompted to enter your connection details.
-    *   **I already have an existing neo4j instance running:** Choose this if you already have a Neo4j instance running (local or remote) and you want to provide the credentials manually.
+- **Local (Recommended)**: Host Neo4j on your machine for simplicity.  
+  - **Docker**: With Docker installed, the wizard crafts a `docker-compose.yml` file and launches a Neo4j container seamlessly.  
+  - **Local Binary**: On Debian-based systems (e.g., Ubuntu), the wizard installs Neo4j directly with your permission.  
+- **Hosted**: Connect to a remote Neo4j instance, such as AuraDB, by providing your database URI, username, and password.  
+- **Existing Instance**: For an existing Neo4j server (local or remote), enter its connection credentials.
 
-    *(Image placeholder: Screenshot of the database location prompt)*
 
-    **2. IDE/CLI Configuration:**
+**2. Configure Your Development Environment**
 
-    After setting up the database, the wizard will ask to configure your development environment.
+Integrate CodeGraphContext with your preferred development tool for a harmonious workflow. Select from supported options:
 
-    *   Choose your preferred IDE or CLI from the list. The wizard will automatically update the necessary configuration files.
+- VS Code
+- Cursor
+- Windsurf
+- Claude
+- Gemini CLI
+- ChatGPT Codex
+- Cline
+- RooCode
+- Amazon Q Developer
 
-    *(Image placeholder: Screenshot of the IDE/CLI selection prompt)*
+The wizard automatically updates configuration files to align with your choice.
 
-    **3. Configuration Files:**
 
-    Upon successful configuration, the wizard will create:
+**3. Generate Configuration Files**
 
-    *   `mcp.json`: In your current directory, for the MCP server configuration.
-    *   `.env`: In `~/.codegraphcontext`, to store your Neo4j credentials securely.
+Upon completing the prompts, the wizard creates two essential files:
 
-#### Database Configuration
+- **`mcp.json`**: Placed in your working directory, this file configures the MCP server.  
+- **`.env`**: Stored securely in `~/.codegraphcontext`, this file safeguards your Neo4j credentials.
 
-You can choose from three database setups:
-
--   **Local Setup (Docker Recommended):** The wizard can automatically set up a local Neo4j instance using Docker. This is the easiest way to get started if you have Docker and Docker Compose installed.
--   **Local Setup (Linux Binary):** For Debian-based systems like Ubuntu, the wizard can automate the installation of Neo4j directly on your machine. This requires `sudo` privileges.
--   **Hosted Setup:** If you have an existing remote Neo4j database (like Neo4j AuraDB), you can provide your credentials to connect to it.
-
-#### IDE/CLI Configuration
-
-After setting up the database, the wizard can automatically configure your preferred development tool to work with CodeGraphContext. Supported tools include:
-
--   VS Code
--   Cursor
--   Windsurf
--   Claude
--   Gemini CLI
--   ChatGPT Codex
--   Cline
--   RooCode
--   Amazon Q Developer
-
-Upon successful configuration, the wizard will create the necessary files, including `mcp.json` for server configuration and a `.env` file for your credentials in `~/.codegraphcontext`.
+These files ensure smooth communication between CodeGraphContext, your Neo4j instance, and your AI assistant.
 
 ### 3. Start the Server
 
-Once the setup is complete, you can start the CodeGraphContext MCP server:
+Once configuration is complete, launch the MCP server with:
 
 ```bash
 cgc start
 ```
 
-The server will now be running and ready to accept requests from your AI assistant.
+Your **CodeGraphContext** server is now active, ready to power AI-assisted graph queries.
+
+## 🧱 Database Setup Options
+
+Choose from three flexible database configurations:
+
+| **Setup Type**            | **Description**                                      | **Requirements**              |
+|---------------------------|------------------------------------------------------|-------------------------------|
+| **Local (Docker)**        | Automatically sets up a Neo4j container.             | Docker & Docker Compose       |
+| **Local (Linux Binary)**  | Installs Neo4j directly on Debian-based systems.     | sudo privileges               |
+| **Hosted**                | Connects to a remote Neo4j instance (e.g., AuraDB).  | Connection credentials        |
+
+## 💻 IDE/CLI Configuration Summary
+
+The setup wizard streamlines integration with your preferred development tool, automatically generating configuration files for seamless interaction with the MCP server and database. Supported tools include:
+
+- VS Code
+- Cursor
+- Windsurf
+- Claude
+- Gemini CLI
+- ChatGPT Codex
+- Cline
+- RooCode
+- Amazon Q Developer
+
+## Next Steps
+
+With **CodeGraphContext** installed and configured, you’re ready to explore its AI-powered capabilities. Happy coding ✨!
