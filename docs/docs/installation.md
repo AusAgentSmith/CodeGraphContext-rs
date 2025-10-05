@@ -41,7 +41,7 @@ Choose where your Neo4j database will reside:
 
 - **Local (Recommended)**: Host Neo4j on your machine for simplicity.  
   - **Docker**: With Docker installed, the wizard crafts a `docker-compose.yml` file and launches a Neo4j container seamlessly.  
-  - **Local Binary**: On Debian-based systems (e.g., Ubuntu), the wizard installs Neo4j directly with your permission.  
+  - **Local Binary**: On Debian-based systems (e.g., Ubuntu) or Mac Systems, the wizard installs Neo4j directly with your permission.  
 - **Hosted**: Connect to a remote Neo4j instance, such as AuraDB, by providing your database URI, username, and password.  
 - **Existing Instance**: For an existing Neo4j server (local or remote), enter its connection credentials.
 
@@ -61,10 +61,6 @@ Integrate CodeGraphContext with your preferred development tool for a harmonious
 - Amazon Q Developer
 
 The wizard automatically updates configuration files to align with your choice.
-
-
-**3. Generate Configuration Files**
-
 Upon completing the prompts, the wizard creates two essential files:
 
 - **`mcp.json`**: Placed in your working directory, this file configures the MCP server.  
@@ -81,30 +77,6 @@ cgc start
 ```
 
 Your **CodeGraphContext** server is now active, ready to power AI-assisted graph queries.
-
-## 🧱 Database Setup Options
-
-Choose from three flexible database configurations:
-
-| **Setup Type**            | **Description**                                      | **Requirements**              |
-|---------------------------|------------------------------------------------------|-------------------------------|
-| **Local (Docker)**        | Automatically sets up a Neo4j container.             | Docker & Docker Compose       |
-| **Local (Linux Binary)**  | Installs Neo4j directly on Debian-based systems.     | sudo privileges               |
-| **Hosted**                | Connects to a remote Neo4j instance (e.g., AuraDB).  | Connection credentials        |
-
-## 💻 IDE/CLI Configuration Summary
-
-The setup wizard streamlines integration with your preferred development tool, automatically generating configuration files for seamless interaction with the MCP server and database. Supported tools include:
-
-- VS Code
-- Cursor
-- Windsurf
-- Claude
-- Gemini CLI
-- ChatGPT Codex
-- Cline
-- RooCode
-- Amazon Q Developer
 
 ## Next Steps
 
