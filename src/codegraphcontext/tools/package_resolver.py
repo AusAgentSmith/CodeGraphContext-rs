@@ -55,6 +55,35 @@ def _get_npm_package_path(package_name: str) -> Optional[str]:
         debug_log(f"Error getting npm package path for {package_name}: {e}")
         return None
 
+def _get_typescript_package_path(package_name: str) -> Optional[str]:
+    """
+    Finds the local installation path of a TypeScript package.
+    TypeScript packages are typically npm packages, so this uses the same logic as npm.
+    """
+    try:
+        debug_log(f"Getting local path for TypeScript package: {package_name}")
+        
+        # Check local node_modules first
+        local_path = Path(f"./node_modules/{package_name}")
+        if local_path.exists():
+            return str(local_path.resolve())
+
+        # Check global npm packages
+        result = subprocess.run(["npm", "root", "-g"], capture_output=True, text=True, timeout=5)
+        if result.returncode == 0:
+            global_root = result.stdout.strip()
+            package_path = Path(global_root) / package_name
+            if package_path.exists():
+                return str(package_path.resolve())
+        
+        return None
+    except subprocess.TimeoutExpired:
+        debug_log(f"npm command timed out for {package_name}")
+        return None
+    except Exception as e:
+        debug_log(f"Error getting TypeScript package path for {package_name}: {e}")
+        return None
+
 def _get_java_package_path(package_name: str) -> Optional[str]:
     """
     Finds the local installation path of a Java package (JAR).
@@ -206,6 +235,7 @@ def get_local_package_path(package_name: str, language: str) -> Optional[str]:
     finders = {
         "python": _get_python_package_path,
         "javascript": _get_npm_package_path,
+        "typescript": _get_typescript_package_path,
         "java": _get_java_package_path,
         "c": _get_c_package_path,
     }
