@@ -96,6 +96,12 @@ const HeroSection = () => {
                 <ExternalLink className="ml-2 h-4 w-4" />
               </a>
             </Button>
+            <Button variant="ghost" size="lg" asChild>
+              <a href="https://shashankss1205.github.io/CodeGraphContext/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
+                <ExternalLink className="h-5 w-5" />
+                Documentation
+              </a>
+            </Button>
           </div>
           
           {/* Stats */}

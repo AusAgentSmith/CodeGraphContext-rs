@@ -5,10 +5,12 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { createClient } from "@supabase/supabase-js";
 
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
-);
+// Only create Supabase client if environment variables are set
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabase = supabaseUrl && supabaseAnonKey 
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null;
 
 const Footer = () => {
   const [email, setEmail] = useState("");
@@ -45,6 +47,12 @@ const Footer = () => {
 
     if (!/\S+@\S+\.\S+/.test(email)) {
       toast.error("Please enter a valid email address");
+      return;
+    }
+
+    // Check if Supabase is configured
+    if (!supabase) {
+      toast.error("Newsletter subscription is currently unavailable. Please try again later.");
       return;
     }
 
@@ -121,6 +129,16 @@ const Footer = () => {
                     PyPI
                   </a>
                 </Button>
+                <Button variant="outline" size="sm" asChild>
+                  <a
+                    href="https://shashankss1205.github.io/CodeGraphContext/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Documentation
+                  </a>
+                </Button>
               </div>
             </div>
 
@@ -130,8 +148,10 @@ const Footer = () => {
               <ul className="space-y-3 text-muted-foreground">
                 <li>
                   <a
-                    href="https://github.com/Shashankss1205/CodeGraphContext/blob/main/README.md"
+                    href="https://shashankss1205.github.io/CodeGraphContext/"
                     className="hover:text-foreground transition-smooth"
+                    target="_blank"
+                    rel="noopener noreferrer"
                   >
                     Documentation
                   </a>
