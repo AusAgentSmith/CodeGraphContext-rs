@@ -205,11 +205,11 @@ def list_repos():
     _run_tool("list_indexed_repositories", {})
 
 @app.command(name="add_package")
-def add_package(package_name: str = typer.Argument(..., help="Name of the Python package to add.")):
+def add_package(package_name: str = typer.Argument(..., help="Name of the package to add."), language: str = typer.Argument(..., help="Language of the package." )):
     """
-    Adds a Python package to the code graph.
+    Adds a package to the code graph.
     """
-    _run_tool("add_package_to_graph", {"package_name": package_name})
+    _run_tool("add_package_to_graph", {"package_name": package_name, "language": language})
 
 @app.command()
 def cypher(query: str = typer.Argument(..., help="The read-only Cypher query to execute.")):
