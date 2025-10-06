@@ -51,7 +51,7 @@ export default function TestimonialSection() {
     <section className="py-24 px-4">
       <div className="container mx-auto max-w-6xl">
         <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-primary via-primary to-accent bg-clip-text text-transparent">
+          <h2 className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-primary via-primary to-accent bg-clip-text text-transparent py-2">
             What teams are saying
           </h2>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
@@ -111,7 +111,7 @@ export default function TestimonialSection() {
         {/* Right: Testimonial content */}
         <Card className="dark:bg-gradient-card dark:bg-card/50 dark:border-border/30 bg-white/95 border-gray-200/50 shadow-sm">
           <CardHeader>
-            <CardTitle className="text-3xl md:text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+            <CardTitle className="text-3xl md:text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent py-2">
               Teams love the experience
             </CardTitle>
             <CardDescription className="text-base md:text-lg dark:text-muted-foreground text-gray-600">
