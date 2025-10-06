@@ -228,7 +228,7 @@ def _get_c_package_path(package_name: str) -> Optional[str]:
         debug_log(f"Error getting C package path for {package_name}: {e}")
         return None
     
-def get_ruby_package_path(package_name: str) -> Optional[str]:
+def _get_ruby_package_path(package_name: str) -> Optional[str]:
     """
     Finds the local installation path of a Ruby gem.
     """
@@ -243,7 +243,15 @@ def get_ruby_package_path(package_name: str) -> Optional[str]:
         if result.returncode == 0 and result.stdout.strip():
             gem_path = Path(result.stdout.strip())
             if gem_path.exists():
-                return str(gem_path.parent.resolve())
+                lib_dir = gem_path.parent if gem_path.is_file() else gem_path
+                # If we are inside a gem (…/gems/foo-x.y.z/lib/foo.rb), prefer the lib/ dir:
+                if (lib_dir.name == "lib") and lib_dir.is_dir():
+                    return str(lib_dir.resolve())
+                # Try parent/lib in case `gem which` returned .../lib/foo.rb
+                if (lib_dir / "lib").is_dir():
+                    return str((lib_dir / "lib").resolve())
+                # Fallback: just return the directory containing the file (stdlib case like 'json')
+                return str(lib_dir.resolve())
         return None
     except (subprocess.TimeoutExpired, FileNotFoundError):
         debug_log(f"gem command not available or timed out for {package_name}")
@@ -262,7 +270,7 @@ def get_local_package_path(package_name: str, language: str) -> Optional[str]:
         "typescript": _get_typescript_package_path,
         "java": _get_java_package_path,
         "c": _get_c_package_path,
-        "ruby": get_ruby_package_path,
+        "ruby": _get_ruby_package_path,
     }
     finder = finders.get(language)
     if finder:
