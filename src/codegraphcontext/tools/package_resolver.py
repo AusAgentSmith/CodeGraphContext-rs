@@ -227,6 +227,38 @@ def _get_c_package_path(package_name: str) -> Optional[str]:
     except Exception as e:
         debug_log(f"Error getting C package path for {package_name}: {e}")
         return None
+    
+def _get_ruby_package_path(package_name: str) -> Optional[str]:
+    """
+    Finds the local installation path of a Ruby gem.
+    """
+    try:
+        debug_log(f"Getting local path for Ruby gem: {package_name}")
+        result = subprocess.run(
+            ["gem", "which", package_name],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            gem_path = Path(result.stdout.strip())
+            if gem_path.exists():
+                lib_dir = gem_path.parent if gem_path.is_file() else gem_path
+                # If we are inside a gem (…/gems/foo-x.y.z/lib/foo.rb), prefer the lib/ dir:
+                if (lib_dir.name == "lib") and lib_dir.is_dir():
+                    return str(lib_dir.resolve())
+                # Try parent/lib in case `gem which` returned .../lib/foo.rb
+                if (lib_dir / "lib").is_dir():
+                    return str((lib_dir / "lib").resolve())
+                # Fallback: just return the directory containing the file (stdlib case like 'json')
+                return str(lib_dir.resolve())
+        return None
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        debug_log(f"gem command not available or timed out for {package_name}")
+        return None
+    except Exception as e:
+        debug_log(f"Error getting Ruby gem path for {package_name}: {e}")
+        return None
 
 def _get_go_package_path(package_name: str) -> Optional[str]:
     """
@@ -297,6 +329,7 @@ def get_local_package_path(package_name: str, language: str) -> Optional[str]:
         "java": _get_java_package_path,
         "c": _get_c_package_path,
         "go": _get_go_package_path,  
+        "ruby": _get_ruby_package_path,
     }
     finder = finders.get(language)
     if finder:
