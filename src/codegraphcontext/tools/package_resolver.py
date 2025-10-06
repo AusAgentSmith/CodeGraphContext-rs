@@ -260,6 +260,64 @@ def _get_ruby_package_path(package_name: str) -> Optional[str]:
         debug_log(f"Error getting Ruby gem path for {package_name}: {e}")
         return None
 
+def _get_go_package_path(package_name: str) -> Optional[str]:
+    """
+    Finds the local installation path of a Go package using `go list`.
+    Tries:
+      1) package dir:   go list -f '{{.Dir}}' <pkg>
+      2) module root:   go list -m -f '{{.Dir}}' <module>
+      3) force mod:     go list -mod=mod -f '{{.Dir}}' <pkg>
+    """
+
+    def _first_existing_dir(output: str) -> Optional[str]:
+        for line in (l.strip().strip("'\"") for l in output.splitlines() if l.strip()):
+            p = Path(line)
+            if p.exists() and p.is_dir():
+                return str(p.resolve())
+        return None
+
+    try:
+        debug_log(f"Getting local path for Go package: {package_name}")
+        # Package directory (works for stdlib, GOPATH, or subpackages)
+        cp = subprocess.run(
+            ["go", "list", "-f", "{{.Dir}}", package_name],
+            capture_output=True, text=True, timeout=15
+        )
+        if cp.returncode == 0:
+            d = _first_existing_dir(cp.stdout)
+            if d:
+                return d
+
+        # Module root directory (where go.mod lives)
+        cp2 = subprocess.run(
+            ["go", "list", "-m", "-f", "{{.Dir}}", package_name],
+            capture_output=True, text=True, timeout=15
+        )
+        if cp2.returncode == 0:
+            d = _first_existing_dir(cp2.stdout)
+            if d:
+                return d
+
+        # Retry forcing module mode
+        cp3 = subprocess.run(
+            ["go", "list", "-mod=mod", "-f", "{{.Dir}}", package_name],
+            capture_output=True, text=True, timeout=15
+        )
+        if cp3.returncode == 0:
+            d = _first_existing_dir(cp3.stdout)
+            if d:
+                return d
+
+        return None
+
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        debug_log(f"go command not available or timed out for {package_name}")
+        return None
+    except Exception:
+        debug_log(f"Error getting Go package path for {package_name}")
+        return None
+
+
 def get_local_package_path(package_name: str, language: str) -> Optional[str]:
     """
     Dispatches to the correct package path finder based on the language.
@@ -270,6 +328,7 @@ def get_local_package_path(package_name: str, language: str) -> Optional[str]:
         "typescript": _get_typescript_package_path,
         "java": _get_java_package_path,
         "c": _get_c_package_path,
+        "go": _get_go_package_path,  
         "ruby": _get_ruby_package_path,
     }
     finder = finders.get(language)

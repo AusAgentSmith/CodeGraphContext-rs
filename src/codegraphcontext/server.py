@@ -155,7 +155,7 @@ class MCPServer:
                     "type": "object",
                     "properties": {
                         "package_name": {"type": "string", "description": "Name of the package to add (e.g., 'requests', 'express', 'moment', 'lodash')."},
-                        "language": {"type": "string", "description": "The programming language of the package.", "enum": ["python", "javascript", "typescript", "java", "c", "ruby"]},
+                        "language": {"type": "string", "description": "The programming language of the package.", "enum": ["python", "javascript", "typescript", "java", "c", "go", "ruby"]},
                         "is_dependency": {"type": "boolean", "description": "Mark as a dependency.", "default": True}
                     },
                     "required": ["package_name", "language"]
