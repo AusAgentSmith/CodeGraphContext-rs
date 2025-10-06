@@ -55,34 +55,6 @@ CPP_QUERIES = {
         ) @union
     """,
 }
-def pre_scan_cpp(files: list[Path], parser_wrapper) -> dict:
-    """
-    Quickly scans C++ files to build a map of top-level class, struct, and function names
-    to their file paths.
-    """
-    imports_map = {}
-
-    query_str = """
-        (class_specifier name: (type_identifier) @name)
-        (struct_specifier name: (type_identifier) @name)
-        (function_definition declarator: (function_declarator declarator: (identifier) @name))
-    """
-    query = parser_wrapper.language.query(query_str)
-
-    for file_path in files:
-        try:
-            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-                source_bytes = f.read().encode("utf-8")
-                tree = parser_wrapper.parser.parse(source_bytes)
-
-            for node, capture_name in query.captures(tree.root_node):
-                if capture_name == "name":
-                    name = node.text.decode("utf-8")
-                    imports_map.setdefault(name, []).append(str(file_path.resolve()))
-        except Exception as e:
-            logger.warning(f"Tree-sitter pre-scan failed for {file_path}: {e}")
-
-    return imports_map
 
 class CppTreeSitterParser:
     """A C++-specific parser using tree-sitter."""
@@ -226,9 +198,14 @@ class CppTreeSitterParser:
                     "source_code": self._get_node_text(union_node),
                 })
         return unions
+
 def pre_scan_cpp(files: list[Path], parser_wrapper) -> dict:
-    """Scans C++ files to create a map of class/struct/function names to their file paths."""
+    """
+    Quickly scans C++ files to build a map of top-level class, struct, and function names
+    to their file paths.
+    """
     imports_map = {}
+
     query_str = """
         (class_specifier name: (type_identifier) @name)
         (struct_specifier name: (type_identifier) @name)
@@ -239,13 +216,14 @@ def pre_scan_cpp(files: list[Path], parser_wrapper) -> dict:
     for file_path in files:
         try:
             with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-                tree = parser_wrapper.parser.parse(bytes(f.read(), "utf8"))
+                source_bytes = f.read().encode("utf-8")
+                tree = parser_wrapper.parser.parse(source_bytes)
 
-            for capture, _ in query.captures(tree.root_node):
-                name = capture.text.decode('utf-8')
-                if name not in imports_map:
-                    imports_map[name] = []
-                imports_map[name].append(str(file_path.resolve()))
+            for node, capture_name in query.captures(tree.root_node):
+                if capture_name == "name":
+                    name = node.text.decode("utf-8")
+                    imports_map.setdefault(name, []).append(str(file_path.resolve()))
         except Exception as e:
             logger.warning(f"Tree-sitter pre-scan failed for {file_path}: {e}")
+
     return imports_map
