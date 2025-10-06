@@ -14,6 +14,7 @@
 [![PyPI downloads](https://img.shields.io/pypi/dm/codegraphcontext?)](https://pypi.org/project/codegraphcontext/)
 [![License](https://img.shields.io/github/license/Shashankss1205/CodeGraphContext?)](LICENSE)
 [![Website](https://img.shields.io/badge/website-up-brightgreen?)](http://codegraphcontext.vercel.app/)
+[![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://shashankss1205.github.io/CodeGraphContext/)
 [![YouTube](https://img.shields.io/badge/YouTube-Watch%20Demo-red?logo=youtube)](https://youtu.be/KYYSdxhg1xU)
 [![Discord](https://img.shields.io/badge/Discord-Join%20Chat-7289da?logo=discord&logoColor=white)](https://discord.gg/dR4QY32uYQ)
 
