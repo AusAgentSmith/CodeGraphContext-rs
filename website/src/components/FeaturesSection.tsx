@@ -5,7 +5,7 @@ const features = [
   {
     icon: GitBranch,
     title: "Code Indexing",
-    description: "Analyzes Python code and builds a comprehensive knowledge graph of its components, relationships, and dependencies.",
+    description: "Analyzes code and builds a comprehensive knowledge graph of its components, relationships, and dependencies.",
     color: "graph-node-1"
   },
   {

@@ -545,8 +545,11 @@ class GraphBuilder:
 
         debug_log(f"[parse_file] Starting parsing for: {file_path} with {parser.language_name} parser")
         try:
-            is_notebook = file_path.suffix == '.ipynb'
-            file_data = parser.parse(file_path, is_dependency, is_notebook=is_notebook)
+            if parser.language_name == 'python':
+                is_notebook = file_path.suffix == '.ipynb'
+                file_data = parser.parse(file_path, is_dependency, is_notebook=is_notebook)
+            else:
+                file_data = parser.parse(file_path, is_dependency)
             file_data['repo_path'] = str(repo_path)
             if debug_mode:
                 debug_log(f"[parse_file] Successfully parsed: {file_path}")

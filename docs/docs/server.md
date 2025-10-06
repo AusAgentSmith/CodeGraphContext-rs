@@ -45,7 +45,7 @@ The code graph has the following structure:
 *   **Nodes:**
     *   `Repository`: Represents a project repository.
     *   `File`: Represents a single source code file.
-    *   `Module`: Represents a Python module.
+    *   `Module`: Represents a package or a module.
     *   `Class`: Represents a class definition.
     *   `Function`: Represents a function or method definition.
 *   **Properties:**

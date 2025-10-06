@@ -187,3 +187,28 @@ class RustTreeSitterParser:
                     }
                 )
         return calls
+
+def pre_scan_rust(files: list[Path], parser_wrapper) -> dict:
+    """Scans Rust files to create a map of function/struct/enum/trait names to their file paths."""
+    imports_map = {}
+    query_str = """
+        (function_item name: (identifier) @name)
+        (struct_item name: (type_identifier) @name)
+        (enum_item name: (type_identifier) @name)
+        (trait_item name: (type_identifier) @name)
+    """
+    query = parser_wrapper.language.query(query_str)
+
+    for file_path in files:
+        try:
+            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                tree = parser_wrapper.parser.parse(bytes(f.read(), "utf8"))
+
+            for capture, _ in query.captures(tree.root_node):
+                name = capture.text.decode('utf-8')
+                if name not in imports_map:
+                    imports_map[name] = []
+                imports_map[name].append(str(file_path.resolve()))
+        except Exception as e:
+            logger.warning(f"Tree-sitter pre-scan failed for {file_path}: {e}")
+    return imports_map
