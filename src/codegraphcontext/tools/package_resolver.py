@@ -317,6 +317,36 @@ def _get_go_package_path(package_name: str) -> Optional[str]:
         debug_log(f"Error getting Go package path for {package_name}")
         return None
 
+def _get_php_package_path(package_name: str) -> Optional[str]:
+    try:
+        debug_log(f"Getting local path for PHP package: {package_name}")
+        
+        local_vendor = Path("./vendor") / package_name
+        if local_vendor.exists() and local_vendor.is_dir():
+            return str(local_vendor.resolve())
+        
+        current_dir = Path.cwd()
+        for parent in [current_dir] + list(current_dir.parents):
+            vendor_path = parent / "vendor" / package_name
+            if vendor_path.exists() and vendor_path.is_dir():
+                return str(vendor_path.resolve())
+            
+            if (parent / "composer.json").exists():
+                break
+        
+        composer_home = Path.home() / ".composer" / "vendor" / package_name
+        if composer_home.exists() and composer_home.is_dir():
+            return str(composer_home.resolve())
+        
+        composer_global = Path.home() / ".config" / "composer" / "vendor" / package_name
+        if composer_global.exists() and composer_global.is_dir():
+            return str(composer_global.resolve())
+        
+        return None
+    except Exception as e:
+        debug_log(f"Error getting PHP package path for {package_name}: {e}")
+        return None
+
 
 def get_local_package_path(package_name: str, language: str) -> Optional[str]:
     """
@@ -330,6 +360,7 @@ def get_local_package_path(package_name: str, language: str) -> Optional[str]:
         "c": _get_c_package_path,
         "go": _get_go_package_path,  
         "ruby": _get_ruby_package_path,
+        "php": _get_php_package_path,
     }
     finder = finders.get(language)
     if finder:
