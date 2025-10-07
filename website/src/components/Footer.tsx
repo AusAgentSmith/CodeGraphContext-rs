@@ -1,16 +1,20 @@
 import { Button } from "@/components/ui/button";
 import { Github, ExternalLink, Mail, MapPin, Phone } from "lucide-react";
-import { FaDiscord } from "react-icons/fa";
+// import { FaDiscord } from "react-icons/fa";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { createClient } from "@supabase/supabase-js";
+import { FaGithub, FaDiscord } from "react-icons/fa";
+import { SiPypi } from "react-icons/si";
+import { FiBookOpen } from "react-icons/fi";
 
 // Only create Supabase client if environment variables are set
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabase = supabaseUrl && supabaseAnonKey 
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : null;
+const supabase =
+  supabaseUrl && supabaseAnonKey
+    ? createClient(supabaseUrl, supabaseAnonKey)
+    : null;
 
 const Footer = () => {
   const [email, setEmail] = useState("");
@@ -52,7 +56,9 @@ const Footer = () => {
 
     // Check if Supabase is configured
     if (!supabase) {
-      toast.error("Newsletter subscription is currently unavailable. Please try again later.");
+      toast.error(
+        "Newsletter subscription is currently unavailable. Please try again later."
+      );
       return;
     }
 
@@ -98,45 +104,145 @@ const Footer = () => {
                 Transform your codebase into an intelligent knowledge graph for
                 AI assistants.
               </p>
-              <div className="flex gap-3 flex-wrap">
-                <Button variant="outline" size="sm" asChild>
+              <div className="flex gap-3 flex-wrap items-center">
+                <style>{`
+                        @keyframes float {
+                          0%, 100% { transform: translateY(0); }
+                          50% { transform: translateY(-3px); }
+                        }
+
+                        .social-btn {
+                          transition: all .25s cubic-bezier(.2,.9,.3,1);
+                          background-color: rgba(255,255,255,0.03);
+                          border: 1px solid rgba(255,255,255,0.08);
+                        }
+
+                        .social-btn:hover {
+                          transform: translateY(-3px) scale(1.03);
+                        }
+
+                        /* GitHub */
+                        .social-github:hover {
+                          background: rgba(255,255,255,0.08);
+                          box-shadow: 0 0 18px rgba(255,255,255,0.15);
+                        }
+                        .social-github:hover svg {
+                          color: #F5F5F5;
+                        }
+
+                        /* Discord */
+                        .social-discord:hover {
+                          background: rgba(88,101,242,0.15);
+                          box-shadow: 0 0 20px rgba(88,101,242,0.35);
+                        }
+                        .social-discord:hover svg {
+                          color: #7289DA;
+                        }
+
+                        /* PyPI */
+                        .social-pypi:hover {
+                          background: rgba(255,193,7,0.12);
+                          box-shadow: 0 0 20px rgba(255,193,7,0.35);
+                        }
+                        .social-pypi:hover svg {
+                          color: #FFD43B;
+                        }
+
+                        /* Documentation */
+                        .social-docs:hover {
+                          background: rgba(99,102,241,0.15);
+                          box-shadow: 0 0 20px rgba(99,102,241,0.35);
+                        }
+                        .social-docs:hover svg {
+                          color: #818CF8;
+                        }
+
+                        @media (min-width: 640px) {
+                          .social-float {
+                            animation: float 4s ease-in-out infinite;
+                          }
+                          .social-float:hover {
+                            animation-play-state: paused;
+                          }
+                        }
+                      `}</style>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  asChild
+                  className="social-btn social-github social-float"
+                >
                   <a
                     href="https://github.com/Shashankss1205/CodeGraphContext"
                     target="_blank"
                     rel="noopener noreferrer"
+                    className="flex items-center"
                   >
-                    <Github className="h-4 w-4 mr-2" />
-                    GitHub
+                    <FaGithub
+                      className="h-4 w-4 mr-2"
+                      style={{ color: "#9CA3AF" }}
+                    />
+                    <span>GitHub</span>
                   </a>
                 </Button>
-                <Button variant="outline" size="sm" asChild>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  asChild
+                  className="social-btn social-discord social-float"
+                >
                   <a
                     href="https://discord.com/invite/dR4QY32uYQ"
                     target="_blank"
                     rel="noopener noreferrer"
+                    className="flex items-center"
                   >
-                    <FaDiscord className="h-4 w-4 mr-2" />
-                    Discord
+                    <FaDiscord
+                      className="h-4 w-4 mr-2"
+                      style={{ color: "#5865F2" }}
+                    />
+                    <span>Discord</span>
                   </a>
                 </Button>
-                <Button variant="outline" size="sm" asChild>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  asChild
+                  className="social-btn social-pypi social-float"
+                >
                   <a
                     href="https://pypi.org/project/codegraphcontext/"
                     target="_blank"
                     rel="noopener noreferrer"
+                    className="flex items-center"
                   >
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    PyPI
+                    <SiPypi
+                      className="h-4 w-4 mr-2"
+                      style={{ color: "#EAB308" }}
+                    />
+                    <span>PyPI</span>
                   </a>
                 </Button>
-                <Button variant="outline" size="sm" asChild>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  asChild
+                  className="social-btn social-docs social-float"
+                >
                   <a
                     href="https://shashankss1205.github.io/CodeGraphContext/"
                     target="_blank"
                     rel="noopener noreferrer"
+                    className="flex items-center"
                   >
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    Documentation
+                    <FiBookOpen
+                      className="h-4 w-4 mr-2"
+                      style={{ color: "#6366F1" }}
+                    />
+                    <span>Documentation</span>
                   </a>
                 </Button>
               </div>
@@ -210,9 +316,7 @@ const Footer = () => {
                 </div> */}
                 <div className="flex items-start gap-3">
                   <MapPin className="h-5 w-5 mt-1 text-primary" />
-                  <p className="text-sm">
-                    (Available Worldwide 🌍)
-                  </p>
+                  <p className="text-sm">(Available Worldwide 🌍)</p>
                 </div>
                 <div>
                   <p className="font-medium text-foreground">
