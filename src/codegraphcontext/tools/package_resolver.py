@@ -263,10 +263,12 @@ def _get_ruby_package_path(package_name: str) -> Optional[str]:
 def _get_go_package_path(package_name: str) -> Optional[str]:
     """
     Finds the local installation path of a Go package using `go list`.
-    Tries:
-      1) package dir:   go list -f '{{.Dir}}' <pkg>
-      2) module root:   go list -m -f '{{.Dir}}' <module>
-      3) force mod:     go list -mod=mod -f '{{.Dir}}' <pkg>
+    Tries multiple approaches in sequence to handle different package scenarios:
+      1) package dir:   go list -f '{{.Dir}}' <pkg>             (works for stdlib, GOPATH, or module subpackages)
+      2) module root:   go list -m -f '{{.Dir}}' <module>       (works for full module paths)
+      3) force mod:     go list -mod=mod -f '{{.Dir}}' <pkg>    (works when outside a module context)
+      4) GOROOT check:  for standard library packages
+      5) GOPATH check:  for packages in GOPATH
     """
 
     def _first_existing_dir(output: str) -> Optional[str]:
@@ -278,7 +280,8 @@ def _get_go_package_path(package_name: str) -> Optional[str]:
 
     try:
         debug_log(f"Getting local path for Go package: {package_name}")
-        # Package directory (works for stdlib, GOPATH, or subpackages)
+        
+        # 1. Package directory (works for stdlib, GOPATH, or subpackages)
         cp = subprocess.run(
             ["go", "list", "-f", "{{.Dir}}", package_name],
             capture_output=True, text=True, timeout=15
@@ -286,9 +289,10 @@ def _get_go_package_path(package_name: str) -> Optional[str]:
         if cp.returncode == 0:
             d = _first_existing_dir(cp.stdout)
             if d:
+                debug_log(f"Found Go package {package_name} at {d}")
                 return d
 
-        # Module root directory (where go.mod lives)
+        # 2. Module root directory (where go.mod lives)
         cp2 = subprocess.run(
             ["go", "list", "-m", "-f", "{{.Dir}}", package_name],
             capture_output=True, text=True, timeout=15
@@ -296,9 +300,10 @@ def _get_go_package_path(package_name: str) -> Optional[str]:
         if cp2.returncode == 0:
             d = _first_existing_dir(cp2.stdout)
             if d:
+                debug_log(f"Found Go module {package_name} at {d}")
                 return d
 
-        # Retry forcing module mode
+        # 3. Retry forcing module mode
         cp3 = subprocess.run(
             ["go", "list", "-mod=mod", "-f", "{{.Dir}}", package_name],
             capture_output=True, text=True, timeout=15
@@ -306,15 +311,49 @@ def _get_go_package_path(package_name: str) -> Optional[str]:
         if cp3.returncode == 0:
             d = _first_existing_dir(cp3.stdout)
             if d:
+                debug_log(f"Found Go package (mod mode) {package_name} at {d}")
                 return d
+        
+        # 4. Check in GOROOT for standard library packages
+        try:
+            cp4 = subprocess.run(
+                ["go", "env", "GOROOT"],
+                capture_output=True, text=True, timeout=5
+            )
+            if cp4.returncode == 0:
+                goroot = cp4.stdout.strip()
+                if goroot:
+                    std_lib_path = Path(goroot) / "src" / package_name
+                    if std_lib_path.exists() and std_lib_path.is_dir():
+                        debug_log(f"Found Go stdlib package {package_name} at {std_lib_path}")
+                        return str(std_lib_path.resolve())
+        except Exception as e:
+            debug_log(f"Error checking GOROOT for {package_name}: {e}")
+        
+        # 5. Check in GOPATH as fallback
+        try:
+            cp5 = subprocess.run(
+                ["go", "env", "GOPATH"],
+                capture_output=True, text=True, timeout=5
+            )
+            if cp5.returncode == 0:
+                gopath = cp5.stdout.strip()
+                if gopath:
+                    gopath_lib_path = Path(gopath) / "src" / package_name
+                    if gopath_lib_path.exists() and gopath_lib_path.is_dir():
+                        debug_log(f"Found Go package in GOPATH {package_name} at {gopath_lib_path}")
+                        return str(gopath_lib_path.resolve())
+        except Exception as e:
+            debug_log(f"Error checking GOPATH for {package_name}: {e}")
 
+        debug_log(f"Could not find Go package: {package_name}")
         return None
 
-    except (subprocess.TimeoutExpired, FileNotFoundError):
-        debug_log(f"go command not available or timed out for {package_name}")
+    except (subprocess.TimeoutExpired, FileNotFoundError) as e:
+        debug_log(f"go command not available or timed out for {package_name}: {e}")
         return None
-    except Exception:
-        debug_log(f"Error getting Go package path for {package_name}")
+    except Exception as e:
+        debug_log(f"Error getting Go package path for {package_name}: {e}")
         return None
 
 def _get_php_package_path(package_name: str) -> Optional[str]:
