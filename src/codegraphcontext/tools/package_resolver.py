@@ -361,8 +361,46 @@ def get_local_package_path(package_name: str, language: str) -> Optional[str]:
         "go": _get_go_package_path,  
         "ruby": _get_ruby_package_path,
         "php": _get_php_package_path,
+        "cpp": _get_cpp_package_path,
+
     }
     finder = finders.get(language)
     if finder:
         return finder(package_name)
     return None
+
+def _get_cpp_package_path(package_name: str) -> Optional[str]:
+    """
+    C++ package ka local path find karta hai.
+    Pehle pkg-config try karta hai, fir common system paths check karta hai.
+    """
+    import subprocess
+    import os
+
+    # Try pkg-config
+    try:
+        result = subprocess.run(
+            ["pkg-config", "--variable=includedir", package_name],
+            capture_output=True,
+            text=True,
+            check=False
+        )
+        path = result.stdout.strip()
+        if path and os.path.exists(path):
+            return path
+    except FileNotFoundError:
+        pass
+
+    # Common system include/lib folders
+    common_paths = [
+        f"/usr/include/{package_name}",
+        f"/usr/local/include/{package_name}",
+        f"/usr/lib/{package_name}",
+        f"/usr/local/lib/{package_name}",
+    ]
+    for path in common_paths:
+        if os.path.exists(path):
+            return path
+
+    return None
+
