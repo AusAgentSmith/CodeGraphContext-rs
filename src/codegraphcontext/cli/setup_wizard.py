@@ -9,8 +9,15 @@ import json
 import sys
 import shutil
 import yaml 
+from codegraphcontext.core.database import DatabaseManager
 
 console = Console()
+
+# Constants for Docker Neo4j setup
+DEFAULT_NEO4J_URI = "neo4j://localhost:7687"
+DEFAULT_NEO4J_USERNAME = "neo4j"
+DEFAULT_NEO4J_BOLT_PORT = 7687
+DEFAULT_NEO4J_HTTP_PORT = 7474
 
 def _generate_mcp_json(creds):
     """Generates and prints the MCP JSON configuration."""
@@ -347,16 +354,55 @@ def setup_existing_db():
                 console.print(f"[red]❌ Failed to parse credentials file: {e}[/red]")
                 return
 
-    elif cred_method:  # Manual entry
-        console.print("Please enter your remote Neo4j connection details.")
-        questions = [
-            {"type": "input", "message": "URI (e.g., 'neo4j://localhost:7687'):", "name": "uri", "default": "neo4j://localhost:7687"},
-            {"type": "input", "message": "Username:", "name": "username", "default": "neo4j"},
-            {"type": "password", "message": "Password:", "name": "password"},
-        ]
-        manual_creds = prompt(questions)
-        if not manual_creds: return  # User cancelled
-        creds = manual_creds
+    elif cred_method: # Manual entry
+        console.print("Please enter your Neo4j connection details.")
+        
+        # Loop until valid credentials are provided
+        while True:
+            questions = [
+                {"type": "input", "message": "URI (e.g., 'neo4j://localhost:7687'):", "name": "uri", "default": "neo4j://localhost:7687"},
+                {"type": "input", "message": "Username:", "name": "username", "default": "neo4j"},
+                {"type": "password", "message": "Password:", "name": "password"},
+            ]
+            
+            manual_creds = prompt(questions)
+            if not manual_creds: 
+                return # User cancelled
+            
+            # Validate the user input
+            console.print("\n[cyan]🔍 Validating configuration...[/cyan]")
+            is_valid, validation_error = DatabaseManager.validate_config(
+                manual_creds.get("uri", ""),
+                manual_creds.get("username", ""),
+                manual_creds.get("password", "")
+            )
+            
+            if not is_valid:
+                console.print(validation_error)
+                console.print("\n[red]❌ Invalid configuration. Please try again.[/red]\n")
+                continue  # Ask for input again
+            
+            console.print("[green]✅ Configuration format is valid[/green]")
+            
+            # Test the connection
+            console.print("\n[cyan]🔗 Testing connection...[/cyan]")
+            is_connected, error_msg = DatabaseManager.test_connection(
+                manual_creds.get("uri", ""),
+                manual_creds.get("username", ""),
+                manual_creds.get("password", "")
+            )
+            
+            if not is_connected:
+                console.print(error_msg)
+                retry = prompt([{"type": "confirm", "message": "Connection failed. Try again with different credentials?", "name": "retry", "default": True}])
+                if not retry.get("retry"):
+                    return
+                continue  # Ask for input again
+            
+            console.print("[green]✅ Connection successful![/green]")
+            creds = manual_creds
+            break  # Exit loop with valid credentials
+
 
     if creds.get("uri") and creds.get("password"):
         _generate_mcp_json(creds)
@@ -426,16 +472,55 @@ def setup_hosted_db():
                 console.print(f"[red]❌ Failed to parse credentials file: {e}[/red]")
                 return
 
-    elif cred_method:  # Manual entry
+    elif cred_method: # Manual entry
         console.print("Please enter your remote Neo4j connection details.")
-        questions = [
-            {"type": "input", "message": "URI (e.g., neo4j+s://xxxx.databases.neo4j.io):", "name": "uri"},
-            {"type": "input", "message": "Username:", "name": "username", "default": "neo4j"},
-            {"type": "password", "message": "Password:", "name": "password"},
-        ]
-        manual_creds = prompt(questions)
-        if not manual_creds: return  # User cancelled
-        creds = manual_creds
+        
+        # Loop until valid credentials are provided
+        while True:
+            questions = [
+                {"type": "input", "message": "URI (e.g., neo4j+s://xxxx.databases.neo4j.io):", "name": "uri"},
+                {"type": "input", "message": "Username:", "name": "username", "default": "neo4j"},
+                {"type": "password", "message": "Password:", "name": "password"},
+            ]
+            
+            manual_creds = prompt(questions)
+            if not manual_creds:
+                return # User cancelled
+            
+            # Validate the user input
+            console.print("\n[cyan]🔍 Validating configuration...[/cyan]")
+            is_valid, validation_error = DatabaseManager.validate_config(
+                manual_creds.get("uri", ""),
+                manual_creds.get("username", ""),
+                manual_creds.get("password", "")
+            )
+            
+            if not is_valid:
+                console.print(validation_error)
+                console.print("\n[red]❌ Invalid configuration. Please try again.[/red]\n")
+                continue  # Ask for input again
+            
+            console.print("[green]✅ Configuration format is valid[/green]")
+            
+            # Test the connection
+            console.print("\n[cyan]🔗 Testing connection...[/cyan]")
+            is_connected, error_msg = DatabaseManager.test_connection(
+                manual_creds.get("uri", ""),
+                manual_creds.get("username", ""),
+                manual_creds.get("password", "")
+            )
+            
+            if not is_connected:
+                console.print(error_msg)
+                retry = prompt([{"type": "confirm", "message": "Connection failed. Try again with different credentials?", "name": "retry", "default": True}])
+                if not retry.get("retry"):
+                    return
+                continue  # Ask for input again
+            
+            console.print("[green]✅ Connection successful![/green]")
+            creds = manual_creds
+            break  
+
 
     if creds.get("uri") and creds.get("password"):
         _generate_mcp_json(creds)
@@ -520,6 +605,21 @@ volumes:
 
     console.print("[green]✅ docker-compose.yml created with secure password.[/green]")
 
+    # Validate configuration format before attempting Docker operations
+    console.print("\n[cyan]🔍 Validating configuration...[/cyan]")
+    is_valid, validation_error = DatabaseManager.validate_config(
+        DEFAULT_NEO4J_URI, 
+        DEFAULT_NEO4J_USERNAME, 
+        password
+    )
+
+    if not is_valid:
+        console.print(validation_error)
+        console.print("\n[red]❌ Configuration validation failed. Please fix the issues and try again.[/red]")
+        return
+
+    console.print("[green]✅ Configuration format is valid[/green]")
+
     # Check if Docker is running
     docker_check = run_command(["docker", "--version"], console, check=False)
     if not docker_check:
@@ -564,29 +664,36 @@ volumes:
                     console.print("[red]❌ Neo4j container stopped unexpectedly. Check logs with: docker compose logs neo4j[/red]")
                     return
                 
-                # Try to connect
-                health_check = run_command([
-                    "docker", "exec", "neo4j-cgc", "cypher-shell", 
-                    "-u", "neo4j", "-p", password, 
-                    "RETURN 'Connection successful' as status"
-                ], console, check=False)
+                # updated test_connection method
+                console.print(f"[yellow]Testing connection... (attempt {attempt + 1}/{max_attempts})[/yellow]")
+                is_connected, error_msg = DatabaseManager.test_connection(DEFAULT_NEO4J_URI, DEFAULT_NEO4J_USERNAME, password)
                 
-                if health_check and health_check.returncode == 0:
+                if is_connected:
                     console.print("[bold green]✅ Neo4j is ready and accepting connections![/bold green]")
+                    connection_successful = True
                     break
-                    
-                if attempt < max_attempts - 1:
-                    console.print(f"[yellow]Still waiting... (attempt {attempt + 1}/{max_attempts})[/yellow]")
-            else:
-                console.print("[red]❌ Neo4j did not become ready within 2 minutes. Check logs with: docker compose logs neo4j[/red]")
+                
+                else:
+                    # Only show detailed error on last attempt
+                    if attempt == max_attempts - 1:
+                        console.print("\n[red]❌ Neo4j did not become ready within 2 minutes.[/red]")
+                        console.print(error_msg)
+                        console.print("\n[cyan]Troubleshooting:[/cyan]")
+                        console.print("  • Check logs: docker compose logs neo4j")
+                        console.print("  • Verify container is running: docker ps")
+                        console.print("  • Try restarting: docker compose restart")
+                        return
+            
+            if not connection_successful:
                 return
 
             # Generate MCP configuration
             creds = {
-                "uri": "neo4j://localhost:7687",  # Use neo4j:// protocol for Neo4j 5.x
-                "username": "neo4j",
+                "uri": DEFAULT_NEO4J_URI,
+                "username": DEFAULT_NEO4J_USERNAME,
                 "password": password
             }
+
             _generate_mcp_json(creds)
             
             console.print("\n[bold green]🎉 Setup complete![/bold green]")
