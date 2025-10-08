@@ -134,6 +134,11 @@ class GoTreeSitterParser:
 
     def parse(self, file_path: Path, is_dependency: bool = False) -> Dict:
         """Parses a file and returns its structure in a standardized dictionary format."""
+        # This method orchestrates the parsing of a single file.
+        # It calls specialized `_find_*` methods for each language construct.
+        # The returned dictionary should map a specific key (e.g., 'functions', 'interfaces')
+        # to a list of dictionaries, where each dictionary represents a single code construct.
+        # The GraphBuilder will then use these keys to create nodes with corresponding labels.
         with open(file_path, "r", encoding="utf-8") as f:
             source_code = f.read()
 
@@ -141,7 +146,8 @@ class GoTreeSitterParser:
         root_node = tree.root_node
 
         functions = self._find_functions(root_node)
-        classes = self._find_structs_and_interfaces(root_node)
+        structs = self._find_structs(root_node)
+        interfaces = self._find_interfaces(root_node)
         imports = self._find_imports(root_node)
         function_calls = self._find_calls(root_node)
         variables = self._find_variables(root_node)
@@ -149,7 +155,8 @@ class GoTreeSitterParser:
         return {
             "file_path": str(file_path),
             "functions": functions,
-            "classes": classes,
+            "classes": structs,
+            "interfaces": interfaces,
             "variables": variables,
             "imports": imports,
             "function_calls": function_calls,
@@ -287,16 +294,14 @@ class GoTreeSitterParser:
                 return type_text.strip('*')
         return None
 
-    def _find_structs_and_interfaces(self, root_node):
-        classes = []
-        
+    def _find_structs(self, root_node):
+        structs = []
         struct_query = self.queries['structs']
         for node, capture_name in struct_query.captures(root_node):
             if capture_name == 'name':
                 struct_node = self._find_type_declaration_for_name(node)
                 if struct_node:
                     name = self._get_node_text(node)
-                    
                     class_data = {
                         "name": name,
                         "line_number": struct_node.start_point[0] + 1,
@@ -309,15 +314,17 @@ class GoTreeSitterParser:
                         "lang": self.language_name,
                         "is_dependency": False,
                     }
-                    classes.append(class_data)
+                    structs.append(class_data)
+        return structs
 
+    def _find_interfaces(self, root_node):
+        interfaces = []
         interface_query = self.queries['interfaces']
         for node, capture_name in interface_query.captures(root_node):
             if capture_name == 'name':
                 interface_node = self._find_type_declaration_for_name(node)
                 if interface_node:
                     name = self._get_node_text(node)
-                    
                     class_data = {
                         "name": name,
                         "line_number": interface_node.start_point[0] + 1,
@@ -330,9 +337,8 @@ class GoTreeSitterParser:
                         "lang": self.language_name,
                         "is_dependency": False,
                     }
-                    classes.append(class_data)
-
-        return classes
+                    interfaces.append(class_data)
+        return interfaces
 
     def _find_type_declaration_for_name(self, name_node):
         current = name_node.parent

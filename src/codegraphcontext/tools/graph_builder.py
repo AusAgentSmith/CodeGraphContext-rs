@@ -99,6 +99,7 @@ class GraphBuilder:
     # A general schema creation based on common features across languages
     def create_schema(self):
         """Create constraints and indexes in Neo4j."""
+        # When adding a new node type with a unique key, add its constraint here.
         with self.driver.session() as session:
             try:
                 session.run("CREATE CONSTRAINT repository_path IF NOT EXISTS FOR (r:Repository) REQUIRE r.path IS UNIQUE")
@@ -106,6 +107,8 @@ class GraphBuilder:
                 session.run("CREATE CONSTRAINT directory_path IF NOT EXISTS FOR (d:Directory) REQUIRE d.path IS UNIQUE")
                 session.run("CREATE CONSTRAINT function_unique IF NOT EXISTS FOR (f:Function) REQUIRE (f.name, f.file_path, f.line_number) IS UNIQUE")
                 session.run("CREATE CONSTRAINT class_unique IF NOT EXISTS FOR (c:Class) REQUIRE (c.name, c.file_path, c.line_number) IS UNIQUE")
+                session.run("CREATE CONSTRAINT interface_unique IF NOT EXISTS FOR (i:Interface) REQUIRE (i.name, i.file_path, i.line_number) IS UNIQUE")
+                session.run("CREATE CONSTRAINT macro_unique IF NOT EXISTS FOR (m:Macro) REQUIRE (m.name, m.file_path, m.line_number) IS UNIQUE")
                 session.run("CREATE CONSTRAINT variable_unique IF NOT EXISTS FOR (v:Variable) REQUIRE (v.name, v.file_path, v.line_number) IS UNIQUE")
                 session.run("CREATE CONSTRAINT module_name IF NOT EXISTS FOR (m:Module) REQUIRE m.name IS UNIQUE")
 
@@ -254,7 +257,18 @@ class GraphBuilder:
             """, parent_path=parent_path, file_path=file_path_str)
 
             # CONTAINS relationships for functions, classes, and variables
-            for item_data, label in [(file_data['functions'], 'Function'), (file_data['classes'], 'Class'), (file_data['variables'], 'Variable')]:
+            # To add a new language-specific node type (e.g., 'Trait' for Rust):
+            # 1. Ensure your language-specific parser returns a list under a unique key (e.g., 'traits': [...] ).
+            # 2. Add a new constraint for the new label in the `create_schema` method.
+            # 3. Add a new entry to the `item_mappings` list below (e.g., (file_data.get('traits', []), 'Trait') ).
+            item_mappings = [
+                (file_data.get('functions', []), 'Function'),
+                (file_data.get('classes', []), 'Class'),
+                (file_data.get('variables', []), 'Variable'),
+                (file_data.get('interfaces', []), 'Interface'),
+                (file_data.get('macros', []), 'Macro')
+            ]
+            for item_data, label in item_mappings:
                 for item in item_data:
                     # Ensure cyclomatic_complexity is set for functions
                     if label == 'Function' and 'cyclomatic_complexity' not in item:

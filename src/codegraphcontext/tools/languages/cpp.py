@@ -54,6 +54,11 @@ CPP_QUERIES = {
             body: (field_declaration_list)? @body
         ) @union
     """,
+    "macros": """
+        (preproc_def
+            name: (identifier) @name
+        ) @macro
+    """,
 }
 
 class CppTreeSitterParser:
@@ -87,6 +92,7 @@ class CppTreeSitterParser:
         structs = self._find_structs(root_node)
         enums = self._find_enums(root_node)
         unions = self._find_unions(root_node)
+        macros = self._find_macros(root_node)
         
         return {
             "file_path": str(file_path),
@@ -95,6 +101,7 @@ class CppTreeSitterParser:
             "structs": structs,
             "enums": enums,
             "unions": unions,
+            "macros": macros,
             "variables": [],  # Placeholder
             "imports": imports,
             "function_calls": [],  # Placeholder
@@ -198,6 +205,23 @@ class CppTreeSitterParser:
                     "source_code": self._get_node_text(union_node),
                 })
         return unions
+
+    def _find_macros(self, root_node):
+        macros = []
+        query = self.queries['macros']
+        for match in query.captures(root_node):
+            capture_name = match[1]
+            node = match[0]
+            if capture_name == 'name':
+                macro_node = node.parent
+                name = self._get_node_text(node)
+                macros.append({
+                    "name": name,
+                    "line_number": node.start_point[0] + 1,
+                    "end_line": macro_node.end_point[0] + 1,
+                    "source_code": self._get_node_text(macro_node),
+                })
+        return macros
 
 def pre_scan_cpp(files: list[Path], parser_wrapper) -> dict:
     """
