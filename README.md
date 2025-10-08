@@ -72,8 +72,38 @@ If you’re using CodeGraphContext in your project, feel free to open a PR and a
 1.  **Install:** `pip install codegraphcontext`
 2.  **Setup:** `cgc setup`
     This interactive command guides you through configuring your Neo4j database connection and automatically setting up your IDE.
+
+    #### In case: command `cgc` not found
+    If you encounter "cgc: command not found" after installation, run the PATH fix script:
     
-      **Database Configuration:**
+    **Linux/Mac:**
+    ```bash
+    # Download the fix script
+    curl -O https://raw.githubusercontent.com/Shashankss1205/CodeGraphContext/main/scripts/post_install_fix.sh
+    
+    # Make it executable
+    chmod +x post_install_fix.sh
+    
+    # Run the script
+    ./post_install_fix.sh
+    
+    # Restart your terminal or reload shell config
+    source ~/.bashrc  # or ~/.zshrc for zsh users
+    ```
+    
+    **Windows (PowerShell):**
+    ```powershell
+    # Download the fix script
+    curl -O https://raw.githubusercontent.com/Shashankss1205/CodeGraphContext/main/scripts/post_install_fix.sh
+    
+    # Run with bash (requires Git Bash or WSL)
+    bash post_install_fix.sh
+    
+    # Restart PowerShell or reload profile
+    . $PROFILE
+    ``` 
+    
+    **Database Configuration:**
     *   **Local Setup (Docker Recommended):** Helps you set up a local Neo4j instance using Docker. Requires Docker and Docker Compose to be installed.
     *   **Local Setup (Linux Binary):** For Debian-based Linux systems (like Ubuntu), `cgc setup` can automate the installation of Neo4j. Requires `sudo` privileges.
     *   **Hosted Setup:** Allows you to connect to an existing remote Neo4j database (e.g., Neo4j AuraDB).
