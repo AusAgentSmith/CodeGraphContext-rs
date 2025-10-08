@@ -9,6 +9,7 @@ import json
 import sys
 import shutil
 import yaml 
+from src.codegraphcontext.core.database import DatabaseManager
 
 console = Console()
 
@@ -520,6 +521,17 @@ volumes:
 
     console.print("[green]✅ docker-compose.yml created with secure password.[/green]")
 
+    # Validate configuration format before attempting Docker operations
+    neo4j_uri = "neo4j://localhost:7687"
+    console.print("\n[cyan]🔍 Validating configuration...[/cyan]")
+    is_valid, validation_error = DatabaseManager.validate_config(neo4j_uri, "neo4j", password)
+    
+    if not is_valid:
+        console.print(validation_error)
+        console.print("[red]❌ Configuration validation failed. Please fix the issues and try again.[/red]")
+        return
+    console.print("[green]✅ Configuration validated successfully![/green]")
+
     # Check if Docker is running
     docker_check = run_command(["docker", "--version"], console, check=False)
     if not docker_check:
@@ -564,21 +576,27 @@ volumes:
                     console.print("[red]❌ Neo4j container stopped unexpectedly. Check logs with: docker compose logs neo4j[/red]")
                     return
                 
-                # Try to connect
-                health_check = run_command([
-                    "docker", "exec", "neo4j-cgc", "cypher-shell", 
-                    "-u", "neo4j", "-p", password, 
-                    "RETURN 'Connection successful' as status"
-                ], console, check=False)
+                # updated test_connection method
+                console.print(f"[yellow]Testing connection... (attempt {attempt + 1}/{max_attempts})[/yellow]")
+                is_connected, error_msg = DatabaseManager.test_connection(neo4j_uri, "neo4j", password)
                 
-                if health_check and health_check.returncode == 0:
+                if is_connected:
                     console.print("[bold green]✅ Neo4j is ready and accepting connections![/bold green]")
+                    connection_successful = True
                     break
-                    
-                if attempt < max_attempts - 1:
-                    console.print(f"[yellow]Still waiting... (attempt {attempt + 1}/{max_attempts})[/yellow]")
-            else:
-                console.print("[red]❌ Neo4j did not become ready within 2 minutes. Check logs with: docker compose logs neo4j[/red]")
+                
+                else:
+                    # Only show detailed error on last attempt
+                    if attempt == max_attempts - 1:
+                        console.print("\n[red]❌ Neo4j did not become ready within 2 minutes.[/red]")
+                        console.print(error_msg)
+                        console.print("\n[cyan]Troubleshooting:[/cyan]")
+                        console.print("  • Check logs: docker compose logs neo4j")
+                        console.print("  • Verify container is running: docker ps")
+                        console.print("  • Try restarting: docker compose restart")
+                        return
+            
+            if not connection_successful:
                 return
 
             # Generate MCP configuration
