@@ -1,6 +1,5 @@
 import { Button } from "@/components/ui/button";
 import { Github, ExternalLink, Mail, MapPin, Phone } from "lucide-react";
-// import { FaDiscord } from "react-icons/fa";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { createClient } from "@supabase/supabase-js";
@@ -104,68 +103,7 @@ const Footer = () => {
                 Transform your codebase into an intelligent knowledge graph for
                 AI assistants.
               </p>
-              <div className="flex gap-3 flex-wrap items-center">
-                <style>{`
-                        @keyframes float {
-                          0%, 100% { transform: translateY(0); }
-                          50% { transform: translateY(-3px); }
-                        }
-
-                        .social-btn {
-                          transition: all .25s cubic-bezier(.2,.9,.3,1);
-                          background-color: rgba(255,255,255,0.03);
-                          border: 1px solid rgba(255,255,255,0.08);
-                        }
-
-                        .social-btn:hover {
-                          transform: translateY(-3px) scale(1.03);
-                        }
-
-                        /* GitHub */
-                        .social-github:hover {
-                          background: rgba(255,255,255,0.08);
-                          box-shadow: 0 0 18px rgba(255,255,255,0.15);
-                        }
-                        .social-github:hover svg {
-                          color: #F5F5F5;
-                        }
-
-                        /* Discord */
-                        .social-discord:hover {
-                          background: rgba(88,101,242,0.15);
-                          box-shadow: 0 0 20px rgba(88,101,242,0.35);
-                        }
-                        .social-discord:hover svg {
-                          color: #7289DA;
-                        }
-
-                        /* PyPI */
-                        .social-pypi:hover {
-                          background: rgba(255,193,7,0.12);
-                          box-shadow: 0 0 20px rgba(255,193,7,0.35);
-                        }
-                        .social-pypi:hover svg {
-                          color: #FFD43B;
-                        }
-
-                        /* Documentation */
-                        .social-docs:hover {
-                          background: rgba(99,102,241,0.15);
-                          box-shadow: 0 0 20px rgba(99,102,241,0.35);
-                        }
-                        .social-docs:hover svg {
-                          color: #818CF8;
-                        }
-
-                        @media (min-width: 640px) {
-                          .social-float {
-                            animation: float 4s ease-in-out infinite;
-                          }
-                          .social-float:hover {
-                            animation-play-state: paused;
-                          }
-                        }
-                      `}</style>
+              <div className="flex gap-3 flex-wrap">
                 <Button
                   variant="outline"
                   size="sm"
