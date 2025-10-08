@@ -1,16 +1,19 @@
 import { Button } from "@/components/ui/button";
 import { Github, ExternalLink, Mail, MapPin, Phone } from "lucide-react";
-import { FaDiscord } from "react-icons/fa";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { createClient } from "@supabase/supabase-js";
+import { FaGithub, FaDiscord } from "react-icons/fa";
+import { SiPypi } from "react-icons/si";
+import { FiBookOpen } from "react-icons/fi";
 
 // Only create Supabase client if environment variables are set
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabase = supabaseUrl && supabaseAnonKey 
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : null;
+const supabase =
+  supabaseUrl && supabaseAnonKey
+    ? createClient(supabaseUrl, supabaseAnonKey)
+    : null;
 
 const Footer = () => {
   const [email, setEmail] = useState("");
@@ -52,7 +55,9 @@ const Footer = () => {
 
     // Check if Supabase is configured
     if (!supabase) {
-      toast.error("Newsletter subscription is currently unavailable. Please try again later.");
+      toast.error(
+        "Newsletter subscription is currently unavailable. Please try again later."
+      );
       return;
     }
 
@@ -99,44 +104,83 @@ const Footer = () => {
                 AI assistants.
               </p>
               <div className="flex gap-3 flex-wrap">
-                <Button variant="outline" size="sm" asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  asChild
+                  className="social-btn social-github social-float"
+                >
                   <a
                     href="https://github.com/Shashankss1205/CodeGraphContext"
                     target="_blank"
                     rel="noopener noreferrer"
+                    className="flex items-center"
                   >
-                    <Github className="h-4 w-4 mr-2" />
-                    GitHub
+                    <FaGithub
+                      className="h-4 w-4 mr-2"
+                      style={{ color: "#9CA3AF" }}
+                    />
+                    <span>GitHub</span>
                   </a>
                 </Button>
-                <Button variant="outline" size="sm" asChild>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  asChild
+                  className="social-btn social-discord social-float"
+                >
                   <a
                     href="https://discord.com/invite/dR4QY32uYQ"
                     target="_blank"
                     rel="noopener noreferrer"
+                    className="flex items-center"
                   >
-                    <FaDiscord className="h-4 w-4 mr-2" />
-                    Discord
+                    <FaDiscord
+                      className="h-4 w-4 mr-2"
+                      style={{ color: "#5865F2" }}
+                    />
+                    <span>Discord</span>
                   </a>
                 </Button>
-                <Button variant="outline" size="sm" asChild>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  asChild
+                  className="social-btn social-pypi social-float"
+                >
                   <a
                     href="https://pypi.org/project/codegraphcontext/"
                     target="_blank"
                     rel="noopener noreferrer"
+                    className="flex items-center"
                   >
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    PyPI
+                    <SiPypi
+                      className="h-4 w-4 mr-2"
+                      style={{ color: "#EAB308" }}
+                    />
+                    <span>PyPI</span>
                   </a>
                 </Button>
-                <Button variant="outline" size="sm" asChild>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  asChild
+                  className="social-btn social-docs social-float"
+                >
                   <a
                     href="https://shashankss1205.github.io/CodeGraphContext/"
                     target="_blank"
                     rel="noopener noreferrer"
+                    className="flex items-center"
                   >
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    Documentation
+                    <FiBookOpen
+                      className="h-4 w-4 mr-2"
+                      style={{ color: "#6366F1" }}
+                    />
+                    <span>Documentation</span>
                   </a>
                 </Button>
               </div>
@@ -210,9 +254,7 @@ const Footer = () => {
                 </div> */}
                 <div className="flex items-start gap-3">
                   <MapPin className="h-5 w-5 mt-1 text-primary" />
-                  <p className="text-sm">
-                    (Available Worldwide 🌍)
-                  </p>
+                  <p className="text-sm">(Available Worldwide 🌍)</p>
                 </div>
                 <div>
                   <p className="font-medium text-foreground">
