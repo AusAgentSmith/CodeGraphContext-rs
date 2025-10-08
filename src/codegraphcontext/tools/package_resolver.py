@@ -289,7 +289,6 @@ def _get_go_package_path(package_name: str) -> Optional[str]:
         if cp.returncode == 0:
             d = _first_existing_dir(cp.stdout)
             if d:
-                debug_log(f"Found Go package {package_name} at {d}")
                 return d
 
         # 2. Module root directory (where go.mod lives)
@@ -311,7 +310,6 @@ def _get_go_package_path(package_name: str) -> Optional[str]:
         if cp3.returncode == 0:
             d = _first_existing_dir(cp3.stdout)
             if d:
-                debug_log(f"Found Go package (mod mode) {package_name} at {d}")
                 return d
         
         # 4. Check in GOROOT for standard library packages
@@ -325,7 +323,6 @@ def _get_go_package_path(package_name: str) -> Optional[str]:
                 if goroot:
                     std_lib_path = Path(goroot) / "src" / package_name
                     if std_lib_path.exists() and std_lib_path.is_dir():
-                        debug_log(f"Found Go stdlib package {package_name} at {std_lib_path}")
                         return str(std_lib_path.resolve())
         except Exception as e:
             debug_log(f"Error checking GOROOT for {package_name}: {e}")
@@ -349,8 +346,8 @@ def _get_go_package_path(package_name: str) -> Optional[str]:
         debug_log(f"Could not find Go package: {package_name}")
         return None
 
-    except (subprocess.TimeoutExpired, FileNotFoundError) as e:
-        debug_log(f"go command not available or timed out for {package_name}: {e}")
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        debug_log(f"go command not available or timed out for {package_name}")
         return None
     except Exception as e:
         debug_log(f"Error getting Go package path for {package_name}: {e}")
