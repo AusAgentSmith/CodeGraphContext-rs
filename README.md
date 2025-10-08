@@ -73,8 +73,10 @@ If you’re using CodeGraphContext in your project, feel free to open a PR and a
 2.  **Setup:** `cgc setup`
     This interactive command guides you through configuring your Neo4j database connection and automatically setting up your IDE.
 
-    #### In case: command `cgc` not found
-    If you encounter "cgc: command not found" after installation, run the PATH fix script:
+    <details>
+    <summary>⚙️ Troubleshooting: In case, command <code>cgc</code> not found</summary>
+
+    If you encounter <i>"cgc: command not found"</i> after installation, run the PATH fix script:
     
     **Linux/Mac:**
     ```bash
@@ -102,6 +104,8 @@ If you’re using CodeGraphContext in your project, feel free to open a PR and a
     # Restart PowerShell or reload profile
     . $PROFILE
     ``` 
+    </details>
+
     
     **Database Configuration:**
     *   **Local Setup (Docker Recommended):** Helps you set up a local Neo4j instance using Docker. Requires Docker and Docker Compose to be installed.
