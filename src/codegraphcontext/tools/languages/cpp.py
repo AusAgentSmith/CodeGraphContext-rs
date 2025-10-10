@@ -48,11 +48,20 @@ CPP_QUERIES = {
             body: (field_declaration_list)? @body
         ) @struct
     """,
-    "unions":"""
-        (union_specifier
-            name: (type_identifier) @name
-            body: (field_declaration_list)? @body
-        ) @union
+    "unions": """
+    (union_specifier
+    name: (type_identifier)? @name
+    body: (field_declaration_list
+        (field_declaration
+            declarator: [
+                (field_identifier) @value
+                (pointer_declarator (field_identifier) @value)
+                (array_declarator (field_identifier) @value)
+                ]
+            )*
+        )? @body
+    ) @union
+  
     """,
     "macros": """
         (preproc_def
@@ -103,6 +112,7 @@ class CppTreeSitterParser:
             "unions": unions,
             "macros": macros,
             "variables": [],  # Placeholder
+            "declarations": [],
             "imports": imports,
             "function_calls": [],  # Placeholder
             "is_dependency": is_dependency,
