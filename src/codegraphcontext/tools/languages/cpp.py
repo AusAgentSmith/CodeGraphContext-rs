@@ -68,6 +68,16 @@ CPP_QUERIES = {
             name: (identifier) @name
         ) @macro
     """,
+    "variables": """
+    (declaration
+        declarator: (init_declarator
+                        declarator: (identifier) @name))
+
+    (declaration
+        declarator: (init_declarator
+                        declarator: (pointer_declarator
+                            declarator: (identifier) @name)))
+    """,
 }
 
 class CppTreeSitterParser:
@@ -102,6 +112,7 @@ class CppTreeSitterParser:
         enums = self._find_enums(root_node)
         unions = self._find_unions(root_node)
         macros = self._find_macros(root_node)
+        variables = self._find_variables(root_node)
         
         return {
             "file_path": str(file_path),
@@ -111,8 +122,8 @@ class CppTreeSitterParser:
             "enums": enums,
             "unions": unions,
             "macros": macros,
-            "variables": [],  # Placeholder
-            "declarations": [],
+            "variables": variables,  
+            "declarations": [], # Placeholder
             "imports": imports,
             "function_calls": [],  # Placeholder
             "is_dependency": is_dependency,
@@ -232,6 +243,89 @@ class CppTreeSitterParser:
                     "source_code": self._get_node_text(macro_node),
                 })
         return macros
+    
+    def _find_lambda_assignments(self, root_node):
+        functions = []
+        query = self.queries.get('lambda_assignments')
+        if not query: return []
+
+        for match in query.captures(root_node):
+            capture_name = match[1]
+            node = match[0]
+
+            if capture_name == 'name':
+                assignment_node = node.parent
+                lambda_node = assignment_node.child_by_field_name('right')
+                name = self._get_node_text(node)
+                params_node = lambda_node.child_by_field_name('parameters')
+                
+                context, context_type, _ = self._get_parent_context(assignment_node)
+                class_context, _, _ = self._get_parent_context(assignment_node, types=('class_definition',))
+
+                func_data = {
+                    "name": name,
+                    "line_number": node.start_point[0] + 1,
+                    "end_line": assignment_node.end_point[0] + 1,
+                    "args": [p for p in [self._get_node_text(p) for p in params_node.children if p.type == 'identifier'] if p] if params_node else [],
+                    "source": self._get_node_text(assignment_node),
+                    "source_code": self._get_node_text(assignment_node),
+                    "docstring": None,
+                    "cyclomatic_complexity": 1,
+                    "context": context,
+                    "context_type": context_type,
+                    "class_context": class_context,
+                    "decorators": [],
+                    "lang": self.language_name,
+                    "is_dependency": False,
+                }
+                functions.append(func_data)
+        return functions
+    
+    def _find_variables(self, root_node):
+        variables = []
+        query = self.queries['variables']
+        for match in query.captures(root_node):
+            capture_name = match[1]
+            node = match[0]
+
+            if capture_name == 'name':
+                assignment_node = node.parent
+
+                # Skip lambda assignments, they are handled by _find_lambda_assignments
+                right_node = assignment_node.child_by_field_name('right')
+                if right_node and right_node.type == 'lambda':
+                    continue
+
+                name = self._get_node_text(node)
+                value = self._get_node_text(right_node) if right_node else None
+                
+                type_node = assignment_node.child_by_field_name('type')
+                type_text = self._get_node_text(type_node) if type_node else None
+
+                context, _, _ = self._get_parent_context(node)
+                class_context, _, _ = self._get_parent_context(node, types=('class_definition',))
+
+                variable_data = {
+                    "name": name,
+                    "line_number": node.start_point[0] + 1,
+                    "value": value,
+                    "type": type_text,
+                    "context": context,
+                    "class_context": class_context,
+                    "lang": self.language_name,
+                    "is_dependency": False,
+                }
+                variables.append(variable_data)
+        return variables
+    
+    def _get_parent_context(self, node, types=('function_definition', 'class_definition')):
+        curr = node.parent
+        while curr:
+            if curr.type in types:
+                name_node = curr.child_by_field_name('name')
+                return self._get_node_text(name_node) if name_node else None, curr.type, curr.start_point[0] + 1
+            curr = curr.parent
+        return None, None, None
 
 def pre_scan_cpp(files: list[Path], parser_wrapper) -> dict:
     """
