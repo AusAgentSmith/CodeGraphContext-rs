@@ -69,7 +69,7 @@ const StatusBadge = ({ status, text }: { status: string; text: string }) => {
       case "good":
         return "bg-emerald-100 text-emerald-700 border border-emerald-300 shadow-sm dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/40 dark:shadow-lg dark:shadow-emerald-500/10";
       case "warning":
-        return "bg-amber-100 text-amber-700 border border-amber-300 shadow-sm dark: bg - amber - 500 / 20 dark: text - amber - 300 dark: border - amber - 500 / 40 dark: shadow - lg dark: shadow - amber - 500 / 10";
+        return "bg-amber-100 text-amber-700 border border-amber-300 shadow-sm dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/40 dark:shadow-lg dark:shadow-amber-500/10";
       case "bad":
         return "bg-red-100 text-red-700 border border-red-300 shadow-sm dark:bg-red-500/20 dark:text-red-300 dark:border-red-500/40 dark:shadow-lg dark:shadow-red-500/10";
       default:
@@ -97,9 +97,9 @@ const StatusBadge = ({ status, text }: { status: string; text: string }) => {
       transition={{ type: "spring", stiffness: 400, damping: 17 }}
     >
       <Badge
-        className={` 
-          ${getStatusStyles()} 
-          border-2 font-medium text-[0.65rem] px-3 py-1.5 
+        className={`
+          ${getStatusStyles()}
+          border-2 font-medium text-[0.55rem] sm:text-[0.65rem] px-2 sm:px-3 py-1 
           backdrop-blur-sm relative overflow-hidden
           transition-all duration-300 hover:shadow-xl
         `}
@@ -110,7 +110,7 @@ const StatusBadge = ({ status, text }: { status: string; text: string }) => {
           whileHover={{ x: "100%" }}
           transition={{ duration: 0.6 }}
         />
-        <span className="mr-2 font-bold">{getIcon()}</span>
+        <span className="mr-1 sm:mr-2 font-bold">{getIcon()}</span>
         <span className="relative z-10">{text}</span>
       </Badge>
     </motion.div>
@@ -143,28 +143,13 @@ const FloatingBackground = () => (
   <div className="absolute inset-0 overflow-hidden pointer-events-none">
     <motion.div
       className="absolute -top-40 -right-40 w-80 h-80 bg-primary/5 rounded-full blur-3xl"
-      animate={{
-        x: [0, 30, 0],
-        y: [0, -40, 0],
-      }}
-      transition={{
-        duration: 20,
-        repeat: Infinity,
-        ease: "easeInOut",
-      }}
+      animate={{ x: [0, 30, 0], y: [0, -40, 0] }}
+      transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
     />
     <motion.div
       className="absolute -bottom-40 -left-40 w-80 h-80 bg-accent/5 rounded-full blur-3xl"
-      animate={{
-        x: [0, -30, 0],
-        y: [0, 40, 0],
-      }}
-      transition={{
-        duration: 25,
-        repeat: Infinity,
-        ease: "easeInOut",
-        delay: 2,
-      }}
+      animate={{ x: [0, -30, 0], y: [0, 40, 0] }}
+      transition={{ duration: 25, repeat: Infinity, ease: "easeInOut", delay: 2 }}
     />
   </div>
 );
@@ -177,11 +162,7 @@ export default function ComparisonTable() {
     <section
       ref={containerRef}
       className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-secondary/5 overflow-hidden"
-      style={{
-        maxWidth: "100vw",
-        overflow: "hidden",
-        padding: "2rem 1rem",
-      }}
+      style={{ maxWidth: "100vw", overflow: "hidden", padding: "2rem 1rem" }}
     >
       <FloatingBackground />
 
@@ -214,125 +195,93 @@ export default function ComparisonTable() {
             animate={isInView ? { opacity: 1, scale: 1 } : {}}
             transition={{ duration: 0.8, delay: 0.5 }}
           >
-            <Card className="bg-background/70 backdrop-blur-xl border-border/30 shadow-2xl shadow-primary/5 rounded-3xl overflow-hidden">
-              <CardContent className="p-0">
-                <div className="overflow-hidden rounded-3xl">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-border/20 bg-gradient-to-r from-secondary/10 via-secondary/5 to-secondary/10 backdrop-blur-sm">
-                        <th className="p-4 sm:p-6 text-left font-bold text-foreground text-sm sm:text-base">
-                          <motion.span
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={isInView ? { opacity: 1, x: 0 } : {}}
-                            transition={{ duration: 0.6, delay: 0.7 }}
-                          >
-                            Feature
-                          </motion.span>
-                        </th>
-                        <th className="p-4 sm:p-6 text-center font-bold text-foreground text-sm sm:text-base min-w-[140px]">
-                          <motion.span
-                            initial={{ opacity: 0, y: -20 }}
-                            animate={isInView ? { opacity: 1, y: 0 } : {}}
-                            transition={{ duration: 0.6, delay: 0.8 }}
-                          >
-                            GitHub Copilot
-                          </motion.span>
-                        </th>
-                        <th className="p-4 sm:p-6 text-center font-bold text-foreground text-sm sm:text-base min-w-[140px]">
-                          <motion.span
-                            initial={{ opacity: 0, y: -20 }}
-                            animate={isInView ? { opacity: 1, y: 0 } : {}}
-                            transition={{ duration: 0.6, delay: 0.9 }}
-                          >
-                            Cursor
-                          </motion.span>
-                        </th>
-                        <th className="p-4 sm:p-6 text-center font-bold text-foreground text-sm sm:text-base min-w-[140px] relative">
-                          <motion.span
-                            initial={{ opacity: 0, y: -20 }}
-                            animate={isInView ? { opacity: 1, y: 0 } : {}}
-                            transition={{ duration: 0.6, delay: 1.0 }}
-                            className="relative"
-                          >
-                            CodeGraphContext
-                          </motion.span>
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {tableData.map((row, index) => (
-                        <motion.tr
-                          key={row.feature}
-                          initial={{ opacity: 0, x: -20 }}
-                          animate={isInView ? { opacity: 1, x: 0 } : {}}
-                          transition={{
-                            duration: 0.6,
-                            delay: 0.7 + index * 0.1,
-                          }}
-                          className={`
-                            border-b border-border/10 transition-all duration-300 
-                            hover:bg-primary/5 group relative overflow-hidden
-                            ${index % 2 === 0
-                              ? "bg-background/30"
-                              : "bg-secondary/3"
-                            }
-                          `}
-                        >
-                          <motion.td
-                            className="p-4 sm:p-6 text-foreground font-semibold text-xs sm:text-sm relative z-10"
-                            whileHover={{ x: 8 }}
-                            transition={{
-                              type: "spring",
-                              stiffness: 400,
-                              damping: 25,
-                            }}
-                          >
-                            {row.feature}
-                            <motion.div
-                              className="absolute left-0 top-0 w-1 h-0 bg-gradient-to-b from-primary to-accent group-hover:h-full transition-all duration-500"
-                              initial={{ height: 0 }}
-                              whileHover={{ height: "100%" }}
-                            />
-                          </motion.td>
-                          <td className="p-4 sm:p-6 text-center">
-                            <div className="flex justify-center">
-                              <StatusBadge
-                                status={row.copilot.status}
-                                text={row.copilot.text}
-                              />
-                            </div>
-                          </td>
-                          <td className="p-4 sm:p-6 text-center">
-                            <div className="flex justify-center">
-                              <StatusBadge
-                                status={row.cursor.status}
-                                text={row.cursor.text}
-                              />
-                            </div>
-                          </td>
-                          <td className="p-4 sm:p-6 text-center relative">
-                            <div className="flex justify-center">
-                              <StatusBadge
-                                status={row.cgc.status}
-                                text={row.cgc.text}
-                              />
-                            </div>
-                            {/* {row.cgc.status === "good" && (
-                              <motion.div
-                                className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-lg"
-                                initial={{ opacity: 0 }}
-                                whileHover={{ opacity: 1 }}
-                                transition={{ duration: 0.3 }}
-                              />
-                            )} */}
-                          </td>
-                        </motion.tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Scrollable table wrapper */}
+            <div className="overflow-x-auto rounded-3xl">
+              <table className="w-full min-w-[600px] md:min-w-full table-auto">
+                <thead>
+                  <tr className="border-b border-border/20 bg-gradient-to-r from-secondary/10 via-secondary/5 to-secondary/10 backdrop-blur-sm">
+                    <th className="p-2 sm:p-4 text-left font-bold text-foreground text-[0.65rem] sm:text-sm">
+                      <motion.span
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={isInView ? { opacity: 1, x: 0 } : {}}
+                        transition={{ duration: 0.6, delay: 0.7 }}
+                      >
+                        Feature
+                      </motion.span>
+                    </th>
+                    <th className="p-2 sm:p-4 text-center font-bold text-foreground text-[0.65rem] sm:text-sm min-w-[120px]">
+                      <motion.span
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={isInView ? { opacity: 1, y: 0 } : {}}
+                        transition={{ duration: 0.6, delay: 0.8 }}
+                      >
+                        GitHub Copilot
+                      </motion.span>
+                    </th>
+                    <th className="p-2 sm:p-4 text-center font-bold text-foreground text-[0.65rem] sm:text-sm min-w-[120px]">
+                      <motion.span
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={isInView ? { opacity: 1, y: 0 } : {}}
+                        transition={{ duration: 0.6, delay: 0.9 }}
+                      >
+                        Cursor
+                      </motion.span>
+                    </th>
+                    <th className="p-2 sm:p-4 text-center font-bold text-foreground text-[0.65rem] sm:text-sm min-w-[120px]">
+                      <motion.span
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={isInView ? { opacity: 1, y: 0 } : {}}
+                        transition={{ duration: 0.6, delay: 1.0 }}
+                      >
+                        CodeGraphContext
+                      </motion.span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tableData.map((row, index) => (
+                    <motion.tr
+                      key={row.feature}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={isInView ? { opacity: 1, x: 0 } : {}}
+                      transition={{
+                        duration: 0.6,
+                        delay: 0.7 + index * 0.1,
+                      }}
+                      className={`
+                        border-b border-border/10 transition-all duration-300 
+                        hover:bg-primary/5 group relative overflow-hidden
+                        ${index % 2 === 0 ? "bg-background/30" : "bg-secondary/3"}
+                      `}
+                    >
+                      <td className="p-2 sm:p-4 text-foreground font-semibold text-[0.6rem] sm:text-xs sm:text-sm text-left relative z-10">
+                        {row.feature}
+                        <motion.div
+                          className="absolute left-0 top-0 w-1 h-0 bg-gradient-to-b from-primary to-accent group-hover:h-full transition-all duration-500"
+                          initial={{ height: 0 }}
+                          whileHover={{ height: "100%" }}
+                        />
+                      </td>
+                      <td className="p-2 sm:p-4 text-center">
+                        <div className="flex justify-center">
+                          <StatusBadge status={row.copilot.status} text={row.copilot.text} />
+                        </div>
+                      </td>
+                      <td className="p-2 sm:p-4 text-center">
+                        <div className="flex justify-center">
+                          <StatusBadge status={row.cursor.status} text={row.cursor.text} />
+                        </div>
+                      </td>
+                      <td className="p-2 sm:p-4 text-center relative">
+                        <div className="flex justify-center">
+                          <StatusBadge status={row.cgc.status} text={row.cgc.text} />
+                        </div>
+                      </td>
+                    </motion.tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </motion.div>
         </AnimatedCard>
 
@@ -351,7 +300,6 @@ export default function ComparisonTable() {
             >
               Experience the power of graph-based code understanding
             </motion.p>
-
           </motion.div>
         </AnimatedCard>
       </div>

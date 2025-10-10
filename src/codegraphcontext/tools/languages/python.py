@@ -1,3 +1,7 @@
+import os
+import tempfile
+import nbformat
+from nbconvert import PythonExporter
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 import logging
@@ -97,31 +101,58 @@ class PythonTreeSitterParser:
                     return self._get_node_text(first_child.children[0])
         return None
 
-    def parse(self, file_path: Path, is_dependency: bool = False) -> Dict:
+    def parse(self, file_path: Path, is_dependency: bool = False, is_notebook: bool = False) -> Dict:
         """Parses a file and returns its structure in a standardized dictionary format."""
-        with open(file_path, "r", encoding="utf-8") as f:
-            source_code = f.read()
-        
-        tree = self.parser.parse(bytes(source_code, "utf8"))
-        root_node = tree.root_node
+        original_file_path = file_path
+        temp_py_file = None
+        source_code = None
 
-        functions = self._find_functions(root_node)
-        functions.extend(self._find_lambda_assignments(root_node))
-        classes = self._find_classes(root_node)
-        imports = self._find_imports(root_node)
-        function_calls = self._find_calls(root_node)
-        variables = self._find_variables(root_node)
+        try:
+            if is_notebook:
+                logger.debug(f"Converting notebook {file_path} to temporary Python file.")
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    notebook_node = nbformat.read(f, as_version=4)
+                
+                exporter = PythonExporter()
+                python_code, _ = exporter.from_notebook_node(notebook_node)
 
-        return {
-            "file_path": str(file_path),
-            "functions": functions,
-            "classes": classes,
-            "variables": variables,
-            "imports": imports,
-            "function_calls": function_calls,
-            "is_dependency": is_dependency,
-            "lang": self.language_name,
-        }
+                with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.py', encoding='utf-8') as tf:
+                    tf.write(python_code)
+                    temp_py_file = Path(tf.name)
+                
+                # The file to be parsed is now the temporary file
+                file_path = temp_py_file
+
+            with open(file_path, "r", encoding="utf-8") as f:
+                source_code = f.read()
+            
+            tree = self.parser.parse(bytes(source_code, "utf8"))
+            root_node = tree.root_node
+
+            functions = self._find_functions(root_node)
+            functions.extend(self._find_lambda_assignments(root_node))
+            classes = self._find_classes(root_node)
+            imports = self._find_imports(root_node)
+            function_calls = self._find_calls(root_node)
+            variables = self._find_variables(root_node)
+
+            return {
+                "file_path": str(original_file_path), # Always return the original path
+                "functions": functions,
+                "classes": classes,
+                "variables": variables,
+                "imports": imports,
+                "function_calls": function_calls,
+                "is_dependency": is_dependency,
+                "lang": self.language_name,
+            }
+        except Exception as e:
+            logger.error(f"Failed to parse {original_file_path}: {e}")
+            return {"file_path": str(original_file_path), "error": str(e)}
+        finally:
+            if temp_py_file and temp_py_file.exists():
+                os.remove(temp_py_file)
+                logger.debug(f"Removed temporary file: {temp_py_file}")
 
     def _find_lambda_assignments(self, root_node):
         functions = []
@@ -392,9 +423,24 @@ def pre_scan_python(files: list[Path], parser_wrapper) -> dict:
     query = parser_wrapper.language.query(query_str)
     
     for file_path in files:
+        temp_py_file = None
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                tree = parser_wrapper.parser.parse(bytes(f.read(), "utf8"))
+            source_to_parse = ""
+            if file_path.suffix == '.ipynb':
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    notebook_node = nbformat.read(f, as_version=4)
+                exporter = PythonExporter()
+                python_code, _ = exporter.from_notebook_node(notebook_node)
+                with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.py', encoding='utf-8') as tf:
+                    tf.write(python_code)
+                    temp_py_file = Path(tf.name)
+                with open(temp_py_file, "r", encoding="utf-8") as f:
+                    source_to_parse = f.read()
+            else:
+                with open(file_path, "r", encoding="utf-8") as f:
+                    source_to_parse = f.read()
+
+            tree = parser_wrapper.parser.parse(bytes(source_to_parse, "utf8"))
             
             for capture, _ in query.captures(tree.root_node):
                 name = capture.text.decode('utf-8')
@@ -403,4 +449,7 @@ def pre_scan_python(files: list[Path], parser_wrapper) -> dict:
                 imports_map[name].append(str(file_path.resolve()))
         except Exception as e:
             logger.warning(f"Tree-sitter pre-scan failed for {file_path}: {e}")
+        finally:
+            if temp_py_file and temp_py_file.exists():
+                os.remove(temp_py_file)
     return imports_map

@@ -22,7 +22,7 @@ from .core.jobs import JobManager, JobStatus
 from .core.watcher import CodeWatcher
 from .tools.graph_builder import GraphBuilder
 from .tools.code_finder import CodeFinder
-from .tools.import_extractor import ImportExtractor
+from .tools.package_resolver import get_local_package_path
 from .utils.debug_log import debug_log
 
 logger = logging.getLogger(__name__)
@@ -70,7 +70,6 @@ class MCPServer:
         # Initialize all the tool handlers, passing them the necessary managers and the event loop.
         self.graph_builder = GraphBuilder(self.db_manager, self.job_manager, loop)
         self.code_finder = CodeFinder(self.db_manager)
-        self.import_extractor = ImportExtractor()
         self.code_watcher = CodeWatcher(self.graph_builder, self.job_manager)
         
         # Define the tool manifest that will be exposed to the AI assistant.
@@ -151,27 +150,15 @@ class MCPServer:
             },
             "add_package_to_graph": {
                 "name": "add_package_to_graph",
-                "description": "Add a Python package to Neo4j graph by discovering its location. Returns immediately with job ID.",
+                "description": "Add a package to the graph by discovering its location. Supports multiple languages. Returns immediately with a job ID.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
-                        "package_name": {"type": "string", "description": "Name of the Python package to add (e.g., 'requests')"},
-                        "is_dependency": {"type": "boolean", "description": "Mark as a dependency", "default": True}
+                        "package_name": {"type": "string", "description": "Name of the package to add (e.g., 'requests', 'express', 'moment', 'lodash')."},
+                        "language": {"type": "string", "description": "The programming language of the package.", "enum": ["python", "javascript", "typescript", "java", "c", "go", "ruby", "php","cpp"]},
+                        "is_dependency": {"type": "boolean", "description": "Mark as a dependency.", "default": True}
                     },
-                    "required": ["package_name"]
-                }
-            },
-            "list_imports": {
-                "name": "list_imports",
-                "description": "Extract all package imports from code files in a directory or file",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "path": {"type": "string", "description": "Path to file or directory to analyze"},
-                        "language": {"type": "string", "description": "Programming language (python, javascript, etc.)", "default": "python"},
-                        "recursive": {"type": "boolean", "description": "Whether to analyze subdirectories recursively", "default": True}
-                    },
-                    "required": ["path"]
+                    "required": ["package_name", "language"]
                 }
             },
             "find_dead_code": {
@@ -258,64 +245,7 @@ class MCPServer:
         """Returns the current connection status of the Neo4j database."""
         return {"connected": self.db_manager.is_connected()}
         
-    def get_local_package_path(self, package_name: str) -> Optional[str]:
-        """
-        Finds the local installation path of a Python package.
 
-        This method uses `importlib` to locate a package and determines its root
-        directory, handling both regular packages (directories with __init__.py)
-        and single-file modules.
-
-        Args:
-            package_name: The name of the package to locate (e.g., "requests").
-
-        Returns:
-            The absolute path to the package's directory as a string, or None if not found.
-        """
-        try:
-            debug_log(f"Getting local path for package: {package_name}")
-            
-            module = importlib.import_module(package_name)
-            
-            if hasattr(module, '__file__') and module.__file__:
-                module_file = Path(module.__file__)
-                debug_log(f"Module file: {module_file}")
-
-                if module_file.name == '__init__.py':
-                    # For a package, the path is the parent directory of __init__.py
-                    package_path = str(module_file.parent)
-                elif package_name in stdlibs.module_names:
-                    # For a standard library single file module, the path is the file itself
-                    package_path = str(module_file)
-                else:
-                    # For other single-file modules, assume the parent directory is the container
-                    package_path = str(module_file.parent)
-
-                debug_log(f"Determined package path: {package_path}")
-                return package_path
-
-            elif hasattr(module, '__path__'):
-                # This handles namespace packages which may not have an __init__.py
-                if isinstance(module.__path__, list) and module.__path__:
-                    package_path = str(Path(module.__path__[0]))
-                    debug_log(f"Package path from __path__: {package_path}")
-                    return package_path
-                else:
-                    # Fallback for other __path__ formats
-                    package_path = str(Path(str(module.__path__)))
-                    debug_log(f"Package path from __path__ (str): {package_path}")
-                    return package_path
-            
-            debug_log(f"Could not determine path for {package_name}")
-            return None
-            
-        except ImportError as e:
-            debug_log(f"Could not import {package_name}: {e}")
-            return None
-        except Exception as e:
-            debug_log(f"Error getting local path for {package_name}: {e}")
-            return None
-        
     def execute_cypher_query_tool(self, **args) -> Dict[str, Any]:
         """
         Tool implementation for executing a read-only Cypher query.
@@ -542,53 +472,6 @@ class MCPServer:
         except Exception as e:
             logger.error(f"Failed to start watching directory {path}: {e}")
             return {"error": f"Failed to start watching directory: {str(e)}"}        
-    def list_imports_tool(self, **args) -> Dict[str, Any]:
-        """Tool to list all imports from code files"""        
-        path = args.get("path")
-        language = args.get("language", "python")
-        recursive = args.get("recursive", True)
-        all_imports = set()
-        file_extensions = {
-            'python': ['.py'], 'javascript': ['.js', '.jsx', '.mjs'],
-            'typescript': ['.ts', '.tsx'], 'java': ['.java'],
-        }
-        
-        extensions = file_extensions.get(language, ['.py'])
-        extract_func = {
-            'python': self.import_extractor.extract_python_imports,
-            'javascript': self.import_extractor.extract_javascript_imports,
-            'typescript': self.import_extractor.extract_javascript_imports,
-            'java': self.import_extractor.extract_java_imports,
-        }.get(language, self.import_extractor.extract_python_imports)
-        
-        try:
-            path_obj = Path(path)
-            
-            if path_obj.is_file():
-                if any(str(path_obj).endswith(ext) for ext in extensions):
-                    all_imports.update(extract_func(str(path_obj)))
-            elif path_obj.is_dir():
-                pattern = "**/*" if recursive else "*"
-                for ext in extensions:
-                    for file_path in path_obj.glob(f"{pattern}{ext}"):
-                        if file_path.is_file():
-                            all_imports.update(extract_func(str(file_path)))
-            else:
-                return {"error": f"Path {path} does not exist"}
-            
-            # Removed standard library filtering as per user request.
-            # if language == 'python':
-            #     # Get the list of stdlib modules for the current Python version
-            #     stdlib_modules = set(stdlibs.module_names)
-            #     all_imports = all_imports - stdlib_modules
-            
-            return {
-                "imports": sorted(list(all_imports)), "language": language,
-                "path": path, "count": len(all_imports)
-            }
-        
-        except Exception as e:
-            return {"error": f"Failed to analyze imports: {str(e)}"}
     
     def add_code_to_graph_tool(self, **args) -> Dict[str, Any]:
         """
@@ -646,10 +529,14 @@ class MCPServer:
             return {"error": f"Failed to start background processing: {str(e)}"}
     
     def add_package_to_graph_tool(self, **args) -> Dict[str, Any]:
-        """Tool to add a Python package to Neo4j graph by auto-discovering its location"""
+        """Tool to add a package to the graph by auto-discovering its location"""
         package_name = args.get("package_name")
+        language = args.get("language")
         is_dependency = args.get("is_dependency", True)
-        
+
+        if not language:
+            return {"error": "The 'language' parameter is required."}
+
         try:
             # Check if the package is already indexed
             indexed_repos = self.list_indexed_repositories_tool().get("repositories", [])
@@ -660,10 +547,10 @@ class MCPServer:
                         "message": f"Package '{package_name}' is already indexed."
                     }
 
-            package_path = self.get_local_package_path(package_name)
+            package_path = get_local_package_path(package_name, language)
             
             if not package_path:
-                return {"error": f"Could not find package '{package_name}'. Make sure it's installed."}
+                return {"error": f"Could not find package '{package_name}' for language '{language}'. Make sure it's installed."}
             
             if not os.path.exists(package_path):
                 return {"error": f"Package path '{package_path}' does not exist"}
@@ -827,7 +714,6 @@ class MCPServer:
             A dictionary containing the result of the tool execution.
         """
         tool_map: Dict[str, Coroutine] = {
-            "list_imports": self.list_imports_tool,
             "add_package_to_graph": self.add_package_to_graph_tool,
             "find_dead_code": self.find_dead_code_tool,
             "find_code": self.find_code_tool,

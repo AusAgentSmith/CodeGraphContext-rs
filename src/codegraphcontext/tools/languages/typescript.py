@@ -59,6 +59,16 @@ TS_QUERIES = {
         (class_declaration) @class
         (class) @class
     """,
+    "interfaces": """
+        (interface_declaration
+            name: (type_identifier) @name
+        ) @interface_node
+    """,
+    "type_aliases": """
+        (type_alias_declaration
+            name: (type_identifier) @name
+        ) @type_alias_node
+    """,
     "imports": """
         (import_statement) @import
         (call_expression
@@ -133,6 +143,8 @@ class TypescriptTreeSitterParser:
 
         functions = self._find_functions(root_node)
         classes = self._find_classes(root_node)
+        interfaces = self._find_interfaces(root_node)
+        type_aliases = self._find_type_aliases(root_node)
         imports = self._find_imports(root_node)
         function_calls = self._find_calls(root_node)
         variables = self._find_variables(root_node)
@@ -141,6 +153,8 @@ class TypescriptTreeSitterParser:
             "file_path": str(file_path),
             "functions": functions,
             "classes": classes,
+            "interfaces": interfaces,
+            "type_aliases": type_aliases,
             "variables": variables,
             "imports": imports,
             "function_calls": function_calls,
@@ -279,6 +293,42 @@ class TypescriptTreeSitterParser:
                 }
                 classes.append(class_data)
         return classes
+    
+    def _find_interfaces(self, root_node):
+        interfaces = []
+        query = self.queries['interfaces']
+        for node, capture_name in query.captures(root_node):
+            if capture_name == 'interface_node':
+                name_node = node.child_by_field_name('name')
+                if not name_node: continue
+                
+                name = self._get_node_text(name_node)
+                interface_data = {
+                    "name": name,
+                    "line_number": node.start_point[0] + 1,
+                    "end_line": node.end_point[0] + 1,
+                    "source_code": self._get_node_text(node),
+                }
+                interfaces.append(interface_data)
+        return interfaces
+
+    def _find_type_aliases(self, root_node):
+        type_aliases = []
+        query = self.queries['type_aliases']
+        for node, capture_name in query.captures(root_node):
+            if capture_name == 'type_alias_node':
+                name_node = node.child_by_field_name('name')
+                if not name_node: continue
+
+                name = self._get_node_text(name_node)
+                type_alias_data = {
+                    "name": name,
+                    "line_number": node.start_point[0] + 1,
+                    "end_line": node.end_point[0] + 1,
+                    "source_code": self._get_node_text(node),
+                }
+                type_aliases.append(type_alias_data)
+        return type_aliases
 
     def _find_imports(self, root_node):
         imports = []
@@ -378,35 +428,76 @@ class TypescriptTreeSitterParser:
 def pre_scan_typescript(files: list[Path], parser_wrapper) -> dict:
     """Scans TypeScript files to create a map of class/function names to their file paths."""
     imports_map = {}
-    query_str = """
-        (class_declaration name: (identifier) @name)
-        (function_declaration name: (identifier) @name)
-        (variable_declarator name: (identifier) @name value: (function))
-        (variable_declarator name: (identifier) @name value: (arrow_function))
-        (method_definition name: (property_identifier) @name)
-        (assignment_expression
-            left: (member_expression
-                property: (property_identifier) @name
-            )
-            right: (function)
-        )
-        (assignment_expression
-            left: (member_expression
-                property: (property_identifier) @name
-            )
-            right: (arrow_function)
-        )
-    """
-    query = parser_wrapper.language.query(query_str)
+    
+    # Simplified queries that capture the parent nodes, then extract names manually
+    query_strings = [
+        "(class_declaration) @class",
+        "(function_declaration) @function",
+        "(variable_declarator) @var_decl",
+        "(method_definition) @method",
+        "(interface_declaration) @interface",
+        "(type_alias_declaration) @type_alias",
+    ]
+    
     for file_path in files:
         try:
             with open(file_path, "r", encoding="utf-8") as f:
-                tree = parser_wrapper.parser.parse(bytes(f.read(), "utf8"))
-            for capture, _ in query.captures(tree.root_node):
-                name = capture.text.decode('utf-8')
-                if name not in imports_map:
-                    imports_map[name] = []
-                imports_map[name].append(str(file_path.resolve()))
+                source_code = f.read()
+                tree = parser_wrapper.parser.parse(bytes(source_code, "utf8"))
+            
+            # Run each query separately
+            for query_str in query_strings:
+                try:
+                    query = parser_wrapper.language.query(query_str)
+                    for node, capture_name in query.captures(tree.root_node):
+                        name = None
+                        
+                        # Extract name based on node type
+                        if capture_name == 'class':
+                            name_node = node.child_by_field_name('name')
+                            if name_node:
+                                name = name_node.text.decode('utf-8')
+                        
+                        elif capture_name == 'function':
+                            name_node = node.child_by_field_name('name')
+                            if name_node:
+                                name = name_node.text.decode('utf-8')
+                        
+                        elif capture_name == 'var_decl':
+                            # Check if it's a function or arrow function
+                            name_node = node.child_by_field_name('name')
+                            value_node = node.child_by_field_name('value')
+                            if name_node and value_node:
+                                if value_node.type in ('function', 'arrow_function'):
+                                    name = name_node.text.decode('utf-8')
+                        
+                        elif capture_name == 'method':
+                            name_node = node.child_by_field_name('name')
+                            if name_node:
+                                name = name_node.text.decode('utf-8')
+                        
+                        elif capture_name == 'interface':
+                            name_node = node.child_by_field_name('name')
+                            if name_node:
+                                name = name_node.text.decode('utf-8')
+                        
+                        elif capture_name == 'type_alias':
+                            name_node = node.child_by_field_name('name')
+                            if name_node:
+                                name = name_node.text.decode('utf-8')
+                        
+                        # Add to imports map if we found a name
+                        if name:
+                            if name not in imports_map:
+                                imports_map[name] = []
+                            file_path_str = str(file_path.resolve())
+                            if file_path_str not in imports_map[name]:
+                                imports_map[name].append(file_path_str)
+                                
+                except Exception as query_error:
+                    logger.warning(f"Query failed for pattern '{query_str}': {query_error}")
+                    
         except Exception as e:
             logger.warning(f"Tree-sitter pre-scan failed for {file_path}: {e}")
+    
     return imports_map

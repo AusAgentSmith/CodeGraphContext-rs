@@ -2,11 +2,9 @@
 # src/codegraphcontext/tools/graph_builder.py
 import asyncio
 import logging
-import os
 from pathlib import Path
 from typing import Any, Coroutine, Dict, Optional, Tuple
 from datetime import datetime
-import ast
 
 from ..core.database import DatabaseManager
 from ..core.jobs import JobManager, JobStatus
@@ -14,7 +12,7 @@ from ..utils.debug_log import debug_log
 
 # New imports for tree-sitter
 from tree_sitter import Language, Parser
-from tree_sitter_language_pack import get_language
+from tree_sitter_languages import get_language
 
 logger = logging.getLogger(__name__)
 
@@ -39,11 +37,9 @@ class TreeSitterParser:
         elif self.language_name == 'javascript':
             from .languages.javascript import JavascriptTreeSitterParser
             self.language_specific_parser = JavascriptTreeSitterParser(self)
-
         elif self.language_name == 'go':
              from .languages.go import GoTreeSitterParser
              self.language_specific_parser = GoTreeSitterParser(self)
-
         elif self.language_name == 'typescript':
             from .languages.typescript import TypescriptTreeSitterParser
             self.language_specific_parser = TypescriptTreeSitterParser(self)
@@ -56,12 +52,18 @@ class TreeSitterParser:
         elif self.language_name == 'c':
             from .languages.c import CTreeSitterParser
             self.language_specific_parser = CTreeSitterParser(self)
+        elif self.language_name == 'java':
+            from .languages.java import JavaTreeSitterParser
+            self.language_specific_parser = JavaTreeSitterParser(self)
+        elif self.language_name == 'ruby':
+            from .languages.ruby import RubyTreeSitterParser
+            self.language_specific_parser = RubyTreeSitterParser(self)
 
 
-    def parse(self, file_path: Path, is_dependency: bool = False) -> Dict:
+    def parse(self, file_path: Path, is_dependency: bool = False, **kwargs) -> Dict:
         """Dispatches parsing to the language-specific parser."""
         if self.language_specific_parser:
-            return self.language_specific_parser.parse(file_path, is_dependency)
+            return self.language_specific_parser.parse(file_path, is_dependency, **kwargs)
         else:
             raise NotImplementedError(f"No language-specific parser implemented for {self.language_name}")
 
@@ -75,26 +77,29 @@ class GraphBuilder:
         self.driver = self.db_manager.get_driver()
         self.parsers = {
             '.py': TreeSitterParser('python'),
-            '.js': TreeSitterParser('javascript'), # Added JavaScript parser
-
-            '.go': TreeSitterParser('go'),
+            '.ipynb': TreeSitterParser('python'),
+            '.js': TreeSitterParser('javascript'),
             '.jsx': TreeSitterParser('javascript'),
-            '.ts': TreeSitterParser('typescript'),
-            '.tsx': TreeSitterParser('typescript'),
             '.mjs': TreeSitterParser('javascript'),
             '.cjs': TreeSitterParser('javascript'),
+            '.go': TreeSitterParser('go'),
+            '.ts': TreeSitterParser('typescript'),
+            '.tsx': TreeSitterParser('typescript'),
             '.cpp': TreeSitterParser('cpp'),
             '.h': TreeSitterParser('cpp'),
             '.hpp': TreeSitterParser('cpp'),
             '.rs': TreeSitterParser('rust'),
-            '.c': TreeSitterParser('c'),  # Added C parser
-
+            '.c': TreeSitterParser('c'),
+            # '.h': TreeSitterParser('c'), # Need to write an algo for distinguishing C vs C++ headers
+            '.java': TreeSitterParser('java'),
+            '.rb': TreeSitterParser('ruby')
         }
         self.create_schema()
 
     # A general schema creation based on common features across languages
     def create_schema(self):
         """Create constraints and indexes in Neo4j."""
+        # When adding a new node type with a unique key, add its constraint here.
         with self.driver.session() as session:
             try:
                 session.run("CREATE CONSTRAINT repository_path IF NOT EXISTS FOR (r:Repository) REQUIRE r.path IS UNIQUE")
@@ -102,6 +107,8 @@ class GraphBuilder:
                 session.run("CREATE CONSTRAINT directory_path IF NOT EXISTS FOR (d:Directory) REQUIRE d.path IS UNIQUE")
                 session.run("CREATE CONSTRAINT function_unique IF NOT EXISTS FOR (f:Function) REQUIRE (f.name, f.file_path, f.line_number) IS UNIQUE")
                 session.run("CREATE CONSTRAINT class_unique IF NOT EXISTS FOR (c:Class) REQUIRE (c.name, c.file_path, c.line_number) IS UNIQUE")
+                session.run("CREATE CONSTRAINT interface_unique IF NOT EXISTS FOR (i:Interface) REQUIRE (i.name, i.file_path, i.line_number) IS UNIQUE")
+                session.run("CREATE CONSTRAINT macro_unique IF NOT EXISTS FOR (m:Macro) REQUIRE (m.name, m.file_path, m.line_number) IS UNIQUE")
                 session.run("CREATE CONSTRAINT variable_unique IF NOT EXISTS FOR (v:Variable) REQUIRE (v.name, v.file_path, v.line_number) IS UNIQUE")
                 session.run("CREATE CONSTRAINT module_name IF NOT EXISTS FOR (m:Module) REQUIRE m.name IS UNIQUE")
 
@@ -136,12 +143,51 @@ class GraphBuilder:
         if '.py' in files_by_lang:
             from .languages import python as python_lang_module
             imports_map.update(python_lang_module.pre_scan_python(files_by_lang['.py'], self.parsers['.py']))
+        elif '.ipynb' in files_by_lang:
+            from .languages import python as python_lang_module
+            imports_map.update(python_lang_module.pre_scan_python(files_by_lang['.ipynb'], self.parsers['.ipynb']))
         elif '.js' in files_by_lang:
             from .languages import javascript as js_lang_module
             imports_map.update(js_lang_module.pre_scan_javascript(files_by_lang['.js'], self.parsers['.js']))
+        elif '.jsx' in files_by_lang:
+            from .languages import javascript as js_lang_module
+            imports_map.update(js_lang_module.pre_scan_javascript(files_by_lang['.jsx'], self.parsers['.jsx']))
+        elif '.mjs' in files_by_lang:
+            from .languages import javascript as js_lang_module
+            imports_map.update(js_lang_module.pre_scan_javascript(files_by_lang['.mjs'], self.parsers['.mjs']))
+        elif '.cjs' in files_by_lang:
+            from .languages import javascript as js_lang_module
+            imports_map.update(js_lang_module.pre_scan_javascript(files_by_lang['.cjs'], self.parsers['.cjs']))
         elif '.go' in files_by_lang:
              from .languages import go as go_lang_module
              imports_map.update(go_lang_module.pre_scan_go(files_by_lang['.go'], self.parsers['.go']))
+        elif '.ts' in files_by_lang:
+            from .languages import typescript as ts_lang_module
+            imports_map.update(ts_lang_module.pre_scan_typescript(files_by_lang['.ts'], self.parsers['.ts']))
+        elif '.tsx' in files_by_lang:
+            from .languages import typescript as ts_lang_module
+            imports_map.update(ts_lang_module.pre_scan_typescript(files_by_lang['.tsx'], self.parsers['.tsx']))
+        elif '.cpp' in files_by_lang:
+            from .languages import cpp as cpp_lang_module
+            imports_map.update(cpp_lang_module.pre_scan_cpp(files_by_lang['.cpp'], self.parsers['.cpp']))
+        elif '.h' in files_by_lang:
+            from .languages import cpp as cpp_lang_module
+            imports_map.update(cpp_lang_module.pre_scan_cpp(files_by_lang['.h'], self.parsers['.h']))
+        elif '.hpp' in files_by_lang:
+            from .languages import cpp as cpp_lang_module
+            imports_map.update(cpp_lang_module.pre_scan_cpp(files_by_lang['.hpp'], self.parsers['.hpp']))
+        elif '.rs' in files_by_lang:
+            from .languages import rust as rust_lang_module
+            imports_map.update(rust_lang_module.pre_scan_rust(files_by_lang['.rs'], self.parsers['.rs']))
+        elif '.c' in files_by_lang:
+            from .languages import c as c_lang_module
+            imports_map.update(c_lang_module.pre_scan_c(files_by_lang['.c'], self.parsers['.c']))
+        elif '.java' in files_by_lang:
+            from .languages import java as java_lang_module
+            imports_map.update(java_lang_module.pre_scan_java(files_by_lang['.java'], self.parsers['.java']))
+        elif '.rb' in files_by_lang:
+            from .languages import ruby as ruby_lang_module
+            imports_map.update(ruby_lang_module.pre_scan_ruby(files_by_lang['.rb'], self.parsers['.rb']))
             
         return imports_map
 
@@ -211,7 +257,18 @@ class GraphBuilder:
             """, parent_path=parent_path, file_path=file_path_str)
 
             # CONTAINS relationships for functions, classes, and variables
-            for item_data, label in [(file_data['functions'], 'Function'), (file_data['classes'], 'Class'), (file_data['variables'], 'Variable')]:
+            # To add a new language-specific node type (e.g., 'Trait' for Rust):
+            # 1. Ensure your language-specific parser returns a list under a unique key (e.g., 'traits': [...] ).
+            # 2. Add a new constraint for the new label in the `create_schema` method.
+            # 3. Add a new entry to the `item_mappings` list below (e.g., (file_data.get('traits', []), 'Trait') ).
+            item_mappings = [
+                (file_data.get('functions', []), 'Function'),
+                (file_data.get('classes', []), 'Class'),
+                (file_data.get('variables', []), 'Variable'),
+                (file_data.get('interfaces', []), 'Interface'),
+                (file_data.get('macros', []), 'Macro')
+            ]
+            for item_data, label in item_mappings:
                 for item in item_data:
                     # Ensure cyclomatic_complexity is set for functions
                     if label == 'Function' and 'cyclomatic_complexity' not in item:
@@ -502,7 +559,11 @@ class GraphBuilder:
 
         debug_log(f"[parse_file] Starting parsing for: {file_path} with {parser.language_name} parser")
         try:
-            file_data = parser.parse(file_path, is_dependency)
+            if parser.language_name == 'python':
+                is_notebook = file_path.suffix == '.ipynb'
+                file_data = parser.parse(file_path, is_dependency, is_notebook=is_notebook)
+            else:
+                file_data = parser.parse(file_path, is_dependency)
             file_data['repo_path'] = str(repo_path)
             if debug_mode:
                 debug_log(f"[parse_file] Successfully parsed: {file_path}")
@@ -587,5 +648,5 @@ class GraphBuilder:
                     status=JobStatus.FAILED
 
                 self.job_manager.update_job(
-                    job_id, status=JobStatus.FAILED, end_time=datetime.now(), errors=[str(e)]
+                    job_id, status=status, end_time=datetime.now(), errors=[str(e)]
                 )

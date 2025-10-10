@@ -1,8 +1,6 @@
 # CodeGraphContext
 
 <!-- ====== Project stats ====== -->
-<!-- ====== Project stats ====== -->
-
 [![Stars](https://img.shields.io/github/stars/Shashankss1205/CodeGraphContext?logo=github)](https://github.com/Shashankss1205/CodeGraphContext/stargazers)
 [![Forks](https://img.shields.io/github/forks/Shashankss1205/CodeGraphContext?logo=github)](https://github.com/Shashankss1205/CodeGraphContext/network/members)
 [![Open Issues](https://img.shields.io/github/issues-raw/Shashankss1205/CodeGraphContext?logo=github)](https://github.com/Shashankss1205/CodeGraphContext/issues)
@@ -11,10 +9,12 @@
 [![Contributors](https://img.shields.io/github/contributors/Shashankss1205/CodeGraphContext?logo=github)](https://github.com/Shashankss1205/CodeGraphContext/graphs/contributors)
 [![Languages](https://img.shields.io/github/languages/count/Shashankss1205/CodeGraphContext?logo=github)](https://github.com/Shashankss1205/CodeGraphContext)
 [![Build Status](https://github.com/Shashankss1205/CodeGraphContext/actions/workflows/test.yml/badge.svg)](https://github.com/Shashankss1205/CodeGraphContext/actions/workflows/test.yml)
+[![Build Status](https://github.com/Shashankss1205/CodeGraphContext/actions/workflows/e2e-tests.yml/badge.svg)](https://github.com/Shashankss1205/CodeGraphContext/actions/workflows/e2e-tests.yml)
 [![PyPI version](https://img.shields.io/pypi/v/codegraphcontext?)](https://pypi.org/project/codegraphcontext/)
 [![PyPI downloads](https://img.shields.io/pypi/dm/codegraphcontext?)](https://pypi.org/project/codegraphcontext/)
 [![License](https://img.shields.io/github/license/Shashankss1205/CodeGraphContext?)](LICENSE)
 [![Website](https://img.shields.io/badge/website-up-brightgreen?)](http://codegraphcontext.vercel.app/)
+[![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://shashankss1205.github.io/CodeGraphContext/)
 [![YouTube](https://img.shields.io/badge/YouTube-Watch%20Demo-red?logo=youtube)](https://youtu.be/KYYSdxhg1xU)
 [![Discord](https://img.shields.io/badge/Discord-Join%20Chat-7289da?logo=discord&logoColor=white)](https://discord.gg/dR4QY32uYQ)
 
@@ -29,7 +29,7 @@ An MCP server that indexes local code into a graph database to provide context t
 ![Using the MCP server](https://github.com/Shashankss1205/CodeGraphContext/blob/main/images/Usecase.gif)
 
 ## Project Details
-- **Version:** 0.1.14
+- **Version:** 0.1.16
 - **Authors:** Shashank Shekhar Singh <shashankshekharsingh1205@gmail.com>
 - **License:** MIT License (See [LICENSE](LICENSE) for details)
 - **Website:** [CodeGraphContext](http://codegraphcontext.vercel.app/)
@@ -39,8 +39,8 @@ An MCP server that indexes local code into a graph database to provide context t
 
 ## Features
 
--   **Code Indexing:** Analyzes Python code and builds a knowledge graph of its components.
--   **Relationship Analysis:** Query for callers, callees, class hierarchies, and more.
+-   **Code Indexing:** Analyzes code and builds a knowledge graph of its components.
+-   **Relationship Analysis:** Query for callers, callees, class hierarchies, call chains and more.
 -   **Live Updates:** Watches local files for changes and automatically updates the graph.
 -   **Interactive Setup:** A user-friendly command-line wizard for easy setup.
 
@@ -49,7 +49,7 @@ An MCP server that indexes local code into a graph database to provide context t
 CodeGraphContext is already being explored by developers and projects for:
 
 - **Static code analysis in AI assistants**
-- **Graph-based visualization of Python projects**
+- **Graph-based visualization of projects**
 - **Dead code and complexity detection**
 
 If you’re using CodeGraphContext in your project, feel free to open a PR and add it here! 🚀
@@ -72,8 +72,42 @@ If you’re using CodeGraphContext in your project, feel free to open a PR and a
 1.  **Install:** `pip install codegraphcontext`
 2.  **Setup:** `cgc setup`
     This interactive command guides you through configuring your Neo4j database connection and automatically setting up your IDE.
+
+    <details>
+    <summary>⚙️ Troubleshooting: In case, command <code>cgc</code> not found</summary>
+
+    If you encounter <i>"cgc: command not found"</i> after installation, run the PATH fix script:
     
-      **Database Configuration:**
+    **Linux/Mac:**
+    ```bash
+    # Download the fix script
+    curl -O https://raw.githubusercontent.com/Shashankss1205/CodeGraphContext/main/scripts/post_install_fix.sh
+    
+    # Make it executable
+    chmod +x post_install_fix.sh
+    
+    # Run the script
+    ./post_install_fix.sh
+    
+    # Restart your terminal or reload shell config
+    source ~/.bashrc  # or ~/.zshrc for zsh users
+    ```
+    
+    **Windows (PowerShell):**
+    ```powershell
+    # Download the fix script
+    curl -O https://raw.githubusercontent.com/Shashankss1205/CodeGraphContext/main/scripts/post_install_fix.sh
+    
+    # Run with bash (requires Git Bash or WSL)
+    bash post_install_fix.sh
+    
+    # Restart PowerShell or reload profile
+    . $PROFILE
+    ``` 
+    </details>
+
+    
+    **Database Configuration:**
     *   **Local Setup (Docker Recommended):** Helps you set up a local Neo4j instance using Docker. Requires Docker and Docker Compose to be installed.
     *   **Local Setup (Linux Binary):** For Debian-based Linux systems (like Ubuntu), `cgc setup` can automate the installation of Neo4j. Requires `sudo` privileges.
     *   **Hosted Setup:** Allows you to connect to an existing remote Neo4j database (e.g., Neo4j AuraDB).
@@ -86,6 +120,9 @@ If you’re using CodeGraphContext in your project, feel free to open a PR and a
     *   Claude
     *   Gemini CLI
     *   ChatGPT Codex
+    *   Cline
+    *   RooCode
+    *   Amazon Q Developer
 
     Upon successful configuration, `cgc setup` will generate and place the necessary configuration files:
     *   It creates an `mcp.json` file in your current directory for reference.
@@ -93,7 +130,6 @@ If you’re using CodeGraphContext in your project, feel free to open a PR and a
     *   It updates the settings file of your chosen IDE/CLI (e.g., `.claude.json` or VS Code's `settings.json`).
 
 3.  **Start:** `cgc start`
-
 
 ## MCP Client Configuration
 
@@ -116,7 +152,6 @@ Add the following server configuration to your client's settings file (e.g., VS 
       },
       "tools": {
         "alwaysAllow": [
-          "list_imports",
           "add_code_to_graph",
           "add_package_to_graph",
           "check_job_status",
@@ -129,7 +164,10 @@ Add the following server configuration to your client's settings file (e.g., VS 
           "calculate_cyclomatic_complexity",
           "find_most_complex_functions",
           "list_indexed_repositories",
-          "delete_repository"
+          "delete_repository",
+          "visualize_graph_query",
+          "list_watched_paths",
+          "unwatch_directory"
         ],
         "disabled": false
       },
