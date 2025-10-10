@@ -1,3 +1,4 @@
+
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 import logging
@@ -113,6 +114,7 @@ class CppTreeSitterParser:
         root_node = tree.root_node
 
         functions = self._find_functions(root_node)
+        functions.extend(self._find_lambda_assignments(root_node))
         classes = self._find_classes(root_node)
         imports = self._find_imports(root_node)
         structs = self._find_structs(root_node)
@@ -251,6 +253,49 @@ class CppTreeSitterParser:
                 })
         return macros
     
+    def _find_lambda_assignments(self, root_node):
+        functions = []
+        query = self.queries.get('lambda_assignments')
+        if not query: return []
+
+        for match in query.captures(root_node):
+            capture_name = match[1]
+            node = match[0]
+
+            if capture_name == 'name':
+                assignment_node = node.parent
+                lambda_node = assignment_node.child_by_field_name('value')
+            if lambda_node is None or lambda_node.type != 'lambda_expression':
+                continue
+
+            params_node = lambda_node.child_by_field_name('declarator')
+            if params_node:
+                params_node = params_node.child_by_field_name('parameters')
+                name = self._get_node_text(node)
+                params_node = lambda_node.child_by_field_name('parameters')
+                
+                context, context_type, _ = self._get_parent_context(assignment_node)
+                class_context, _, _ = self._get_parent_context(assignment_node, types=('class_definition',))
+
+                func_data = {
+                    "name": name,
+                    "line_number": node.start_point[0] + 1,
+                    "end_line": assignment_node.end_point[0] + 1,
+                    "args": [p for p in [self._get_node_text(p) for p in params_node.children if p.type == 'identifier'] if p] if params_node else [],
+                    "source": self._get_node_text(assignment_node),
+                    "source_code": self._get_node_text(assignment_node),
+                    "docstring": None,
+                    "cyclomatic_complexity": 1,
+                    "context": context,
+                    "context_type": context_type,
+                    "class_context": class_context,
+                    "decorators": [],
+                    "lang": self.language_name,
+                    "is_dependency": False,
+                }
+                functions.append(func_data)
+        return functions
+    
     def _find_variables(self, root_node):
         variables = []
         query = self.queries['variables']
@@ -263,7 +308,7 @@ class CppTreeSitterParser:
 
                 # Skip lambda assignments, they are handled by _find_lambda_assignments
                 right_node = assignment_node.child_by_field_name('value')
-                if right_node and right_node.type == 'lambda':
+                if right_node and right_node.type == 'lambda_expression':
                     continue
 
                 name = self._get_node_text(node)
