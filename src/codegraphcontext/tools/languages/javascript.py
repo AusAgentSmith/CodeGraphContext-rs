@@ -494,8 +494,29 @@ class JavascriptTreeSitterParser:
             if capture_name == 'name':
                 var_node = node.parent
                 name = self._get_node_text(node)
-                value = None  # Placeholder
+                value = None 
                 type_text = None  # Placeholder
+
+
+                # Detect if variable assigned to a function
+                value_node = var_node.child_by_field_name("value") if var_node else None
+
+                if value_node:
+                    value_type = value_node.type
+
+                    # --- Handle various assignment types ---
+                    if value_type in ("function_expression", "arrow_function", "call_expression"):
+                        # Try to get function name (if anonymous, use variable name)
+                        func_name_node = value_node.child_by_field_name("name")
+                        func_name = (
+                            self._get_node_text(func_name_node) 
+                            if func_name_node
+                            else name
+                        )
+                        value = func_name
+                    else:
+                        # Anything else (e.g. binary expressions)
+                        value = self._get_node_text(value_node)
 
                 variable_data = {
                     "name": name,
