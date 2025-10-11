@@ -494,8 +494,55 @@ class JavascriptTreeSitterParser:
             if capture_name == 'name':
                 var_node = node.parent
                 name = self._get_node_text(node)
-                value = None  # Placeholder
+                value = None 
                 type_text = None  # Placeholder
+
+
+                # Detect if variable assigned to a function
+                value_node = var_node.child_by_field_name("value") if var_node else None
+
+                if value_node:
+                    value_type = value_node.type
+
+                    # --- Handle various assignment types ---
+                    if value_type in ("string", "number", "true", "false", "null"):
+                        # Literal values like const x = "hi", 5, true, null
+                        value = self._get_node_text(value_node)
+
+                    elif value_type in ("identifier",):
+                        # Assigned to another variable: const x = y;
+                        value = self._get_node_text(value_node)
+
+                    elif value_type in ("function_expression", "arrow_function"):
+                        # Try to get function name (if anonymous, use variable name)
+                        func_name_node = value_node.child_by_field_name("name")
+                        func_name = (
+                            self._get_node_text(func_name_node) 
+                            if func_name_node
+                            else name
+                        )
+                        value = func_name
+
+                    elif value_type == "object":
+                        # Assigned an object literal: const obj = { a: 1 };
+                        value = "{...}"
+
+                    elif value_type == "array":
+                        # Assigned an array: const arr = [1,2,3];
+                        value = "[...]"
+
+                    elif value_type == "call_expression":
+                        # Assigned result of a function call: const res = func();
+                        callee_node = value_node.child_by_field_name("function")
+                        value = (
+                            self._get_node_text(callee_node)
+                            if callee_node
+                            else "function_call"
+                        )
+
+                    else:
+                        # Anything else (e.g. binary expressions)
+                        value = self._get_node_text(value_node)
 
                 variable_data = {
                     "name": name,
