@@ -114,7 +114,7 @@ def _configure_ide(mcp_config):
     questions = [
         {
             "type": "confirm",
-            "message": "Automatically configure your IDE/CLI (VS Code, Cursor, Windsurf, Claude, Gemini, Cline, RooCode, ChatGPT Codex, Amazon Q Developer)?",
+            "message": "Automatically configure your IDE/CLI (VS Code, Cursor, Windsurf, Claude, Gemini, Cline, RooCode, ChatGPT Codex, Amazon Q Developer, Aider)?",
             "name": "configure_ide",
             "default": True,
         }
@@ -128,7 +128,7 @@ def _configure_ide(mcp_config):
         {
             "type": "list",
             "message": "Choose your IDE/CLI to configure:",
-            "choices": ["VS Code", "Cursor", "Windsurf", "Claude code", "Gemini CLI", "ChatGPT Codex", "Cline", "RooCode", "Amazon Q Developer", "JetBrainsAI" , "None of the above"],
+            "choices": ["VS Code", "Cursor", "Windsurf", "Claude code", "Gemini CLI", "ChatGPT Codex", "Cline", "RooCode", "Amazon Q Developer", "JetBrainsAI", "Aider", "None of the above"],
             "name": "ide_choice",
         }
     ]
@@ -140,7 +140,7 @@ def _configure_ide(mcp_config):
         return
 
 
-    if ide_choice in ["VS Code", "Cursor/CLI", "Claude code", "Gemini CLI", "ChatGPT Codex", "Cline", "Windsurf", "RooCode", "Amazon Q Developer , JetBrainsAI"]:
+    if ide_choice in ["VS Code", "Cursor/CLI", "Claude code", "Gemini CLI", "ChatGPT Codex", "Cline", "Windsurf", "RooCode", "Amazon Q Developer , JetBrainsAI", "Aider"]:
         console.print(f"\n[bold cyan]Configuring for {ide_choice}...[/bold cyan]")
 
         if ide_choice == "Amazon Q Developer":
@@ -191,6 +191,13 @@ def _configure_ide(mcp_config):
                 Path.home() / ".config" / "Code" / "User" / "settings.json",   # Linux 
                 Path.home() / "AppData" / "Roaming" / "Code" / "User" / "settings.json",  # Windows
                 Path.home() / "Library" / "Application Support" / "Code" / "User" / "settings.json"  # macOS
+            ]
+            "Aider": [
+                Path.home() / ".aider" / "settings.json",
+                Path.home() / ".config" / "aider" / "settings.json",
+                Path.home() / "Library" / "Application Support" / "aider" / "settings.json",
+                Path.home() / "AppData" / "Roaming" / "aider" / "settings.json",
+                Path.home() / ".config" / "Aider" / "User" / "settings.json",
             ]
         }
 
