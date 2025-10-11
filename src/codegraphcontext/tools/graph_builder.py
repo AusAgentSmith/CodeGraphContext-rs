@@ -575,6 +575,7 @@ class GraphBuilder:
                 file_data = parser.parse(file_path, is_dependency)
             file_data['repo_path'] = str(repo_path)
             debug_log(f"[parse_file] Successfully parsed: {file_path}")
+            return file_data
             
         except Exception as e:
             logger.error(f"Error parsing {file_path} with {parser.language_name} parser: {e}")
