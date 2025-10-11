@@ -525,11 +525,11 @@ class JavascriptTreeSitterParser:
 
                     elif value_type == "object":
                         # Assigned an object literal: const obj = { a: 1 };
-                        value = "{...}"
+                        value = self._get_node_text(value_node)
 
                     elif value_type == "array":
                         # Assigned an array: const arr = [1,2,3];
-                        value = "[...]"
+                        value = self._get_node_text(value_node)
 
                     elif value_type == "call_expression":
                         # Assigned result of a function call: const res = func();
