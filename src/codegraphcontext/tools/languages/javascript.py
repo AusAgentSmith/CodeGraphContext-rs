@@ -501,9 +501,12 @@ class JavascriptTreeSitterParser:
                 if value_node:
                     value_type = value_node.type
 
+                    # --- Skip variables that are assigned a function ---
+                    if value_type in ("function_expression", "arrow_function"):
+                        continue
+
                     # --- Handle various assignment types ---
-                    if value_type in ("function_expression", "arrow_function", "call_expression"):
-                        # Try to get function name (if anonymous, use variable name)
+                    if value_type == "call_expression":
                         func_name_node = value_node.child_by_field_name("name")
                         func_name = (
                             self._get_node_text(func_name_node) 
