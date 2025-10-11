@@ -6,7 +6,6 @@ It uses the Typer library to create a user-friendly and well-documented CLI.
 Commands:
 - setup: Runs an interactive wizard to configure the Neo4j database connection.
 - start: Launches the main MCP server.
-- tool: A placeholder for directly calling server tools (for debugging).
 - help: Displays help information.
 - version: Show the installed version.
 """
@@ -18,12 +17,21 @@ import asyncio
 import logging
 import json
 import os
-import time
 from pathlib import Path
 from dotenv import load_dotenv, find_dotenv
 from importlib.metadata import version as pkg_version, PackageNotFoundError
+
 from codegraphcontext.server import MCPServer
 from .setup_wizard import run_setup_wizard
+# Import the new helper functions
+from .cli_helpers import (
+    index_helper,
+    add_package_helper,
+    list_repos_helper,
+    delete_helper,
+    cypher_helper,
+    visualize_helper,
+)
 
 # Set the log level for the noisy neo4j logger to WARNING to keep the output clean.
 logging.getLogger("neo4j").setLevel(logging.WARNING)
@@ -132,60 +140,24 @@ def start():
         loop.close()
 
 
-
-def _run_tool(tool_name: str, tool_args: dict):
-    """Helper function to run a tool and handle the server lifecycle."""
-    _load_credentials()
-    try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        server = MCPServer(loop=loop)
-
-        result = loop.run_until_complete(server.handle_tool_call(tool_name, tool_args))
-        
-        if isinstance(result, dict) and "job_id" in result:
-            job_id = result["job_id"]
-            console.print(f"[green]Successfully started job '{job_id}' for tool '{tool_name}'.[/green]")
-            console.print(f"Estimated files: {result.get('estimated_files')}, Estimated duration: {result.get('estimated_duration_human')}")
-            console.print(f"\n[bold yellow]Polling for completion...[/bold yellow]")
-            
-            while True:
-                time.sleep(2)
-                status_result = loop.run_until_complete(server.handle_tool_call("check_job_status", {"job_id": job_id}))
-                job_status = status_result.get("job", {}).get("status")
-                processed_files = status_result.get("job", {}).get("processed_files", 0)
-                total_files = status_result.get("job", {}).get("total_files", 0)
-                console.print(f"Job status: {job_status} ({processed_files}/{total_files} files)")
-                if job_status in ["completed", "failed", "cancelled"]:
-                    console.print(json.dumps(status_result, indent=2))
-                    break
-        else:
-            console.print(json.dumps(result, indent=2))
-
-    except ValueError as e:
-        console.print(f"[bold red]Configuration Error:[/bold red] {e}")
-    except Exception as e:
-        console.print(f"[bold red]An unexpected error occurred:[/bold red] {e}")
-    finally:
-        if 'loop' in locals() and loop.is_running():
-            loop.close()
-
 @app.command()
 def index(path: Optional[str] = typer.Argument(None, help="Path to the directory or file to index. Defaults to the current directory.")):
     """
     Indexes a directory or file by adding it to the code graph.
     If no path is provided, it indexes the current directory.
     """
+    _load_credentials() # Credentials must be loaded before helpers are called
     if path is None:
         path = str(Path.cwd())
-    _run_tool("add_code_to_graph", {"path": path})
+    index_helper(path)
 
 @app.command()
 def delete(path: str = typer.Argument(..., help="Path of the repository to delete from the code graph.")):
     """
     Deletes a repository from the code graph.
     """
-    _run_tool("delete_repository", {"repo_path": path})
+    _load_credentials()
+    delete_helper(path)
 
 @app.command()
 def visualize(query: Optional[str] = typer.Argument(None, help="The Cypher query to visualize.")):
@@ -195,31 +167,34 @@ def visualize(query: Optional[str] = typer.Argument(None, help="The Cypher query
     """
     if query is None:
         query = "MATCH p=()-->() RETURN p"
-    _run_tool("visualize_graph_query", {"cypher_query": query})
+    visualize_helper(query)
 
-@app.command(name="list_repos")
+@app.command(name="list-repos")
 def list_repos():
     """
     Lists all indexed repositories.
     """
-    _run_tool("list_indexed_repositories", {})
+    _load_credentials()
+    list_repos_helper()
 
-@app.command(name="add_package")
+@app.command(name="add-package")
 def add_package(package_name: str = typer.Argument(..., help="Name of the package to add."), language: str = typer.Argument(..., help="Language of the package." )):
     """
     Adds a package to the code graph.
     """
-    _run_tool("add_package_to_graph", {"package_name": package_name, "language": language})
+    _load_credentials()
+    add_package_helper(package_name, language)
 
 @app.command()
 def cypher(query: str = typer.Argument(..., help="The read-only Cypher query to execute.")):
     """
     Executes a read-only Cypher query.
     """
-    _run_tool("execute_cypher_query", {"cypher_query": query})
+    _load_credentials()
+    cypher_helper(query)
 
 
-@app.command(name="list_mcp_tools")
+@app.command(name="list-mcp-tools")
 def list_mcp_tools():
     """
     Lists all available tools and their descriptions.
