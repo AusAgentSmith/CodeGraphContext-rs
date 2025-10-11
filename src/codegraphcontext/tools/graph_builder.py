@@ -8,18 +8,11 @@ from datetime import datetime
 
 from ..core.database import DatabaseManager
 from ..core.jobs import JobManager, JobStatus
-from ..utils.debug_log import debug_log
+from ..utils.debug_log import debug_log, info_logger, error_logger, warning_logger
 
 # New imports for tree-sitter
 from tree_sitter import Language, Parser
 from tree_sitter_languages import get_language
-
-logger = logging.getLogger(__name__)
-
-# This is for developers and testers only. It enables detailed debug logging to a file.
-# Set to 1 to enable, 0 to disable.
-debug_mode = 0
-
 
 class TreeSitterParser:
     """A generic parser wrapper for a specific language using tree-sitter."""
@@ -127,9 +120,9 @@ class GraphBuilder:
                     ON EACH [n.name, n.source, n.docstring]
                 """ )
                 
-                logger.info("Database schema verified/created successfully")
+                info_logger("Database schema verified/created successfully")
             except Exception as e:
-                logger.warning(f"Schema creation warning: {e}")
+                warning_logger(f"Schema creation warning: {e}")
 
 
     def _pre_scan_for_imports(self, files: list[Path]) -> dict:
@@ -214,7 +207,7 @@ class GraphBuilder:
 
     # First pass to add file and its contents
     def add_file_to_graph(self, file_data: Dict, repo_name: str, imports_map: dict):
-        logger.info("Executing add_file_to_graph with my change!")
+        info_logger("Executing add_file_to_graph with my change!")
         """Adds a file and its contents within a single, unified session."""
         file_path_str = str(Path(file_data['file_path']).resolve())
         file_name = Path(file_path_str).name
@@ -310,7 +303,7 @@ class GraphBuilder:
 
             # Handle imports and create IMPORTS relationships
             for imp in file_data.get('imports', []):
-                logger.info(f"Processing import: {imp}")
+                info_logger(f"Processing import: {imp}")
                 lang = file_data.get('lang')
                 if lang == 'javascript':
                     # New, correct logic for JS
@@ -522,7 +515,7 @@ class GraphBuilder:
                 """,
                 path=file_path_str,
             )
-            logger.info(f"Deleted file and its elements from graph: {file_path_str}")
+            info_logger(f"Deleted file and its elements from graph: {file_path_str}")
 
             for path in parent_paths:
                 session.run("""
@@ -538,7 +531,7 @@ class GraphBuilder:
             session.run("""MATCH (r:Repository {path: $path})
                           OPTIONAL MATCH (r)-[:CONTAINS*]->(e)
                           DETACH DELETE r, e""", path=repo_path_str)
-            logger.info(f"Deleted repository and its contents from graph: {repo_path_str}")
+            info_logger(f"Deleted repository and its contents from graph: {repo_path_str}")
 
     def update_file_in_graph(self, file_path: Path, repo_path: Path, imports_map: dict):
         """Updates a single file's nodes in the graph."""
@@ -554,7 +547,7 @@ class GraphBuilder:
                 self.add_file_to_graph(file_data, repo_name, imports_map)
                 return file_data
             else:
-                logger.error(f"Skipping graph add for {file_path_str} due to parsing error: {file_data['error']}")
+                error_logger(f"Skipping graph add for {file_path_str} due to parsing error: {file_data['error']}")
                 return None
         else:
             return {"deleted": True, "path": file_path_str}
@@ -563,7 +556,7 @@ class GraphBuilder:
         """Parses a file with the appropriate language parser and extracts code elements."""
         parser = self.parsers.get(file_path.suffix)
         if not parser:
-            logger.warning(f"No parser found for file extension {file_path.suffix}. Skipping {file_path}")
+            warning_logger(f"No parser found for file extension {file_path.suffix}. Skipping {file_path}")
             return {"file_path": str(file_path), "error": f"No parser for {file_path.suffix}"}
 
         debug_log(f"[parse_file] Starting parsing for: {file_path} with {parser.language_name} parser")
@@ -578,7 +571,7 @@ class GraphBuilder:
             return file_data
             
         except Exception as e:
-            logger.error(f"Error parsing {file_path} with {parser.language_name} parser: {e}")
+            error_logger(f"Error parsing {file_path} with {parser.language_name} parser: {e}")
             debug_log(f"[parse_file] Error parsing {file_path}: {e}")
             return {"file_path": str(file_path), "error": str(e)}
 
@@ -599,7 +592,7 @@ class GraphBuilder:
             estimated_time = total_files * 0.05 # tree-sitter is faster
             return total_files, estimated_time
         except Exception as e:
-            logger.error(f"Could not estimate processing time for {path}: {e}")
+            error_logger(f"Could not estimate processing time for {path}: {e}")
             return None
 
     async def build_graph_from_path_async(
@@ -647,7 +640,7 @@ class GraphBuilder:
                 self.job_manager.update_job(job_id, status=JobStatus.COMPLETED, end_time=datetime.now())
         except Exception as e:
             error_message=str(e)
-            logger.error(f"Failed to build graph for path {path}: {error_message}", exc_info=True)
+            error_logger(f"Failed to build graph for path {path}: {error_message}", exc_info=True)
             if job_id:
                 '''checking if the repo got deleted '''
                 if "no such file found" in error_message or "deleted" in error_message or "not found" in error_message:

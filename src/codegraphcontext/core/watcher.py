@@ -3,7 +3,6 @@
 This module implements the live file-watching functionality using the `watchdog` library.
 It observes directories for changes and triggers updates to the code graph.
 """
-import logging
 import threading
 from pathlib import Path
 import typing
@@ -14,8 +13,7 @@ if typing.TYPE_CHECKING:
     from codegraphcontext.tools.graph_builder import GraphBuilder
     from codegraphcontext.core.jobs import JobManager
 
-logger = logging.getLogger(__name__)
-
+from codegraphcontext.utils.debug_log import debug_log, info_logger, error_logger, warning_logger
 
 class RepositoryEventHandler(FileSystemEventHandler):
     """
@@ -51,7 +49,7 @@ class RepositoryEventHandler(FileSystemEventHandler):
 
     def _initial_scan(self):
         """Scans the entire repository, parses all files, and builds the initial graph."""
-        logger.info(f"Performing initial scan for watcher: {self.repo_path}")
+        info_logger(f"Performing initial scan for watcher: {self.repo_path}")
         supported_extensions = self.graph_builder.parsers.keys()
         all_files = [f for f in self.repo_path.rglob("*") if f.is_file() and f.suffix in supported_extensions]
         
@@ -67,7 +65,7 @@ class RepositoryEventHandler(FileSystemEventHandler):
         # 3. After all files are parsed, create the relationships (e.g., function calls) between them.
         self.graph_builder._create_all_function_calls(self.all_file_data, self.imports_map)
         self.graph_builder._create_all_inheritance_links(self.all_file_data, self.imports_map)
-        logger.info(f"Initial scan and graph linking complete for: {self.repo_path}")
+        info_logger(f"Initial scan and graph linking complete for: {self.repo_path}")
 
     def _debounce(self, event_path, action):
         """
@@ -88,7 +86,7 @@ class RepositoryEventHandler(FileSystemEventHandler):
         Orchestrates the complete update cycle for a modified or created file.
         This involves re-scanning the entire repo to update cross-file relationships.
         """
-        logger.info(f"File change detected, starting full repository refresh for: {event_path_str}")
+        info_logger(f"File change detected, starting full repository refresh for: {event_path_str}")
         modified_path = Path(event_path_str)
 
         # 1. Get all supported files in the repository.
@@ -97,7 +95,7 @@ class RepositoryEventHandler(FileSystemEventHandler):
 
         # 2. Re-scan all files to get a fresh, global map of all symbols.
         self.imports_map = self.graph_builder._pre_scan_for_imports(all_files)
-        logger.info("Refreshed global imports map.")
+        info_logger("Refreshed global imports map.")
 
         # 3. Update the specific file that changed in the graph.
         # This deletes old nodes and adds new ones for the single file.
@@ -112,13 +110,13 @@ class RepositoryEventHandler(FileSystemEventHandler):
             parsed_data = self.graph_builder.parse_file(self.repo_path, f)
             if "error" not in parsed_data:
                 self.all_file_data.append(parsed_data)
-        logger.info("Refreshed in-memory cache of all file data.")
+        info_logger("Refreshed in-memory cache of all file data.")
 
         # 5. CRITICAL: Re-link the entire graph using the fully updated cache and imports map.
-        logger.info("Re-linking the entire graph for calls and inheritance...")
+        info_logger("Re-linking the entire graph for calls and inheritance...")
         self.graph_builder._create_all_function_calls(self.all_file_data, self.imports_map)
         self.graph_builder._create_all_inheritance_links(self.all_file_data, self.imports_map)
-        logger.info(f"Graph refresh for change in {event_path_str} complete! ✅")
+        info_logger(f"Graph refresh for change in {event_path_str} complete! ✅")
 
     # The following methods are called by the watchdog observer when a file event occurs.
     def on_created(self, event):
@@ -158,7 +156,7 @@ class CodeWatcher:
         path_str = str(path_obj)
 
         if path_str in self.watched_paths:
-            logger.info(f"Path already being watched: {path_str}")
+            info_logger(f"Path already being watched: {path_str}")
             return {"message": f"Path already being watched: {path_str}"}
         
         # Create a new, dedicated event handler for this specific repository path.
@@ -167,7 +165,7 @@ class CodeWatcher:
         watch = self.observer.schedule(event_handler, path_str, recursive=True)
         self.watches[path_str] = watch
         self.watched_paths.add(path_str)
-        logger.info(f"Started watching for code changes in: {path_str}")
+        info_logger(f"Started watching for code changes in: {path_str}")
         
         return {"message": f"Started watching {path_str}."}
     def unwatch_directory(self, path: str):
@@ -176,7 +174,7 @@ class CodeWatcher:
         path_str = str(path_obj)
 
         if path_str not in self.watched_paths:
-            logger.warning(f"Attempted to unwatch a path that is not being watched: {path_str}")
+            warning_logger(f"Attempted to unwatch a path that is not being watched: {path_str}")
             return {"error": f"Path not currently being watched: {path_str}"}
 
         watch = self.watches.pop(path_str, None)
@@ -184,7 +182,7 @@ class CodeWatcher:
             self.observer.unschedule(watch)
         
         self.watched_paths.discard(path_str)
-        logger.info(f"Stopped watching for code changes in: {path_str}")
+        info_logger(f"Stopped watching for code changes in: {path_str}")
         return {"message": f"Stopped watching {path_str}."}
 
     def list_watched_paths(self) -> list:
@@ -195,11 +193,11 @@ class CodeWatcher:
         """Starts the observer thread."""
         if not self.observer.is_alive():
             self.observer.start()
-            logger.info("Code watcher observer thread started.")
+            info_logger("Code watcher observer thread started.")
 
     def stop(self):
         """Stops the observer thread gracefully."""
         if self.observer.is_alive():
             self.observer.stop()
             self.observer.join() # Wait for the thread to terminate.
-            logger.info("Code watcher observer thread stopped.")
+            info_logger("Code watcher observer thread stopped.")

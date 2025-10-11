@@ -4,10 +4,9 @@ import nbformat
 from nbconvert import PythonExporter
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
-import logging
 import ast
+from codegraphcontext.utils.debug_log import debug_log, info_logger, error_logger, warning_logger, debug_logger
 
-logger = logging.getLogger(__name__)
 
 PY_QUERIES = {
     "imports": """
@@ -109,7 +108,7 @@ class PythonTreeSitterParser:
 
         try:
             if is_notebook:
-                logger.debug(f"Converting notebook {file_path} to temporary Python file.")
+                debug_logger(f"Converting notebook {file_path} to temporary Python file.")
                 with open(file_path, 'r', encoding='utf-8') as f:
                     notebook_node = nbformat.read(f, as_version=4)
                 
@@ -147,12 +146,12 @@ class PythonTreeSitterParser:
                 "lang": self.language_name,
             }
         except Exception as e:
-            logger.error(f"Failed to parse {original_file_path}: {e}")
+            error_logger(f"Failed to parse {original_file_path}: {e}")
             return {"file_path": str(original_file_path), "error": str(e)}
         finally:
             if temp_py_file and temp_py_file.exists():
                 os.remove(temp_py_file)
-                logger.debug(f"Removed temporary file: {temp_py_file}")
+                debug_logger(f"Removed temporary file: {temp_py_file}")
 
     def _find_lambda_assignments(self, root_node):
         functions = []
@@ -448,7 +447,7 @@ def pre_scan_python(files: list[Path], parser_wrapper) -> dict:
                     imports_map[name] = []
                 imports_map[name].append(str(file_path.resolve()))
         except Exception as e:
-            logger.warning(f"Tree-sitter pre-scan failed for {file_path}: {e}")
+            warning_logger(f"Tree-sitter pre-scan failed for {file_path}: {e}")
         finally:
             if temp_py_file and temp_py_file.exists():
                 os.remove(temp_py_file)

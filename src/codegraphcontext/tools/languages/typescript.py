@@ -1,8 +1,6 @@
 from pathlib import Path
 from typing import Dict
-import logging
-
-logger = logging.getLogger(__name__)
+from codegraphcontext.utils.debug_log import debug_log, info_logger, error_logger, warning_logger, debug_logger
 
 TS_QUERIES = {
     "functions": """
@@ -495,9 +493,9 @@ def pre_scan_typescript(files: list[Path], parser_wrapper) -> dict:
                                 imports_map[name].append(file_path_str)
                                 
                 except Exception as query_error:
-                    logger.warning(f"Query failed for pattern '{query_str}': {query_error}")
+                    warning_logger(f"Query failed for pattern '{query_str}': {query_error}")
                     
         except Exception as e:
-            logger.warning(f"Tree-sitter pre-scan failed for {file_path}: {e}")
+            warning_logger(f"Tree-sitter pre-scan failed for {file_path}: {e}")
     
     return imports_map

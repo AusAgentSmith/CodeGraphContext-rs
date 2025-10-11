@@ -1,9 +1,7 @@
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
-import logging
 import re
-
-logger = logging.getLogger(__name__)
+from codegraphcontext.utils.debug_log import debug_log, info_logger, error_logger, warning_logger
 
 JAVA_QUERIES = {
     "functions": """
@@ -57,7 +55,7 @@ class JavaTreeSitterParser:
                 source_code = f.read()
 
             if not source_code.strip():
-                logger.warning(f"Empty or whitespace-only file: {file_path}")
+                warning_logger(f"Empty or whitespace-only file: {file_path}")
                 return {
                     "file_path": str(file_path),
                     "functions": [],
@@ -100,7 +98,7 @@ class JavaTreeSitterParser:
             }
 
         except Exception as e:
-            logger.error(f"Error parsing Java file {file_path}: {e}")
+            error_logger(f"Error parsing Java file {file_path}: {e}")
             return {
                 "file_path": str(file_path),
                 "functions": [],
@@ -155,7 +153,7 @@ class JavaTreeSitterParser:
                         })
                         
                 except Exception as e:
-                    logger.error(f"Error parsing function in {file_path}: {e}")
+                    error_logger(f"Error parsing function in {file_path}: {e}")
                     continue
 
         return functions
@@ -190,7 +188,7 @@ class JavaTreeSitterParser:
                         })
                         
                 except Exception as e:
-                    logger.error(f"Error parsing class in {file_path}: {e}")
+                    error_logger(f"Error parsing class in {file_path}: {e}")
                     continue
 
         return classes
@@ -217,7 +215,7 @@ class JavaTreeSitterParser:
                         }
                         imports.append(import_data)
                 except Exception as e:
-                    logger.error(f"Error parsing import: {e}")
+                    error_logger(f"Error parsing import: {e}")
                     continue
 
         return imports
@@ -251,7 +249,7 @@ class JavaTreeSitterParser:
                     }
                     calls.append(call_data)
                 except Exception as e:
-                    logger.error(f"Error parsing call: {e}")
+                    error_logger(f"Error parsing call: {e}")
                     continue
 
         return calls
@@ -299,6 +297,6 @@ def pre_scan_java(files: list[Path], parser_wrapper) -> dict:
                 name_to_files[interface_name].append(str(file_path))
                 
         except Exception as e:
-            logger.error(f"Error pre-scanning Java file {file_path}: {e}")
+            error_logger(f"Error pre-scanning Java file {file_path}: {e}")
             
     return name_to_files

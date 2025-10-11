@@ -1,9 +1,6 @@
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
-import logging
-import re
-
-logger = logging.getLogger(__name__)
+from codegraphcontext.utils.debug_log import debug_log, info_logger, error_logger, warning_logger
 
 C_QUERIES = {
     "functions": """
@@ -529,5 +526,5 @@ def pre_scan_c(files: list[Path], parser_wrapper) -> dict:
                     imports_map[name] = []
                 imports_map[name].append(str(file_path.resolve()))
         except Exception as e:
-            logger.warning(f"Tree-sitter pre-scan failed for {file_path}: {e}")
+            warning_logger(f"Tree-sitter pre-scan failed for {file_path}: {e}")
     return imports_map

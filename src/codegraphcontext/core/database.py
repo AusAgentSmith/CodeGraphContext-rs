@@ -3,14 +3,12 @@
 This module provides a thread-safe singleton manager for the Neo4j database connection.
 """
 import os
-import logging
 import re
 import threading
 from typing import Optional, Tuple
 from neo4j import GraphDatabase, Driver
 
-logger = logging.getLogger(__name__)
-
+from codegraphcontext.utils.debug_log import debug_log, info_logger, error_logger, warning_logger
 
 class DatabaseManager:
     """
@@ -77,10 +75,10 @@ class DatabaseManager:
                     )
                     
                     if not is_valid:
-                        logger.error(f"Configuration validation failed: {validation_error}")
+                        error_logger(f"Configuration validation failed: {validation_error}")
                         raise ValueError(validation_error)
 
-                    logger.info(f"Creating Neo4j driver connection to {self.neo4j_uri}")
+                    info_logger(f"Creating Neo4j driver connection to {self.neo4j_uri}")
                     self._driver = GraphDatabase.driver(
                         self.neo4j_uri,
                         auth=(self.neo4j_username, self.neo4j_password)
@@ -89,7 +87,7 @@ class DatabaseManager:
                     try:
                         with self._driver.session() as session:
                             session.run("RETURN 1").consume()
-                        logger.info("Neo4j connection established successfully")
+                        info_logger("Neo4j connection established successfully")
                     except Exception as e:
                         # Use detailed error messages from test_connection
                         _, detailed_error = self.test_connection(
@@ -97,7 +95,7 @@ class DatabaseManager:
                             self.neo4j_username,
                             self.neo4j_password
                         )
-                        logger.error(f"Failed to connect to Neo4j: {e}")
+                        error_logger(f"Failed to connect to Neo4j: {e}")
                         if self._driver:
                             self._driver.close()
                         self._driver = None
@@ -109,7 +107,7 @@ class DatabaseManager:
         if self._driver is not None:
             with self._lock:
                 if self._driver is not None:
-                    logger.info("Closing Neo4j driver")
+                    info_logger("Closing Neo4j driver")
                     self._driver.close()
                     self._driver = None
 

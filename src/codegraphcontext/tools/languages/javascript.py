@@ -1,8 +1,7 @@
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
-import logging
 import re
-import ast  # Not strictly needed for JS, but kept for consistency if AST manipulation is added
+from codegraphcontext.utils.debug_log import debug_log, info_logger, error_logger, warning_logger
 
 # --- Helpers to classify JS methods ---
 _GETTER_RE = re.compile(r"^\s*(?:static\s+)?get\b")
@@ -34,8 +33,6 @@ def _classify_method_kind(header: str) -> Optional[str]:
         return "static"
     return None
 
-
-logger = logging.getLogger(__name__)
 
 JS_QUERIES = {
     "functions": """
@@ -567,5 +564,5 @@ def pre_scan_javascript(files: list[Path], parser_wrapper) -> dict:
                     imports_map[name] = []
                 imports_map[name].append(str(file_path.resolve()))
         except Exception as e:
-            logger.warning(f"Tree-sitter pre-scan failed for {file_path}: {e}")
+            warning_logger(f"Tree-sitter pre-scan failed for {file_path}: {e}")
     return imports_map
