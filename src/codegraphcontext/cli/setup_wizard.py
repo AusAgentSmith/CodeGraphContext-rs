@@ -191,7 +191,7 @@ def _configure_ide(mcp_config):
                 Path.home() / ".config" / "Code" / "User" / "settings.json",   # Linux 
                 Path.home() / "AppData" / "Roaming" / "Code" / "User" / "settings.json",  # Windows
                 Path.home() / "Library" / "Application Support" / "Code" / "User" / "settings.json"  # macOS
-            ]
+            ],
             "Aider": [
                 Path.home() / ".aider" / "settings.json",
                 Path.home() / ".config" / "aider" / "settings.json",
