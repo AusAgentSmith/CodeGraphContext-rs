@@ -1,0 +1,36 @@
+name: Update Contributors
+
+on:
+  push:
+    branches: [ main ]
+  schedule:
+    - cron: '0 * * * *' # Runs every hour
+  workflow_dispatch: # Allows manual triggering
+
+jobs:
+  update-contributors:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Run script to generate contributors file
+        run: python scripts/generate_lang_contributors.py
+
+      - name: Commit and push if there are changes
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add contributors.md
+          # Commit only if there are changes
+          if ! git diff --staged --quiet; then
+            git commit -m "docs: update contributors"
+            git push
+          else
+            echo "No changes to contributors.md"
+          fi
