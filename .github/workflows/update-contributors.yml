@@ -27,11 +27,9 @@ jobs:
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           git add contributors.md
-          # Commit only if there are changes
           if ! git diff --staged --quiet; then
             git commit -m "docs: update contributors"
-            git remote set-url origin https://x-access-token:${{ secrets.GH_PAT }}@github.com/${{ github.repository }}
-            git push
+            git push https://x-access-token:${{ secrets.GH_PAT }}@github.com/${{ github.repository }} HEAD:main
           else
             echo "No changes to contributors.md"
           fi
