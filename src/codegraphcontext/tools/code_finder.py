@@ -1,7 +1,7 @@
 # src/codegraphcontext/tools/code_finder.py
 import logging
 import re
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Literal
 from pathlib import Path
 
 from ..core.database import DatabaseManager
@@ -15,61 +15,37 @@ class CodeFinder:
         self.db_manager = db_manager
         self.driver = self.db_manager.get_driver()
 
+    def format_query(self, find_by: Literal["Class", "Function"], fuzzy_search:bool) -> str:
+        """Format the search query based on the search type and fuzzy search settings."""
+        return f"""
+            CALL db.index.fulltext.queryNodes("code_search_index", $search_term) YIELD node, score
+                WITH node, score
+                WHERE node:{find_by} {'AND node.name CONTAINS $search_term' if not fuzzy_search else ''}
+                RETURN node.name as name, node.file_path as file_path, node.line_number as line_number,
+                    node.source as source, node.docstring as docstring, node.is_dependency as is_dependency
+                ORDER BY score DESC
+                LIMIT 20
+            """
+
     def find_by_function_name(self, search_term: str, fuzzy_search: bool) -> List[Dict]:
         """Find functions by name matching using the full-text index."""
-        if fuzzy_search:
-            with self.driver.session() as session:
+        with self.driver.session() as session:
+            if fuzzy_search:
                 formatted_search_term = f"name:{search_term}"
-                result = session.run("""
-                    CALL db.index.fulltext.queryNodes("code_search_index", $search_term) YIELD node, score
-                    WITH node, score
-                    WHERE node:Function
-                    RETURN node.name as name, node.file_path as file_path, node.line_number as line_number,
-                        node.source as source, node.docstring as docstring, node.is_dependency as is_dependency
-                    ORDER BY score DESC
-                    LIMIT 20
-                """, search_term=formatted_search_term)
-                return [dict(record) for record in result]
-        else:
-            with self.driver.session() as session:
-                result = session.run("""
-                    CALL db.index.fulltext.queryNodes("code_search_index", $search_term) YIELD node, score
-                    WITH node, score
-                    WHERE node:Function AND node.name CONTAINS $search_term
-                    RETURN node.name as name, node.file_path as file_path, node.line_number as line_number,
-                        node.source as source, node.docstring as docstring, node.is_dependency as is_dependency
-                    ORDER BY score DESC
-                    LIMIT 20
-                """, search_term=search_term)
-                return [dict(record) for record in result]
+                result = session.run(self.format_query("Function", fuzzy_search), search_term=formatted_search_term)
+            else:
+                result = session.run(self.format_query("Function", fuzzy_search), search_term=search_term)
+            return [dict(record) for record in result]
 
     def find_by_class_name(self, search_term: str, fuzzy_search: bool) -> List[Dict]:
         """Find classes by name matching using the full-text index."""
-        if fuzzy_search:
-            with self.driver.session() as session:
+        with self.driver.session() as session:
+            if fuzzy_search:
                 formatted_search_term = f"name:{search_term}"
-                result = session.run("""
-                    CALL db.index.fulltext.queryNodes("code_search_index", $search_term) YIELD node, score
-                    WITH node, score
-                    WHERE node:Class
-                    RETURN node.name as name, node.file_path as file_path, node.line_number as line_number,
-                        node.source as source, node.docstring as docstring, node.is_dependency as is_dependency
-                    ORDER BY score DESC
-                    LIMIT 20
-                """, search_term=formatted_search_term)
-                return [dict(record) for record in result]
-        else:
-            with self.driver.session() as session:
-                result = session.run("""
-                    CALL db.index.fulltext.queryNodes("code_search_index", $search_term) YIELD node, score
-                    WITH node, score
-                    WHERE node:Class AND node.name CONTAINS $search_term
-                    RETURN node.name as name, node.file_path as file_path, node.line_number as line_number,
-                        node.source as source, node.docstring as docstring, node.is_dependency as is_dependency
-                    ORDER BY score DESC
-                    LIMIT 20
-                """, search_term=search_term)
-                return [dict(record) for record in result]
+                result = session.run(self.format_query("Class", fuzzy_search), search_term=formatted_search_term)
+            else:
+                result = session.run(self.format_query("Class", fuzzy_search), search_term=search_term)
+            return [dict(record) for record in result]
 
     def find_by_variable_name(self, search_term: str) -> List[Dict]:
         """Find variables by name matching"""
