@@ -5,7 +5,7 @@ logger = logging.getLogger(__name__)
 
 # Toggle this to True to enable debug logging
 debug_mode = False  # Set to True for dev/test, False for production
-log_mode = True  # Set to True to enable user login logging
+log_mode = False  # Set to True to enable user login logging
 
 def debug_log(message):
     """Write debug message to a file if debug_mode is enabled"""
@@ -36,7 +36,4 @@ def warning_logger(msg):
         return
     
 def debug_logger(msg):
-    if log_mode:
-        return logger.debug(msg)
-    else:
-        return
+    return logger.debug(msg)
