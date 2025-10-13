@@ -36,7 +36,4 @@ def warning_logger(msg):
         return
     
 def debug_logger(msg):
-    if log_mode:
-        return logger.debug(msg)
-    else:
-        return
+    return logger.debug(msg)

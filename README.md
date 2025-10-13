@@ -29,7 +29,7 @@ An MCP server that indexes local code into a graph database to provide context t
 ![Using the MCP server](https://github.com/Shashankss1205/CodeGraphContext/blob/main/images/Usecase.gif)
 
 ## Project Details
-- **Version:** 0.1.16
+- **Version:** 0.1.17
 - **Authors:** Shashank Shekhar Singh <shashankshekharsingh1205@gmail.com>
 - **License:** MIT License (See [LICENSE](LICENSE) for details)
 - **Website:** [CodeGraphContext](http://codegraphcontext.vercel.app/)
@@ -130,6 +130,24 @@ If you’re using CodeGraphContext in your project, feel free to open a PR and a
     *   It updates the settings file of your chosen IDE/CLI (e.g., `.claude.json` or VS Code's `settings.json`).
 
 3.  **Start:** `cgc start`
+
+## Ignoring Files (`.cgcignore`)
+
+You can tell CodeGraphContext to ignore specific files and directories by creating a `.cgcignore` file in the root of your project. This file uses the same syntax as `.gitignore`.
+
+**Example `.cgcignore` file:**
+```
+# Ignore build artifacts
+/build/
+/dist/
+
+# Ignore dependencies
+/node_modules/
+/vendor/
+
+# Ignore logs
+*.log
+```
 
 ## MCP Client Configuration
 

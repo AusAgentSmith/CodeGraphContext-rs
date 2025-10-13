@@ -22,7 +22,7 @@ from .core.watcher import CodeWatcher
 from .tools.graph_builder import GraphBuilder
 from .tools.code_finder import CodeFinder
 from .tools.package_resolver import get_local_package_path
-from .utils.debug_log import debug_log, info_logger, error_logger, warning_logger
+from .utils.debug_log import debug_log, info_logger, error_logger, warning_logger, debug_logger
 
 class MCPServer:
     """
@@ -744,7 +744,7 @@ class MCPServer:
         requests, and routes them to the appropriate handlers (e.g., initialize,
         tools/list, tools/call). The response is then printed to stdout.
         """
-        info_logger("MCP Server is running. Waiting for requests...")
+        debug_logger("MCP Server is running. Waiting for requests...")
         self.code_watcher.start()
         
         loop = asyncio.get_event_loop()
@@ -753,7 +753,7 @@ class MCPServer:
                 # Read a request from the standard input.
                 line = await loop.run_in_executor(None, sys.stdin.readline)
                 if not line:
-                    info_logger("Client disconnected (EOF received). Shutting down.")
+                    debug_logger("Client disconnected (EOF received). Shutting down.")
                     break
                 
                 request = json.loads(line.strip())
@@ -826,6 +826,6 @@ class MCPServer:
 
     def shutdown(self):
         """Gracefully shuts down the server and its components."""
-        info_logger("Shutting down server...")
+        debug_logger("Shutting down server...")
         self.code_watcher.stop()
         self.db_manager.close_driver()

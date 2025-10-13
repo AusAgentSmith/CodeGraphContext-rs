@@ -32,6 +32,27 @@ Indexes a directory or file by adding it to the code graph. If no path is provid
 cgc index /path/to/your/project
 ```
 
+### Ignoring Files (`.cgcignore`)
+
+You can tell CodeGraphContext to ignore specific files and directories by creating a `.cgcignore` file in the root of your project. This file uses the same syntax as `.gitignore`.
+
+When you run `cgc index`, the command will look for a `.cgcignore` file in the directory being indexed and exclude any files or directories that match the patterns in the file.
+
+**Example `.cgcignore` file:**
+```
+# Ignore build artifacts
+/build/
+/dist/
+
+# Ignore dependencies
+/node_modules/
+/vendor/
+
+# Ignore logs
+*.log
+```
+
+
 ## `cgc delete <PATH>`
 
 Deletes a repository from the code graph.

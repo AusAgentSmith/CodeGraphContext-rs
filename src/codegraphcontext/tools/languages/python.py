@@ -108,7 +108,7 @@ class PythonTreeSitterParser:
 
         try:
             if is_notebook:
-                debug_logger(f"Converting notebook {file_path} to temporary Python file.")
+                info_logger(f"Converting notebook {file_path} to temporary Python file.")
                 with open(file_path, 'r', encoding='utf-8') as f:
                     notebook_node = nbformat.read(f, as_version=4)
                 
@@ -151,7 +151,7 @@ class PythonTreeSitterParser:
         finally:
             if temp_py_file and temp_py_file.exists():
                 os.remove(temp_py_file)
-                debug_logger(f"Removed temporary file: {temp_py_file}")
+                info_logger(f"Removed temporary file: {temp_py_file}")
 
     def _find_lambda_assignments(self, root_node):
         functions = []

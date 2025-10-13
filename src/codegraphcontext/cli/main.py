@@ -33,8 +33,9 @@ from .cli_helpers import (
     visualize_helper,
 )
 
-# Set the log level for the noisy neo4j logger to WARNING to keep the output clean.
+# Set the log level for the noisy neo4j and asyncio logger to WARNING to keep the output clean.
 logging.getLogger("neo4j").setLevel(logging.WARNING)
+logging.getLogger("asyncio").setLevel(logging.WARNING)
 
 # Initialize the Typer app and Rich console for formatted output.
 app = typer.Typer(
@@ -45,7 +46,7 @@ app = typer.Typer(
 console = Console(stderr=True)
 
 # Configure basic logging for the application.
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(name)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(name)s - %(message)s')
 
 
 def get_version() -> str:

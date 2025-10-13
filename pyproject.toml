@@ -1,6 +1,6 @@
 [project]
 name = "codegraphcontext"
-version = "0.1.16"
+version = "0.1.17"
 description = "An MCP server that indexes local code into a graph database to provide context to AI assistants."
 authors = [{ name = "Shashank Shekhar Singh", email = "shashankshekharsingh1205@gmail.com" }]
 readme = "README.md"
@@ -28,7 +28,8 @@ dependencies = [
     "pyyaml",
     "pytest",
     "nbformat",
-    "nbconvert>=7.16.6"
+    "nbconvert>=7.16.6",
+    "pathspec>=0.12.1"
 ]
 
 [project.urls]
