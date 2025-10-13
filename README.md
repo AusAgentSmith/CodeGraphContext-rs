@@ -131,6 +131,24 @@ If you’re using CodeGraphContext in your project, feel free to open a PR and a
 
 3.  **Start:** `cgc start`
 
+## Ignoring Files (`.cgcignore`)
+
+You can tell CodeGraphContext to ignore specific files and directories by creating a `.cgcignore` file in the root of your project. This file uses the same syntax as `.gitignore`.
+
+**Example `.cgcignore` file:**
+```
+# Ignore build artifacts
+/build/
+/dist/
+
+# Ignore dependencies
+/node_modules/
+/vendor/
+
+# Ignore logs
+*.log
+```
+
 ## MCP Client Configuration
 
 The `cgc setup` command attempts to automatically configure your IDE/CLI. If you choose not to use the automatic setup, or if your tool is not supported, you can configure it manually.

@@ -48,6 +48,7 @@ An MCP server that indexes local code into a graph database to provide context t
 -   **Relationship Analysis:** Query for callers, callees, class hierarchies, call chains and more.
 -   **Live Updates:** Watches local files for changes and automatically updates the graph.
 -   **Interactive Setup:** A user-friendly command-line wizard for easy setup.
+-   **File Exclusion:** Supports `.cgcignore` files to exclude specific files and directories from indexing.
 
 ## Used By
 

@@ -28,7 +28,8 @@ dependencies = [
     "pyyaml",
     "pytest",
     "nbformat",
-    "nbconvert>=7.16.6"
+    "nbconvert>=7.16.6",
+    "pathspec>=0.12.1"
 ]
 
 [project.urls]
