@@ -25,18 +25,15 @@ CPP_QUERIES = {
         ) @import
     """,
     "calls": """
-        (function_definition
-        type: (_) @return_type
-            declarator: (function_declarator
-                declarator: (identifier) @function_name
-                parameters: (parameter_list
-                (parameter_declaration
-            type: (_) @param_type
-        declarator: (identifier)? @param_name
-      )*
-    ) @parameters
+        (call_expression
+            function: [
+                (identifier) @function_name
+                (field_expression
+                    field: (field_identifier) @method_name
+                )
+            ]
+        arguments: (argument_list) @args
     )
-    ) 
     """,
     "enums":"""
         (enum_specifier
@@ -356,6 +353,7 @@ class CppTreeSitterParser:
             if capture_name == "function_name":
                 func_name = self._get_node_text(node)
                 func_node = node.parent.parent  # function_declarator -> function_definition
+                full_name = self._get_full_name(func_node) or func_name
 
                 # Find return type node (captured separately)
                 return_type_node = None
@@ -366,7 +364,7 @@ class CppTreeSitterParser:
                 return_type = self._get_node_text(return_type_node) if return_type_node else None
 
                 # Extract parameters
-                params = []
+                args = []
                 parameters_node = func_node.child_by_field_name("declarator")
                 if parameters_node:
                     param_list_node = parameters_node.child_by_field_name("parameters")
@@ -379,7 +377,7 @@ class CppTreeSitterParser:
                                 param_type = self._get_node_text(type_node) if type_node else None
                                 param_name = self._get_node_text(name_node) if name_node else None
 
-                                params.append({
+                                args.append({
                                     "type": param_type,
                                     "name": param_name
                                 })
@@ -391,9 +389,10 @@ class CppTreeSitterParser:
 
                 call_data = {
                     "name": func_name,
-                    "return_type": return_type,
+                    "full_name": full_name,
                     "line_number": node.start_point[0] + 1,
-                    "params": params,
+                    "args": args,
+                    "inferred_obj_type": None,
                     "context": context,
                     "class_context": class_context,
                     "lang": self.language_name,
@@ -401,6 +400,31 @@ class CppTreeSitterParser:
                 }
                 calls.append(call_data)
         return calls
+    
+    def _get_full_name(self, node):
+        "Builds a fully qualified name for a function or call node."
+
+        name_parts = []
+
+        # Move upward and collect parent scopes
+        curr = node
+        while curr:
+            if curr.type in ("function_definition", "function_declarator"):
+                id_node = curr.child_by_field_name("declarator")
+                if id_node and id_node.type == "identifier":
+                    name_parts.insert(0, id_node.text.decode("utf8"))
+            elif curr.type == "class_specifier":
+                name_node = curr.child_by_field_name("name")
+                if name_node:
+                    name_parts.insert(0, name_node.text.decode("utf8"))
+            elif curr.type == "namespace_definition":
+                name_node = curr.child_by_field_name("name")
+                if name_node:
+                    name_parts.insert(0, name_node.text.decode("utf8"))
+            curr = curr.parent
+
+        return "::".join(name_parts) if name_parts else None
+
 
 def pre_scan_cpp(files: list[Path], parser_wrapper) -> dict:
     """
