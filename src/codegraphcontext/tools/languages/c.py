@@ -1,9 +1,6 @@
 from pathlib import Path
-from typing import Any, Dict, Optional
-
-from tree_sitter import QueryCursor
-
-from codegraphcontext.utils.debug_log import warning_logger
+from typing import Any, Dict, Optional, Tuple
+from codegraphcontext.utils.debug_log import debug_log, info_logger, error_logger, warning_logger
 
 C_QUERIES = {
     "functions": """
@@ -25,31 +22,16 @@ C_QUERIES = {
         (struct_specifier
             name: (type_identifier) @name
         ) @struct
-
-        (type_definition
-            type: (struct_specifier)
-            declarator: (type_identifier) @name
-        ) @typedef_struct
     """,
     "unions": """
         (union_specifier
             name: (type_identifier) @name
         ) @union
-
-        (type_definition
-            type: (union_specifier)
-            declarator: (type_identifier) @name
-        ) @typedef_union
     """,
     "enums": """
         (enum_specifier
             name: (type_identifier) @name
         ) @enum
-
-        (type_definition
-            type: (enum_specifier)
-            declarator: (type_identifier) @name
-        ) @typedef_enum
     """,
     "typedefs": """
         (type_definition
@@ -114,10 +96,6 @@ class CTreeSitterParser:
             name: self.language.query(query_str)
             for name, query_str in C_QUERIES.items()
         }
-        self.query_cursors = {
-            name: QueryCursor(query)
-            for name, query in self.queries.items()
-        }
 
     def _get_node_text(self, node: Any) -> str:
         return node.text.decode("utf-8")
@@ -149,11 +127,7 @@ class CTreeSitterParser:
             "lang": self.language_name,
         }
 
-    def _get_parent_context(
-        self,
-        node: Any,
-        types: tuple = ('function_definition', 'struct_specifier', 'union_specifier', 'enum_specifier')
-    ) -> tuple:
+    def _get_parent_context(self, node: Any, types: tuple = ('function_definition', 'struct_specifier', 'union_specifier', 'enum_specifier')) -> tuple:
         """Get parent context for nested constructs."""
         curr = node.parent
         while curr:
@@ -233,245 +207,271 @@ class CTreeSitterParser:
 
     def _find_functions(self, root_node: Any) -> list[Dict[str, Any]]:
         functions = []
-        cursor = self.query_cursors["functions"]
-        for _pattern_index, captures in cursor.matches(root_node):
-            for capture_name, nodes in captures.items():
-                if capture_name == 'name':
-                    for node in nodes:
-                        func_node = node.parent.parent
-                        name = self._get_node_text(node)
+        query = self.queries["functions"]
+        for match in query.captures(root_node):
+            capture_name = match[1]
+            node = match[0]
+            if capture_name == 'name':
+                func_node = node.parent.parent.parent
+                name = self._get_node_text(node)
+                
+                # Find parameters
+                params_node = None
+                body_node = None
+                for child in func_node.children:
+                    if child.type == "function_declarator":
+                        params_node = child.child_by_field_name("parameters")
+                    elif child.type == "compound_statement":
+                        body_node = child
+                
+                args = self._parse_function_args(params_node) if params_node else []
+                context, context_type, _ = self._get_parent_context(func_node)
 
-                        # Find parameters
-                        params_node = None
-                        for child in func_node.children:
-                            if child.type == "function_declarator":
-                                params_node = child.child_by_field_name("parameters")
-
-                        args = self._parse_function_args(params_node) if params_node else []
-                        context, context_type, _ = self._get_parent_context(func_node)
-
-                        functions.append({
-                            "name": name,
-                            "line_number": node.start_point[0] + 1,
-                            "end_line": func_node.end_point[0] + 1,
-                            "args": [arg["name"] for arg in args if arg["name"]],  # Simplified args for compatibility
-                            "source": self._get_node_text(func_node),
-                            "source_code": self._get_node_text(func_node),
-                            "docstring": self._get_docstring(func_node),
-                            "cyclomatic_complexity": self._calculate_complexity(func_node),
-                            "context": context,
-                            "context_type": context_type,
-                            "class_context": None,
-                            "decorators": [],
-                            "lang": self.language_name,
-                            "is_dependency": False,
-                            "detailed_args": args,  # Keep detailed args for future use
-                        })
+                functions.append({
+                    "name": name,
+                    "line_number": node.start_point[0] + 1,
+                    "end_line": func_node.end_point[0] + 1,
+                    "args": [arg["name"] for arg in args if arg["name"]],  # Simplified args for compatibility
+                    "source": self._get_node_text(func_node),
+                    "source_code": self._get_node_text(func_node),
+                    "docstring": self._get_docstring(func_node),
+                    "cyclomatic_complexity": self._calculate_complexity(func_node),
+                    "context": context,
+                    "context_type": context_type,
+                    "class_context": None,
+                    "decorators": [],
+                    "lang": self.language_name,
+                    "is_dependency": False,
+                    "detailed_args": args,  # Keep detailed args for future use
+                })
         return functions
 
     def _find_structs_unions_enums(self, root_node: Any) -> list[Dict[str, Any]]:
         """Find structs, unions, and enums (treated as classes in C)."""
         classes = []
+        
+        # Find structs
+        query = self.queries["structs"]
+        for match in query.captures(root_node):
+            capture_name = match[1]
+            node = match[0]
+            if capture_name == 'name':
+                struct_node = node.parent
+                name = self._get_node_text(node)
+                context, context_type, _ = self._get_parent_context(struct_node)
+                
+                classes.append({
+                    "name": name,
+                    "line_number": node.start_point[0] + 1,
+                    "end_line": struct_node.end_point[0] + 1,
+                    "bases": [],  # C doesn't have inheritance
+                    "source": self._get_node_text(struct_node),
+                    "docstring": self._get_docstring(struct_node),
+                    "context": context,
+                    "decorators": [],
+                    "lang": self.language_name,
+                    "is_dependency": False,
+                    "type": "struct",
+                })
 
-        # Helper function to process captures
-        def process_captures(cursor, expected_type):
-            for _pattern_index, captures in cursor.matches(root_node):
-                for capture_name, nodes in captures.items():
-                    if capture_name == 'name':
-                        for node in nodes:
-                            # Determine the actual struct/union/enum node and type
-                            if node.parent.type in ['struct_specifier', 'union_specifier', 'enum_specifier']:
-                                # Regular named struct/union/enum
-                                type_node = node.parent
-                                type_name = type_node.type.replace('_specifier', '')
-                            else:
-                                # Typedef case - node is type_identifier, parent is type_definition
-                                type_definition = node.parent
-                                # Find the struct/union/enum specifier within the type_definition
-                                for child in type_definition.children:
-                                    if child.type in ['struct_specifier', 'union_specifier', 'enum_specifier']:
-                                        type_node = child
-                                        type_name = child.type.replace('_specifier', '')
-                                        break
-                                else:
-                                    # If no specifier found, skip
-                                    continue
+        # Find unions
+        query = self.queries["unions"]
+        for match in query.captures(root_node):
+            capture_name = match[1]
+            node = match[0]
+            if capture_name == 'name':
+                union_node = node.parent
+                name = self._get_node_text(node)
+                context, context_type, _ = self._get_parent_context(union_node)
+                
+                classes.append({
+                    "name": name,
+                    "line_number": node.start_point[0] + 1,
+                    "end_line": union_node.end_point[0] + 1,
+                    "bases": [],
+                    "source": self._get_node_text(union_node),
+                    "docstring": self._get_docstring(union_node),
+                    "context": context,
+                    "decorators": [],
+                    "lang": self.language_name,
+                    "is_dependency": False,
+                    "type": "union",
+                })
 
-                            name = self._get_node_text(node)
-                            context, context_type, _ = self._get_parent_context(type_node)
-
-                            classes.append({
-                                "name": name,
-                                "line_number": node.start_point[0] + 1,
-                                "end_line": type_node.end_point[0] + 1,
-                                "bases": [],  # C doesn't have inheritance
-                                "source": self._get_node_text(type_node),
-                                "docstring": self._get_docstring(type_node),
-                                "context": context,
-                                "decorators": [],
-                                "lang": self.language_name,
-                                "is_dependency": False,
-                                "type": type_name,
-                            })
-
-        # Find structs, unions, and enums
-        process_captures(self.query_cursors["structs"], "struct")
-        process_captures(self.query_cursors["unions"], "union")
-        process_captures(self.query_cursors["enums"], "enum")
+        # Find enums
+        query = self.queries["enums"]
+        for match in query.captures(root_node):
+            capture_name = match[1]
+            node = match[0]
+            if capture_name == 'name':
+                enum_node = node.parent
+                name = self._get_node_text(node)
+                context, context_type, _ = self._get_parent_context(enum_node)
+                
+                classes.append({
+                    "name": name,
+                    "line_number": node.start_point[0] + 1,
+                    "end_line": enum_node.end_point[0] + 1,
+                    "bases": [],
+                    "source": self._get_node_text(enum_node),
+                    "docstring": self._get_docstring(enum_node),
+                    "context": context,
+                    "decorators": [],
+                    "lang": self.language_name,
+                    "is_dependency": False,
+                    "type": "enum",
+                })
 
         return classes
 
     def _find_imports(self, root_node: Any) -> list[Dict[str, Any]]:
         imports = []
-        cursor = self.query_cursors["imports"]
-        for _pattern_index, captures in cursor.matches(root_node):
-            for capture_name, nodes in captures.items():
-                if capture_name == 'path':
-                    for node in nodes:
-                        path = self._get_node_text(node).strip('"<>')
-                        context, context_type, _ = self._get_parent_context(node)
-
-                        imports.append({
-                            "name": path,
-                            "full_import_name": path,
-                            "line_number": node.start_point[0] + 1,
-                            "alias": None,
-                            "context": context,
-                            "lang": self.language_name,
-                            "is_dependency": False,
-                        })
+        query = self.queries["imports"]
+        for match in query.captures(root_node):
+            capture_name = match[1]
+            node = match[0]
+            if capture_name == 'path':
+                path = self._get_node_text(node).strip('"<>')
+                context, context_type, _ = self._get_parent_context(node)
+                
+                imports.append({
+                    "name": path,
+                    "full_import_name": path,
+                    "line_number": node.start_point[0] + 1,
+                    "alias": None,
+                    "context": context,
+                    "lang": self.language_name,
+                    "is_dependency": False,
+                })
         return imports
 
     def _find_calls(self, root_node: Any) -> list[Dict[str, Any]]:
         """Enhanced function call detection."""
         calls = []
-        cursor = self.query_cursors["calls"]
-        for _pattern_index, captures in cursor.matches(root_node):
-            for capture_name, nodes in captures.items():
-                if capture_name == "name":
-                    for node in nodes:
-                        call_node = node.parent if node.parent.type == "call_expression" else node.parent.parent
-                        call_name = self._get_node_text(node)
-
-                        # Extract arguments
-                        args = []
-                        args_node = call_node.child_by_field_name("arguments")
-                        if args_node:
-                            for child in args_node.children:
-                                if child.type not in ['(', ')', ',']:
-                                    args.append(self._get_node_text(child))
-
-                        context, context_type, _ = self._get_parent_context(call_node)
-
-                        calls.append({
-                            "name": call_name,
-                            "full_name": call_name,  # For C, function name is the same as full name
-                            "line_number": node.start_point[0] + 1,
-                            "args": args,
-                            "inferred_obj_type": None,
-                            "context": context,
-                            "class_context": None,
-                            "lang": self.language_name,
-                            "is_dependency": False,
-                        })
+        query = self.queries["calls"]
+        for match in query.captures(root_node):
+            capture_name = match[1]
+            node = match[0]
+            if capture_name == "name":
+                call_node = node.parent if node.parent.type == "call_expression" else node.parent.parent
+                call_name = self._get_node_text(node)
+                
+                # Extract arguments
+                args = []
+                args_node = call_node.child_by_field_name("arguments")
+                if args_node:
+                    for child in args_node.children:
+                        if child.type not in ['(', ')', ',']:
+                            args.append(self._get_node_text(child))
+                
+                context, context_type, _ = self._get_parent_context(call_node)
+                
+                calls.append({
+                    "name": call_name,
+                    "full_name": call_name,  # For C, function name is the same as full name
+                    "line_number": node.start_point[0] + 1,
+                    "args": args,
+                    "inferred_obj_type": None,
+                    "context": context,
+                    "class_context": None,
+                    "lang": self.language_name,
+                    "is_dependency": False,
+                })
         return calls
 
     def _find_variables(self, root_node: Any) -> list[Dict[str, Any]]:
         """Enhanced variable declaration detection."""
         variables = []
-        cursor = self.query_cursors["variables"]
-        for _pattern_index, captures in cursor.matches(root_node):
-            for capture_name, nodes in captures.items():
-                if capture_name == "name":
-                    for node in nodes:
-                        var_name = self._get_node_text(node)
-
-                        # Find the declaration node
-                        decl_node = node.parent
-                        while decl_node and decl_node.type != "declaration":
-                            decl_node = decl_node.parent
-
-                        # Extract type information
-                        var_type = None
-                        is_pointer = False
-                        is_array = False
-                        value = None
-
-                        if decl_node:
-                            # Find type
-                            for child in decl_node.children:
-                                if child.type in ["primitive_type", "type_identifier", "sized_type_specifier"]:
-                                    var_type = self._get_node_text(child)
-                                elif child.type == "init_declarator":
-                                    # Check for pointer/array
-                                    if child.child_by_field_name("declarator"):
-                                        declarator = child.child_by_field_name("declarator")
-                                        if declarator.type == "pointer_declarator":
-                                            is_pointer = True
-                                        elif declarator.type == "array_declarator":
-                                            is_array = True
-
-                                    # Check for initial value
-                                    value_node = child.child_by_field_name("value")
-                                    if value_node:
-                                        value = self._get_node_text(value_node)
-
-                        context, context_type, _ = self._get_parent_context(node)
-                        class_context, _, _ = self._get_parent_context(
-                            node, types=('struct_specifier', 'union_specifier', 'enum_specifier')
-                        )
-
-                        variables.append({
-                            "name": var_name,
-                            "line_number": node.start_point[0] + 1,
-                            "value": value,
-                            "type": var_type,
-                            "context": context,
-                            "class_context": class_context,
-                            "lang": self.language_name,
-                            "is_dependency": False,
-                            "is_pointer": is_pointer,
-                            "is_array": is_array,
-                        })
+        query = self.queries["variables"]
+        for match in query.captures(root_node):
+            capture_name = match[1]
+            node = match[0]
+            if capture_name == "name":
+                var_name = self._get_node_text(node)
+                
+                # Find the declaration node
+                decl_node = node.parent
+                while decl_node and decl_node.type != "declaration":
+                    decl_node = decl_node.parent
+                
+                # Extract type information
+                var_type = None
+                is_pointer = False
+                is_array = False
+                value = None
+                
+                if decl_node:
+                    # Find type
+                    for child in decl_node.children:
+                        if child.type in ["primitive_type", "type_identifier", "sized_type_specifier"]:
+                            var_type = self._get_node_text(child)
+                        elif child.type == "init_declarator":
+                            # Check for pointer/array
+                            if child.child_by_field_name("declarator"):
+                                declarator = child.child_by_field_name("declarator")
+                                if declarator.type == "pointer_declarator":
+                                    is_pointer = True
+                                elif declarator.type == "array_declarator":
+                                    is_array = True
+                            
+                            # Check for initial value
+                            if child.child_by_field_name("value"):
+                                value = self._get_node_text(child.child_by_field_name("value"))
+                
+                context, context_type, _ = self._get_parent_context(node)
+                class_context, _, _ = self._get_parent_context(node, types=('struct_specifier', 'union_specifier', 'enum_specifier'))
+                
+                variables.append({
+                    "name": var_name,
+                    "line_number": node.start_point[0] + 1,
+                    "value": value,
+                    "type": var_type,
+                    "context": context,
+                    "class_context": class_context,
+                    "lang": self.language_name,
+                    "is_dependency": False,
+                    "is_pointer": is_pointer,
+                    "is_array": is_array,
+                })
         return variables
 
     def _find_macros(self, root_node: Any) -> list[Dict[str, Any]]:
         """Enhanced preprocessor macro detection."""
         macros = []
-        cursor = self.query_cursors["macros"]
-        for _pattern_index, captures in cursor.matches(root_node):
-            for capture_name, nodes in captures.items():
-                if capture_name == 'name':
-                    for node in nodes:
-                        macro_node = node.parent
-                        name = self._get_node_text(node)
-
-                        # Extract macro value
-                        value = None
-                        if macro_node.child_by_field_name("value"):
-                            value = self._get_node_text(macro_node.child_by_field_name("value"))
-
-                        # Extract parameters for function-like macros
-                        params = []
-                        if macro_node.child_by_field_name("parameters"):
-                            params_node = macro_node.child_by_field_name("parameters")
-                            for child in params_node.children:
-                                if child.type == "identifier":
-                                    params.append(self._get_node_text(child))
-
-                        context, context_type, _ = self._get_parent_context(macro_node)
-
-                        macros.append({
-                            "name": name,
-                            "line_number": node.start_point[0] + 1,
-                            "end_line": macro_node.end_point[0] + 1,
-                            "source": self._get_node_text(macro_node),
-                            "value": value,
-                            "params": params,
-                            "context": context,
-                            "lang": self.language_name,
-                            "is_dependency": False,
-                        })
+        query = self.queries["macros"]
+        for match in query.captures(root_node):
+            capture_name = match[1]
+            node = match[0]
+            if capture_name == 'name':
+                macro_node = node.parent
+                name = self._get_node_text(node)
+                
+                # Extract macro value
+                value = None
+                if macro_node.child_by_field_name("value"):
+                    value = self._get_node_text(macro_node.child_by_field_name("value"))
+                
+                # Extract parameters for function-like macros
+                params = []
+                if macro_node.child_by_field_name("parameters"):
+                    params_node = macro_node.child_by_field_name("parameters")
+                    for child in params_node.children:
+                        if child.type == "identifier":
+                            params.append(self._get_node_text(child))
+                
+                context, context_type, _ = self._get_parent_context(macro_node)
+                
+                macros.append({
+                    "name": name,
+                    "line_number": node.start_point[0] + 1,
+                    "end_line": macro_node.end_point[0] + 1,
+                    "source": self._get_node_text(macro_node),
+                    "value": value,
+                    "params": params,
+                    "context": context,
+                    "lang": self.language_name,
+                    "is_dependency": False,
+                })
         return macros
 
 
@@ -484,7 +484,7 @@ def pre_scan_c(files: list[Path], parser_wrapper) -> dict:
                 declarator: (identifier) @name
             )
         )
-
+        
         (function_definition
             declarator: (function_declarator
                 declarator: (pointer_declarator
@@ -492,43 +492,39 @@ def pre_scan_c(files: list[Path], parser_wrapper) -> dict:
                 )
             )
         )
-
+        
         (struct_specifier
             name: (type_identifier) @name
         )
-
+        
         (union_specifier
             name: (type_identifier) @name
         )
-
+        
         (enum_specifier
             name: (type_identifier) @name
         )
-
+        
         (type_definition
             declarator: (type_identifier) @name
         )
-
+        
         (preproc_def
             name: (identifier) @name
         )
     """
     query = parser_wrapper.language.query(query_str)
-    cursor = QueryCursor(query)
-
+    
     for file_path in files:
         try:
             with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
                 tree = parser_wrapper.parser.parse(bytes(f.read(), "utf8"))
-
-            for _pattern_index, captures in cursor.matches(tree.root_node):
-                for capture_name, nodes in captures.items():
-                    if capture_name == 'name':
-                        for node in nodes:
-                            name = node.text.decode('utf-8')
-                            if name not in imports_map:
-                                imports_map[name] = []
-                            imports_map[name].append(str(file_path.resolve()))
+            
+            for capture, _ in query.captures(tree.root_node):
+                name = capture.text.decode('utf-8')
+                if name not in imports_map:
+                    imports_map[name] = []
+                imports_map[name].append(str(file_path.resolve()))
         except Exception as e:
             warning_logger(f"Tree-sitter pre-scan failed for {file_path}: {e}")
     return imports_map
