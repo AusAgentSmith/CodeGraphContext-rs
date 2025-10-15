@@ -37,8 +37,3 @@ def warning_logger(msg):
     
 def debug_logger(msg):
     return logger.debug(msg)
-def log_annotation_event(annotation_name: str, target_name: str, file_path: str, line_number: int):
-    msg = f"Annotation '{annotation_name}' applied to '{target_name}' in {file_path} at line {line_number}"
-    debug_log(msg)
-    debug_logger(msg)
-
