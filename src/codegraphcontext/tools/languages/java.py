@@ -201,13 +201,6 @@ class JavaTreeSitterParser:
                     continue
 
         return classes
-    def get_rules(self):
-     return {
-        "classes": self._parse_classes,
-        "functions": self._parse_functions,
-        "annotations": self._find_annotations,
-        "annotated_applications": self._find_applied_annotations,
-    }
 
     def _parse_imports(self, captures: list, source_code: str) -> list[dict]:
         imports = []
