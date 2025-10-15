@@ -139,12 +139,21 @@ class JavaTreeSitterParser:
                             params_node = params_captures[0][0]
                             params_text = source_code[params_node.start_byte:params_node.end_byte]
                             parameters = self._extract_parameter_names(params_text)
-                        
+                        # Extract annotations applied to this function
+                        annotations = []
+                        for n, cn in captures:
+                         if cn == "annotation" and n.parent == node:
+                            ann_name_node = n.child_by_field_name("name")
+                            if ann_name_node:
+                                ann_name = source_code[ann_name_node.start_byte:ann_name_node.end_byte]
+                                annotations.append(ann_name)
+
                         source_text = source_code[node.start_byte:node.end_byte]
                         
                         functions.append({
                             "name": func_name,
                             "parameters": parameters,
+                            "annotations":annotations,
                             "line_number": start_line,
                             "end_line": end_line,
                             "source": source_text,
@@ -253,6 +262,7 @@ class JavaTreeSitterParser:
                     continue
 
         return calls
+    
 
     def _extract_parameter_names(self, params_text: str) -> list[str]:
         params = []
@@ -300,3 +310,27 @@ def pre_scan_java(files: list[Path], parser_wrapper) -> dict:
             error_logger(f"Error pre-scanning Java file {file_path}: {e}")
             
     return name_to_files
+def _find_annotations(tree):
+    # Detect annotation definitions like @interface CustomAnnotation
+    annotations = []
+    for node in tree.find_all("annotation_type_declaration"):
+        name = node.child_by_field_name("name").text
+        annotations.append({
+            "type": "Annotation",
+            "name": name,
+            "location": node.start_point
+        })
+    return annotations
+
+def _find_applied_annotations(tree):
+    # Detect usages like @Entity, @Override
+    applied = []
+    for node in tree.find_all("marker_annotation"):
+        name = node.child_by_field_name("name").text
+        applied.append({
+            "type": "AnnotationUsage",
+            "name": name,
+            "location": node.start_point
+        })
+    return applied
+

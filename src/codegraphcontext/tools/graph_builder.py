@@ -108,12 +108,12 @@ class GraphBuilder:
                 session.run("CREATE CONSTRAINT struct_cpp IF NOT EXISTS FOR (cstruct: Struct) REQUIRE (cstruct.name, cstruct.file_path, cstruct.line_number) IS UNIQUE")
                 session.run("CREATE CONSTRAINT enum_cpp IF NOT EXISTS FOR (cenum: Enum) REQUIRE (cenum.name, cenum.file_path, cenum.line_number) IS UNIQUE")
                 session.run("CREATE CONSTRAINT union_cpp IF NOT EXISTS FOR (cunion: Union) REQUIRE (cunion.name, cunion.file_path, cunion.line_number) IS UNIQUE")
-
+                session.run("CREATE CONSTRAINT annotation_unique IF NOT EXISTS FOR (a:Annotation) REQUIRE (a.name, a.file_path, a.line_number) IS UNIQUE")
                 
                 # Indexes for language attribute
                 session.run("CREATE INDEX function_lang IF NOT EXISTS FOR (f:Function) ON (f.lang)")
                 session.run("CREATE INDEX class_lang IF NOT EXISTS FOR (c:Class) ON (c.lang)")
-                
+                session.run("CREATE INDEX annotation_lang IF NOT EXISTS FOR (a:Annotation) ON (a.lang)")
                 session.run("""
                     CREATE FULLTEXT INDEX code_search_index IF NOT EXISTS 
                     FOR (n:Function|Class|Variable) 
