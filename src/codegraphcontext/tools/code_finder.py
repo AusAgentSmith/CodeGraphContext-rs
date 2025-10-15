@@ -85,7 +85,7 @@ class CodeFinder:
     def find_related_code(self, user_query: str, fuzzy_search: bool, edit_distance: int) -> Dict[str, Any]:
         """Find code related to a query using multiple search strategies"""
         if fuzzy_search:
-            user_query_normalized = f"{" ".join(map(lambda x: f'{x}~{edit_distance}', user_query.split(' ')))}"
+            user_query_normalized = " ".join(map(lambda x: f"{x}~{edit_distance}", user_query.split(" ")))
         else:
             user_query_normalized = user_query
 
