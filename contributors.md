@@ -15,8 +15,8 @@ This file is auto-generated. Do not edit manually.
 
 | Rank | Contributor | Commits | Lines Added | Lines Deleted | Link to Contributions |
 |---|---|---|---|---|---|
-| 1 | Shashankss1205 | 6 | 206 | 470 | [cpp.py](https://github.com/thelegendparas/CodeGraphContext/commits/main/src/codegraphcontext/tools/languages/cpp.py?author=shashankshekharsingh1205@gmail.com) |
-| 2 | Paras | 5 | 270 | 50 | [cpp.py](https://github.com/thelegendparas/CodeGraphContext/commits/main/src/codegraphcontext/tools/languages/cpp.py?author=thelegendparas@gmail.com) |
+| 1 | Paras | 7 | 376 | 69 | [cpp.py](https://github.com/thelegendparas/CodeGraphContext/commits/main/src/codegraphcontext/tools/languages/cpp.py?author=thelegendparas@gmail.com) |
+| 2 | Shashankss1205 | 6 | 206 | 470 | [cpp.py](https://github.com/thelegendparas/CodeGraphContext/commits/main/src/codegraphcontext/tools/languages/cpp.py?author=shashankshekharsingh1205@gmail.com) |
 | 3 | [TheSaturnian](https://github.com/GnautSpace) | 1 | 430 | 16 | [cpp.py](https://github.com/thelegendparas/CodeGraphContext/commits/main/src/codegraphcontext/tools/languages/cpp.py?author=GnautSpace) |
 
 
