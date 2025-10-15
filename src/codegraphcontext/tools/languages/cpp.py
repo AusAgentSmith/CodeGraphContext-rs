@@ -26,8 +26,14 @@ CPP_QUERIES = {
     """,
     "calls": """
         (call_expression
-            function: (identifier) @name
-        )
+            function: [
+                (identifier) @function_name
+                (field_expression
+                    field: (field_identifier) @method_name
+                )
+            ]
+        arguments: (argument_list) @args
+    )
     """,
     "enums":"""
         (enum_specifier
@@ -112,6 +118,7 @@ class CppTreeSitterParser:
 
         functions = self._find_functions(root_node)
         functions.extend(self._find_lambda_assignments(root_node))
+        function_calls = self._find_calls(root_node)
         classes = self._find_classes(root_node)
         imports = self._find_imports(root_node)
         structs = self._find_structs(root_node)
@@ -131,7 +138,7 @@ class CppTreeSitterParser:
             "variables": variables,  
             "declarations": [], # Placeholder
             "imports": imports,
-            "function_calls": [],  # Placeholder
+            "function_calls": function_calls, 
             "is_dependency": is_dependency,
             "lang": self.language_name,
         }
@@ -338,6 +345,86 @@ class CppTreeSitterParser:
                 return self._get_node_text(name_node) if name_node else None, curr.type, curr.start_point[0] + 1
             curr = curr.parent
         return None, None, None
+    
+    def _find_calls(self, root_node):
+        calls = []
+        query = self.queries['calls']
+        for node, capture_name in query.captures(root_node):
+            if capture_name == "function_name":
+                func_name = self._get_node_text(node)
+                func_node = node.parent.parent  # function_declarator -> function_definition
+                full_name = self._get_full_name(func_node) or func_name
+
+                # Find return type node (captured separately)
+                return_type_node = None
+                for n, cap in query.captures(func_node):
+                    if cap == "return_type":
+                        return_type_node = n
+                        break
+                return_type = self._get_node_text(return_type_node) if return_type_node else None
+
+                # Extract parameters
+                args = []
+                parameters_node = func_node.child_by_field_name("declarator")
+                if parameters_node:
+                    param_list_node = parameters_node.child_by_field_name("parameters")
+                    if param_list_node:
+                        for param in param_list_node.children:
+                            if param.type == "parameter_declaration":
+                                type_node = param.child_by_field_name("type")
+                                name_node = param.child_by_field_name("declarator")
+
+                                param_type = self._get_node_text(type_node) if type_node else None
+                                param_name = self._get_node_text(name_node) if name_node else None
+
+                                args.append({
+                                    "type": param_type,
+                                    "name": param_name
+                                })
+                
+
+                # Get context info (function may be inside class)
+                context, _, _ = self._get_parent_context(node)
+                class_context, _, _ = self._get_parent_context(node, types=("class_definition",))
+
+                call_data = {
+                    "name": func_name,
+                    "full_name": full_name,
+                    "line_number": node.start_point[0] + 1,
+                    "args": args,
+                    "inferred_obj_type": None,
+                    "context": context,
+                    "class_context": class_context,
+                    "lang": self.language_name,
+                    "is_dependency": False,
+                }
+                calls.append(call_data)
+        return calls
+    
+    def _get_full_name(self, node):
+        "Builds a fully qualified name for a function or call node."
+
+        name_parts = []
+
+        # Move upward and collect parent scopes
+        curr = node
+        while curr:
+            if curr.type in ("function_definition", "function_declarator"):
+                id_node = curr.child_by_field_name("declarator")
+                if id_node and id_node.type == "identifier":
+                    name_parts.insert(0, id_node.text.decode("utf8"))
+            elif curr.type == "class_specifier":
+                name_node = curr.child_by_field_name("name")
+                if name_node:
+                    name_parts.insert(0, name_node.text.decode("utf8"))
+            elif curr.type == "namespace_definition":
+                name_node = curr.child_by_field_name("name")
+                if name_node:
+                    name_parts.insert(0, name_node.text.decode("utf8"))
+            curr = curr.parent
+
+        return "::".join(name_parts) if name_parts else None
+
 
 def pre_scan_cpp(files: list[Path], parser_wrapper) -> dict:
     """
