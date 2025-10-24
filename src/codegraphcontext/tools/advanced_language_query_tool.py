@@ -1,4 +1,14 @@
+import re
+#importing all the language toolkits
+from ..tools.query_tool_languages.c_toolkit import CToolkit
 from ..tools.query_tool_languages.cpp_toolkit import CppToolkit
+from ..tools.query_tool_languages.go_toolkit import GoToolkit
+from ..tools.query_tool_languages.java_toolkit import JavaToolkit
+from ..tools.query_tool_languages.javascript_toolkit import JavascriptToolkit
+from ..tools.query_tool_languages.python_toolkit import PythonToolkit
+from ..tools.query_tool_languages.ruby_toolkit import RubyToolkit
+from ..tools.query_tool_languages.rust_toolkit import RustToolkit
+from ..tools.query_tool_languages.typescript_toolkit import TypescriptToolkit
 
 from ..core.database import DatabaseManager
 
@@ -6,26 +16,58 @@ class Advanced_language_query:
     """
     Tool implementation for executing a read-only language specific Cypher query.
     
-    #will edit here
     Important: Includes a safety check to prevent any database modification
     by disallowing keywords like CREATE, MERGE, DELETE, etc.
     """
 
     TOOLKITS = {
+        "c": CToolkit,
         "cpp": CppToolkit,
+        "go": GoToolkit,
+        "java": JavaToolkit,
+        "javascript": JavascriptToolkit,
+        "python": PythonToolkit,
+        "ruby": RubyToolkit,
+        "rust": RustToolkit,
+        "typescript": TypescriptToolkit
     }
+    Supported_queries = {
+        "repository": "Repository",
+        "directory": "Directory",
+        "file": "File",
+        "module": "Module",
+        "function": "Function",
+        "class": "Class",
+        "struct": "Struct",
+        "enum": "Enum",
+        "union": "Union",
+        "macro": "Macro",
+        "variable": "Variable"
+    }
+
 
     def __init__(self, db_manager: DatabaseManager):
         self.db_manager = db_manager
 
     def advanced_language_query(self, language: str, query: str):
+        # Validating whether query is valid or not
+        query = query.strip().lower()
+        if query not in self.Supported_queries:
+            raise ValueError(
+                f"Unsupported query type '{query}'"
+                f"Supported: {', '.join(self.Supported_queries.keys())}"
+            )
+        label = self.Supported_queries[query]
+
+        # Set toolkit for the specified language
         language = language.lower()
 
         if language not in self.TOOLKITS:
             raise ValueError(f"Unsupported language: {language}")
         self.toolkit = self.TOOLKITS[language]()
 
-        cypher_query = self.toolkit.get_cypher_query(query)
+        # Getting the language query
+        cypher_query = self.toolkit.get_cypher_query(label)
 
         with self.db_manager.get_driver().session() as session:
             result = session.run(cypher_query)
