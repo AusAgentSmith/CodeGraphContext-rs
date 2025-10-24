@@ -1,4 +1,5 @@
 import re
+import logging
 #importing all the language toolkits
 from ..tools.query_tool_languages.c_toolkit import CToolkit
 from ..tools.query_tool_languages.cpp_toolkit import CppToolkit
@@ -11,6 +12,9 @@ from ..tools.query_tool_languages.rust_toolkit import RustToolkit
 from ..tools.query_tool_languages.typescript_toolkit import TypescriptToolkit
 
 from ..core.database import DatabaseManager
+from ..utils.debug_log import debug_log
+
+logger = logging.getLogger(__name__)
 
 class Advanced_language_query:
     """
@@ -68,16 +72,26 @@ class Advanced_language_query:
 
         # Getting the language query
         cypher_query = self.toolkit.get_cypher_query(label)
+        try:
+            debug_log(f"Executing Cypher query: {cypher_query}")
+            with self.db_manager.get_driver().session() as session:
+                result = session.run(cypher_query)
+                # Convert results to a list of dictionaries for clean JSON serialization
+                records = [record.data() for record in result]
 
-        with self.db_manager.get_driver().session() as session:
-            result = session.run(cypher_query)
-            records = [record.data() for record in result]
-
+                return {
+                    "success": True, 
+                    "language": language,
+                    "query": cypher_query,
+                    "results": records 
+                }
+        except Exception as e:
+            debug_log(f"Error executing Cypher query: {str(e)}")
             return {
-                "success": True, 
-                "language": language,
-                "query": cypher_query,
-                "results": records 
+                "error": "An unexpected error occurred while executing the query.",
+                "details": str(e)
             }
+
+
 
 
