@@ -357,8 +357,6 @@ Add the following server configuration to your client's settings file (e.g., VS 
         "NEO4J_USERNAME": "YOUR_NEO4J_USERNAME",
         "NEO4J_PASSWORD": "YOUR_NEO4J_PASSWORD"
       },
-        "disabled": false
-      },
       "disabled": false,
       "alwaysAllow": []
     }
