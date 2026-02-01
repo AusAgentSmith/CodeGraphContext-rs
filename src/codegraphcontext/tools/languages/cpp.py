@@ -116,10 +116,10 @@ class CppTreeSitterParser:
     def _get_node_text(self, node) -> str:
         return node.text.decode('utf-8')
 
-    def parse(self, file_path: Path, is_dependency: bool = False, index_source: bool = False, **kwargs) -> Dict:
+    def parse(self, path: Path, is_dependency: bool = False, index_source: bool = False, **kwargs) -> Dict:
         """Parses a C++ file and returns its structure."""
         self.index_source = index_source
-        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+        with open(path, "r", encoding="utf-8", errors="ignore") as f:
             source_code = f.read()
 
         tree = self.parser.parse(bytes(source_code, "utf8"))
@@ -137,7 +137,7 @@ class CppTreeSitterParser:
         variables = self._find_variables(root_node)
         
         return {
-            "file_path": str(file_path),
+            "path": str(path),
             "functions": functions,
             "classes": classes,
             "structs": structs,
@@ -535,17 +535,17 @@ def pre_scan_cpp(files: list[Path], parser_wrapper) -> dict:
     """
     
 
-    for file_path in files:
+    for path in files:
         try:
-            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+            with open(path, "r", encoding="utf-8", errors="ignore") as f:
                 source_bytes = f.read().encode("utf-8")
                 tree = parser_wrapper.parser.parse(source_bytes)
 
             for node, capture_name in execute_query(parser_wrapper.language, query_str, tree.root_node):
                 if capture_name == "name":
                     name = node.text.decode("utf-8")
-                    imports_map.setdefault(name, []).append(str(file_path.resolve()))
+                    imports_map.setdefault(name, []).append(str(path.resolve()))
         except Exception as e:
-            warning_logger(f"Tree-sitter pre-scan failed for {file_path}: {e}")
+            warning_logger(f"Tree-sitter pre-scan failed for {path}: {e}")
 
     return imports_map

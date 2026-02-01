@@ -47,10 +47,10 @@ class RustTreeSitterParser:
     def _get_node_text(self, node: Any) -> str:
         return node.text.decode("utf-8")
 
-    def parse(self, file_path: Path, is_dependency: bool = False, index_source: bool = False) -> Dict[str, Any]:
+    def parse(self, path: Path, is_dependency: bool = False, index_source: bool = False) -> Dict[str, Any]:
         """Parses a Rust file and returns its structure."""
         self.index_source = index_source
-        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+        with open(path, "r", encoding="utf-8", errors="ignore") as f:
             source_code = f.read()
 
         tree = self.parser.parse(bytes(source_code, "utf8"))
@@ -63,7 +63,7 @@ class RustTreeSitterParser:
         traits = self._find_traits(root_node)  # <-- Added trait detection
 
         return {
-            "file_path": str(file_path),
+            "path": str(path),
             "functions": functions,
             "classes": classes,
             "traits": traits,  # <-- Result for traits
@@ -283,16 +283,16 @@ def pre_scan_rust(files: list[Path], parser_wrapper) -> dict:
     """
     
 
-    for file_path in files:
+    for path in files:
         try:
-            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+            with open(path, "r", encoding="utf-8", errors="ignore") as f:
                 tree = parser_wrapper.parser.parse(bytes(f.read(), "utf8"))
 
             for capture, _ in execute_query(parser_wrapper.language, query_str, tree.root_node):
                 name = capture.text.decode('utf-8')
                 if name not in imports_map:
                     imports_map[name] = []
-                imports_map[name].append(str(file_path.resolve()))
+                imports_map[name].append(str(path.resolve()))
         except Exception as e:
-            warning_logger(f"Tree-sitter pre-scan failed for {file_path}: {e}")
+            warning_logger(f"Tree-sitter pre-scan failed for {path}: {e}")
     return imports_map

@@ -15,9 +15,9 @@ def pre_scan_typescript(files: list[Path], parser_wrapper) -> dict:
         "(interface_declaration) @interface",
         "(type_alias_declaration) @type_alias",
     ]
-    for file_path in files:
+    for path in files:
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(path, "r", encoding="utf-8") as f:
                 source_code = f.read()
                 tree = parser_wrapper.parser.parse(bytes(source_code, "utf8"))
             for query_str in query_strings:
@@ -53,13 +53,13 @@ def pre_scan_typescript(files: list[Path], parser_wrapper) -> dict:
                         if name:
                             if name not in imports_map:
                                 imports_map[name] = []
-                            file_path_str = str(file_path.resolve())
+                            file_path_str = str(path.resolve())
                             if file_path_str not in imports_map[name]:
                                 imports_map[name].append(file_path_str)
                 except Exception as query_error:
                     warning_logger(f"Query failed for pattern '{query_str}': {query_error}")
         except Exception as e:
-            warning_logger(f"Tree-sitter pre-scan failed for {file_path}: {e}")
+            warning_logger(f"Tree-sitter pre-scan failed for {path}: {e}")
     return imports_map
 from typing import Dict, Any
 from codegraphcontext.utils.debug_log import warning_logger
@@ -74,13 +74,13 @@ class TypescriptJSXTreeSitterParser(TypescriptTreeSitterParser):
         super().__init__(generic_parser_wrapper)
         self.language_name = 'typescript'
         self.jsx_enabled = True 
-    def parse(self, file_path: Path, is_dependency: bool = False, index_source: bool = False) -> Dict[str, Any]:
+    def parse(self, path: Path, is_dependency: bool = False, index_source: bool = False) -> Dict[str, Any]:
         """
         Parse a .tsx file, reusing TypeScript logic and ensuring JSX nodes are handled.
         Indexes components, functions, imports, and exports.
         """
         self.index_source = index_source
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(path, "r", encoding="utf-8") as f:
             source_code = f.read()
         tree = self.parser.parse(bytes(source_code, "utf8"))
         root_node = tree.root_node
@@ -98,7 +98,7 @@ class TypescriptJSXTreeSitterParser(TypescriptTreeSitterParser):
         components = self._find_react_components(root_node)
 
         return {
-            "file_path": str(file_path),
+            "path": str(path),
             "functions": functions,
             "classes": classes,
             "interfaces": interfaces,

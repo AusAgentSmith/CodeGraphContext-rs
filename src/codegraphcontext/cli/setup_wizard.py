@@ -466,9 +466,9 @@ def setup_existing_db():
                 {"type": "input", "message": "Please enter the path to your credentials file:", "name": "cred_file_path"}
             ]
             file_path_str = prompt(path_questions).get("cred_file_path", "")
-            file_path = Path(file_path_str.strip())
-            if file_path.exists() and file_path.is_file():
-                file_to_parse = file_path
+            path = Path(file_path_str.strip())
+            if path.exists() and path.is_file():
+                file_to_parse = path
             else:
                 console.print("[red]❌ The specified file path does not exist or is not a file.[/red]")
                 return
@@ -584,9 +584,9 @@ def setup_hosted_db():
                 {"type": "input", "message": "Please enter the path to your credentials file:", "name": "cred_file_path"}
             ]
             file_path_str = prompt(path_questions).get("cred_file_path", "")
-            file_path = Path(file_path_str.strip())
-            if file_path.exists() and file_path.is_file():
-                file_to_parse = file_path
+            path = Path(file_path_str.strip())
+            if path.exists() and path.is_file():
+                file_to_parse = path
             else:
                 console.print("[red]❌ The specified file path does not exist or is not a file.[/red]")
                 return

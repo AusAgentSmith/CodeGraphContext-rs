@@ -2959,7 +2959,7 @@
 <li><strong>Tool:</strong> <code>execute_cypher_query</code></li>
 <li><strong>JSON Arguments:</strong>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;cypher_query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MATCH (c:Class) WHERE &#39;dataclass&#39; IN c.decorators RETURN c.name, c.file_path&quot;</span>
+<span class="w">  </span><span class="nt">&quot;cypher_query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MATCH (c:Class) WHERE &#39;dataclass&#39; IN c.decorators RETURN c.name, c.path&quot;</span>
 <span class="p">}</span>
 </code></pre></div></li>
 </ul>
@@ -3081,7 +3081,7 @@
 <li><strong>Natural Language:</strong> "Find all function definitions in the codebase."</li>
 <li><strong>JSON Arguments:</strong>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;cypher_query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MATCH (n:Function) RETURN n.name, n.file_path, n.line_number LIMIT 50&quot;</span>
+<span class="w">  </span><span class="nt">&quot;cypher_query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MATCH (n:Function) RETURN n.name, n.path, n.line_number LIMIT 50&quot;</span>
 <span class="p">}</span>
 </code></pre></div></li>
 </ul>
@@ -3091,7 +3091,7 @@
 <li><strong>Natural Language:</strong> "Show me all the classes."</li>
 <li><strong>JSON Arguments:</strong>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;cypher_query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MATCH (n:Class) RETURN n.name, n.file_path, n.line_number LIMIT 50&quot;</span>
+<span class="w">  </span><span class="nt">&quot;cypher_query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MATCH (n:Class) RETURN n.name, n.path, n.line_number LIMIT 50&quot;</span>
 <span class="p">}</span>
 </code></pre></div></li>
 </ul>
@@ -3101,7 +3101,7 @@
 <li><strong>Natural Language:</strong> "Find all functions in <code>module_a.py</code>."</li>
 <li><strong>JSON Arguments:</strong>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;cypher_query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MATCH (f:Function) WHERE f.file_path ENDS WITH &#39;module_a.py&#39; RETURN f.name&quot;</span>
+<span class="w">  </span><span class="nt">&quot;cypher_query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MATCH (f:Function) WHERE f.path ENDS WITH &#39;module_a.py&#39; RETURN f.name&quot;</span>
 <span class="p">}</span>
 </code></pre></div></li>
 </ul>
@@ -3111,7 +3111,7 @@
 <li><strong>Natural Language:</strong> "Find all classes in <code>advanced_classes.py</code>."</li>
 <li><strong>JSON Arguments:</strong>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;cypher_query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MATCH (c:Class) WHERE c.file_path ENDS WITH &#39;advanced_classes.py&#39; RETURN c.name&quot;</span>
+<span class="w">  </span><span class="nt">&quot;cypher_query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MATCH (c:Class) WHERE c.path ENDS WITH &#39;advanced_classes.py&#39; RETURN c.name&quot;</span>
 <span class="p">}</span>
 </code></pre></div></li>
 </ul>
@@ -3131,7 +3131,7 @@
 <li><strong>Natural Language:</strong> "Find functions in <code>module_a.py</code> that call <code>helper</code> in <code>module_b.py</code>."</li>
 <li><strong>JSON Arguments:</strong>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;cypher_query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MATCH (caller:Function)-[:CALLS]-&gt;(callee:Function {name: &#39;helper&#39;}) WHERE caller.file_path ENDS WITH &#39;module_a.py&#39; AND callee.file_path ENDS WITH &#39;module_b.py&#39; RETURN caller.name&quot;</span>
+<span class="w">  </span><span class="nt">&quot;cypher_query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MATCH (caller:Function)-[:CALLS]-&gt;(callee:Function {name: &#39;helper&#39;}) WHERE caller.path ENDS WITH &#39;module_a.py&#39; AND callee.path ENDS WITH &#39;module_b.py&#39; RETURN caller.name&quot;</span>
 <span class="p">}</span>
 </code></pre></div></li>
 </ul>
@@ -3150,7 +3150,7 @@
 <li><strong>Natural Language:</strong> "Find all functions with a large number of arguments."</li>
 <li><strong>JSON Arguments:</strong>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;cypher_query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MATCH (f:Function) WHERE size(f.args) &gt; 5 RETURN f.name, f.file_path, size(f.args) as arg_count&quot;</span>
+<span class="w">  </span><span class="nt">&quot;cypher_query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MATCH (f:Function) WHERE size(f.args) &gt; 5 RETURN f.name, f.path, size(f.args) as arg_count&quot;</span>
 <span class="p">}</span>
 </code></pre></div></li>
 </ul>
@@ -3160,7 +3160,7 @@
 <li><strong>Natural Language:</strong> "Find all functions in <code>module_a.py</code> that have a docstring."</li>
 <li><strong>JSON Arguments:</strong>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;cypher_query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MATCH (f:Function) WHERE f.file_path ENDS WITH &#39;module_a.py&#39; AND f.docstring IS NOT NULL AND f.docstring &lt;&gt; &#39;&#39; RETURN f.name&quot;</span>
+<span class="w">  </span><span class="nt">&quot;cypher_query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MATCH (f:Function) WHERE f.path ENDS WITH &#39;module_a.py&#39; AND f.docstring IS NOT NULL AND f.docstring &lt;&gt; &#39;&#39; RETURN f.name&quot;</span>
 <span class="p">}</span>
 </code></pre></div></li>
 </ul>
@@ -3169,7 +3169,7 @@
 <li><strong>Natural Language:</strong> "Find all classes that have a <code>greet</code> method."</li>
 <li><strong>JSON Arguments:</strong>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;cypher_query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MATCH (c:Class)-[:CONTAINS]-&gt;(m:Function {name: &#39;greet&#39;}) RETURN c.name, c.file_path&quot;</span>
+<span class="w">  </span><span class="nt">&quot;cypher_query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MATCH (c:Class)-[:CONTAINS]-&gt;(m:Function {name: &#39;greet&#39;}) RETURN c.name, c.path&quot;</span>
 <span class="p">}</span>
 </code></pre></div></li>
 </ul>
@@ -3179,7 +3179,7 @@
 <li><strong>Natural Language:</strong> "How deep are the inheritance chains for all classes?"</li>
 <li><strong>JSON Arguments:</strong>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;cypher_query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MATCH (c:Class) OPTIONAL MATCH path = (c)-[:INHERITS*]-&gt;(parent:Class) RETURN c.name, c.file_path, length(path) AS depth ORDER BY depth DESC&quot;</span>
+<span class="w">  </span><span class="nt">&quot;cypher_query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MATCH (c:Class) OPTIONAL MATCH path = (c)-[:INHERITS*]-&gt;(parent:Class) RETURN c.name, c.path, length(path) AS depth ORDER BY depth DESC&quot;</span>
 <span class="p">}</span>
 </code></pre></div></li>
 </ul>
@@ -3189,7 +3189,7 @@
 <li><strong>Natural Language:</strong> "Show me all functions that are documented."</li>
 <li><strong>JSON Arguments:</strong>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;cypher_query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MATCH (f:Function) WHERE f.docstring IS NOT NULL AND f.docstring &lt;&gt; &#39;&#39; RETURN f.name, f.file_path LIMIT 50&quot;</span>
+<span class="w">  </span><span class="nt">&quot;cypher_query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MATCH (f:Function) WHERE f.docstring IS NOT NULL AND f.docstring &lt;&gt; &#39;&#39; RETURN f.name, f.path LIMIT 50&quot;</span>
 <span class="p">}</span>
 </code></pre></div></li>
 </ul>
@@ -3209,7 +3209,7 @@
 <li><strong>Natural Language:</strong> "How many functions are in each file?"</li>
 <li><strong>JSON Arguments:</strong>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;cypher_query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MATCH (f:Function) RETURN f.file_path, count(f) AS function_count ORDER BY function_count DESC&quot;</span>
+<span class="w">  </span><span class="nt">&quot;cypher_query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MATCH (f:Function) RETURN f.path, count(f) AS function_count ORDER BY function_count DESC&quot;</span>
 <span class="p">}</span>
 </code></pre></div></li>
 </ul>
@@ -3229,7 +3229,7 @@
 <li><strong>Natural Language:</strong> "Find all methods that call their parent's method via <code>super()</code>."</li>
 <li><strong>JSON Arguments:</strong>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;cypher_query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MATCH (f:Function)-[r:CALLS]-&gt;() WHERE r.full_call_name STARTS WITH &#39;super(&#39; RETURN f.name, f.file_path&quot;</span>
+<span class="w">  </span><span class="nt">&quot;cypher_query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MATCH (f:Function)-[r:CALLS]-&gt;() WHERE r.full_call_name STARTS WITH &#39;super(&#39; RETURN f.name, f.path&quot;</span>
 <span class="p">}</span>
 </code></pre></div></li>
 </ul>
@@ -3239,7 +3239,7 @@
 <li><strong>Natural Language:</strong> "Find all calls to <code>helper</code> with the argument <code>x</code>."</li>
 <li><strong>JSON Arguments:</strong>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;cypher_query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MATCH ()-[r:CALLS]-&gt;(f:Function {name: &#39;helper&#39;}) WHERE &#39;x&#39; IN r.args RETURN r.full_call_name, r.line_number, r.file_path&quot;</span>
+<span class="w">  </span><span class="nt">&quot;cypher_query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MATCH ()-[r:CALLS]-&gt;(f:Function {name: &#39;helper&#39;}) WHERE &#39;x&#39; IN r.args RETURN r.full_call_name, r.line_number, r.path&quot;</span>
 <span class="p">}</span>
 </code></pre></div></li>
 </ul>
@@ -3249,7 +3249,7 @@
 <li><strong>Natural Language:</strong> "Find all dead code (functions that are never called)."</li>
 <li><strong>JSON Arguments:</strong>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;cypher_query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MATCH (f:Function) WHERE NOT (()-[:CALLS]-&gt;(f)) AND f.is_dependency = false RETURN f.name, f.file_path&quot;</span>
+<span class="w">  </span><span class="nt">&quot;cypher_query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MATCH (f:Function) WHERE NOT (()-[:CALLS]-&gt;(f)) AND f.is_dependency = false RETURN f.name, f.path&quot;</span>
 <span class="p">}</span>
 </code></pre></div></li>
 </ul>
@@ -3316,7 +3316,7 @@
 <li><strong>Tool:</strong> <code>execute_cypher_query</code></li>
 <li><strong>JSON Arguments:</strong>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;cypher_query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MATCH p=(f:Function)-[:CALLS]-&gt;(f2:Function)\n    WHERE f.name = f2.name AND f.file_path = f2.file_path\n    RETURN p&quot;</span>
+<span class="w">  </span><span class="nt">&quot;cypher_query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;MATCH p=(f:Function)-[:CALLS]-&gt;(f2:Function)\n    WHERE f.name = f2.name AND f.path = f2.path\n    RETURN p&quot;</span>
 <span class="p">}</span>
 </code></pre></div>
 <img alt="Query 42" src="../images/42.png" /></li>

@@ -64,16 +64,16 @@ class JavaTreeSitterParser:
         self.language = generic_parser_wrapper.language
         self.parser = generic_parser_wrapper.parser
 
-    def parse(self, file_path: Path, is_dependency: bool = False, index_source: bool = False) -> Dict[str, Any]:
+    def parse(self, path: Path, is_dependency: bool = False, index_source: bool = False) -> Dict[str, Any]:
         try:
             self.index_source = index_source
-            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            with open(path, 'r', encoding='utf-8', errors='ignore') as f:
                 source_code = f.read()
 
             if not source_code.strip():
-                warning_logger(f"Empty or whitespace-only file: {file_path}")
+                warning_logger(f"Empty or whitespace-only file: {path}")
                 return {
-                    "file_path": str(file_path),
+                    "path": str(path),
                     "functions": [],
                     "classes": [],
                     "variables": [],
@@ -95,19 +95,19 @@ class JavaTreeSitterParser:
                 results = execute_query(self.language, query, tree.root_node)
 
                 if capture_name == "functions":
-                    parsed_functions = self._parse_functions(results, source_code, file_path)
+                    parsed_functions = self._parse_functions(results, source_code, path)
                 elif capture_name == "classes":
-                    parsed_classes = self._parse_classes(results, source_code, file_path)
+                    parsed_classes = self._parse_classes(results, source_code, path)
                 elif capture_name == "imports":
                     parsed_imports = self._parse_imports(results, source_code)
                 elif capture_name == "calls":
                     parsed_calls = self._parse_calls(results, source_code)
                 elif capture_name == "variables":
                     # results for variables query
-                    parsed_variables = self._parse_variables(results, source_code, file_path)
+                    parsed_variables = self._parse_variables(results, source_code, path)
 
             return {
-                "file_path": str(file_path),
+                "path": str(path),
                 "functions": parsed_functions,
                 "classes": parsed_classes,
                 "variables": parsed_variables,
@@ -118,9 +118,9 @@ class JavaTreeSitterParser:
             }
 
         except Exception as e:
-            error_logger(f"Error parsing Java file {file_path}: {e}")
+            error_logger(f"Error parsing Java file {path}: {e}")
             return {
-                "file_path": str(file_path),
+                "path": str(path),
                 "functions": [],
                 "classes": [],
                 "variables": [],
@@ -154,7 +154,7 @@ class JavaTreeSitterParser:
         if not node: return ""
         return node.text.decode("utf-8")
 
-    def _parse_functions(self, captures: list, source_code: str, file_path: Path) -> list[Dict[str, Any]]:
+    def _parse_functions(self, captures: list, source_code: str, path: Path) -> list[Dict[str, Any]]:
         functions = []
         # Group by node identity or stable key to avoid duplicates
         seen_nodes = set()
@@ -190,7 +190,7 @@ class JavaTreeSitterParser:
                             "parameters": parameters,
                             "line_number": start_line,
                             "end_line": end_line,
-                            "file_path": str(file_path),
+                            "path": str(path),
                             "lang": self.language_name,
                             "context": context_name,
                             "class_context": context_name if context_type and "class" in context_type else None
@@ -202,12 +202,12 @@ class JavaTreeSitterParser:
                         functions.append(func_data)
                         
                 except Exception as e:
-                    error_logger(f"Error parsing function in {file_path}: {e}")
+                    error_logger(f"Error parsing function in {path}: {e}")
                     continue
 
         return functions
 
-    def _parse_classes(self, captures: list, source_code: str, file_path: Path) -> list[Dict[str, Any]]:
+    def _parse_classes(self, captures: list, source_code: str, path: Path) -> list[Dict[str, Any]]:
         classes = []
         seen_nodes = set()
 
@@ -258,7 +258,7 @@ class JavaTreeSitterParser:
                             "line_number": start_line,
                             "end_line": end_line,
                             "bases": bases,
-                            "file_path": str(file_path),
+                            "path": str(path),
                             "lang": self.language_name,
                         }
 
@@ -268,12 +268,12 @@ class JavaTreeSitterParser:
                         classes.append(class_data)
                         
                 except Exception as e:
-                    error_logger(f"Error parsing class in {file_path}: {e}")
+                    error_logger(f"Error parsing class in {path}: {e}")
                     continue
 
         return classes
 
-    def _parse_variables(self, captures: list, source_code: str, file_path: Path) -> list[Dict[str, Any]]:
+    def _parse_variables(self, captures: list, source_code: str, path: Path) -> list[Dict[str, Any]]:
         variables = []
         seen_vars = set()
         
@@ -318,7 +318,7 @@ class JavaTreeSitterParser:
                         "name": var_name,
                         "type": var_type,
                         "line_number": start_line,
-                        "file_path": str(file_path),
+                        "path": str(path),
                         "lang": self.language_name,
                         "context": ctx_name,
                         "class_context": ctx_name if ctx_type and "class" in ctx_type else None
@@ -446,9 +446,9 @@ class JavaTreeSitterParser:
 def pre_scan_java(files: list[Path], parser_wrapper) -> dict:
     name_to_files = {}
     
-    for file_path in files:
+    for path in files:
         try:
-            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            with open(path, 'r', encoding='utf-8', errors='ignore') as f:
                 content = f.read()
             
             class_matches = re.finditer(r'\b(?:public\s+|private\s+|protected\s+)?(?:static\s+)?(?:abstract\s+)?(?:final\s+)?class\s+(\w+)', content)
@@ -456,17 +456,17 @@ def pre_scan_java(files: list[Path], parser_wrapper) -> dict:
                 class_name = match.group(1)
                 if class_name not in name_to_files:
                     name_to_files[class_name] = []
-                name_to_files[class_name].append(str(file_path))
+                name_to_files[class_name].append(str(path))
             
             interface_matches = re.finditer(r'\b(?:public\s+|private\s+|protected\s+)?interface\s+(\w+)', content)
             for match in interface_matches:
                 interface_name = match.group(1)
                 if interface_name not in name_to_files:
                     name_to_files[interface_name] = []
-                name_to_files[interface_name].append(str(file_path))
+                name_to_files[interface_name].append(str(path))
                 
         except Exception as e:
-            error_logger(f"Error pre-scanning Java file {file_path}: {e}")
+            error_logger(f"Error pre-scanning Java file {path}: {e}")
             
     return name_to_files
 def _find_annotations(tree):

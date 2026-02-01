@@ -111,17 +111,17 @@ class PythonTreeSitterParser:
                     return self._get_node_text(first_child.children[0])
         return None
 
-    def parse(self, file_path: Path, is_dependency: bool = False, is_notebook: bool = False, index_source: bool = False) -> Dict:
+    def parse(self, path: Path, is_dependency: bool = False, is_notebook: bool = False, index_source: bool = False) -> Dict:
         """Parses a file and returns its structure in a standardized dictionary format."""
-        original_file_path = file_path
+        original_file_path = path
         temp_py_file = None
         source_code = None
         self.index_source = index_source
 
         try:
             if is_notebook:
-                info_logger(f"Converting notebook {file_path} to temporary Python file.")
-                with open(file_path, 'r', encoding='utf-8') as f:
+                info_logger(f"Converting notebook {path} to temporary Python file.")
+                with open(path, 'r', encoding='utf-8') as f:
                     notebook_node = nbformat.read(f, as_version=4)
                 
                 exporter = PythonExporter()
@@ -132,9 +132,9 @@ class PythonTreeSitterParser:
                     temp_py_file = Path(tf.name)
                 
                 # The file to be parsed is now the temporary file
-                file_path = temp_py_file
+                path = temp_py_file
 
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(path, "r", encoding="utf-8") as f:
                 source_code = f.read()
             
             tree = self.parser.parse(bytes(source_code, "utf8"))
@@ -148,7 +148,7 @@ class PythonTreeSitterParser:
             variables = self._find_variables(root_node)
 
             return {
-                "file_path": str(original_file_path), # Always return the original path
+                "path": str(original_file_path), # Always return the original path
                 "functions": functions,
                 "classes": classes,
                 "variables": variables,
@@ -159,7 +159,7 @@ class PythonTreeSitterParser:
             }
         except Exception as e:
             error_logger(f"Failed to parse {original_file_path}: {e}")
-            return {"file_path": str(original_file_path), "error": str(e)}
+            return {"path": str(original_file_path), "error": str(e)}
         finally:
             if temp_py_file and temp_py_file.exists():
                 os.remove(temp_py_file)
@@ -543,12 +543,12 @@ def pre_scan_python(files: list[Path], parser_wrapper) -> dict:
         (function_definition name: (identifier) @name)
     """
     
-    for file_path in files:
+    for path in files:
         temp_py_file = None
         try:
             source_to_parse = ""
-            if file_path.suffix == '.ipynb':
-                with open(file_path, 'r', encoding='utf-8') as f:
+            if path.suffix == '.ipynb':
+                with open(path, 'r', encoding='utf-8') as f:
                     notebook_node = nbformat.read(f, as_version=4)
                 exporter = PythonExporter()
                 python_code, _ = exporter.from_notebook_node(notebook_node)
@@ -558,7 +558,7 @@ def pre_scan_python(files: list[Path], parser_wrapper) -> dict:
                 with open(temp_py_file, "r", encoding="utf-8") as f:
                     source_to_parse = f.read()
             else:
-                with open(file_path, "r", encoding="utf-8") as f:
+                with open(path, "r", encoding="utf-8") as f:
                     source_to_parse = f.read()
 
             tree = parser_wrapper.parser.parse(bytes(source_to_parse, "utf8"))
@@ -567,9 +567,9 @@ def pre_scan_python(files: list[Path], parser_wrapper) -> dict:
                 name = capture.text.decode('utf-8')
                 if name not in imports_map:
                     imports_map[name] = []
-                imports_map[name].append(str(file_path.resolve()))
+                imports_map[name].append(str(path.resolve()))
         except Exception as e:
-            warning_logger(f"Tree-sitter pre-scan failed for {file_path}: {e}")
+            warning_logger(f"Tree-sitter pre-scan failed for {path}: {e}")
         finally:
             if temp_py_file and temp_py_file.exists():
                 os.remove(temp_py_file)

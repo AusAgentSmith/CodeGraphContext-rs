@@ -74,7 +74,7 @@ Find potentially unused functions across the codebase.
 
 ### `calculate_cyclomatic_complexity`
 Calculate complexity for a specific function.
-- **Args**: `function_name` (string), `file_path` (string)
+- **Args**: `function_name` (string), `path` (string)
 - **Returns**: Complexity score
 
 ### `find_most_complex_functions`

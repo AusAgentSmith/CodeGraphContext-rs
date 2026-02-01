@@ -127,7 +127,7 @@ class GoTreeSitterParser:
             prev_sibling = prev_sibling.prev_sibling
         return None
 
-    def parse(self, file_path: Path, is_dependency: bool = False, index_source: bool = False) -> Dict:
+    def parse(self, path: Path, is_dependency: bool = False, index_source: bool = False) -> Dict:
         """Parses a file and returns its structure in a standardized dictionary format."""
         # This method orchestrates the parsing of a single file.
         # It calls specialized `_find_*` methods for each language construct.
@@ -135,7 +135,7 @@ class GoTreeSitterParser:
         # to a list of dictionaries, where each dictionary represents a single code construct.
         # The GraphBuilder will then use these keys to create nodes with corresponding labels.
         self.index_source = index_source
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(path, "r", encoding="utf-8") as f:
             source_code = f.read()
 
         tree = self.parser.parse(bytes(source_code, "utf8"))
@@ -149,7 +149,7 @@ class GoTreeSitterParser:
         variables = self._find_variables(root_node)
 
         return {
-            "file_path": str(file_path),
+            "path": str(path),
             "functions": functions,
             "classes": structs,
             "interfaces": interfaces,
@@ -455,17 +455,17 @@ def pre_scan_go(files: list[Path], parser_wrapper) -> dict:
     """
     
 
-    for file_path in files:
+    for path in files:
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(path, "r", encoding="utf-8") as f:
                 tree = parser_wrapper.parser.parse(bytes(f.read(), "utf8"))
 
             for capture, _ in execute_query(parser_wrapper.language, query_str, tree.root_node):
                 name = capture.text.decode('utf-8')
                 if name not in imports_map:
                     imports_map[name] = []
-                imports_map[name].append(str(file_path.resolve()))
+                imports_map[name].append(str(path.resolve()))
         except Exception as e:
-            warning_logger(f"Tree-sitter pre-scan failed for {file_path}: {e}")
+            warning_logger(f"Tree-sitter pre-scan failed for {path}: {e}")
     
     return imports_map

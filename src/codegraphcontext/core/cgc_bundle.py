@@ -351,7 +351,7 @@ class CGCBundle:
             if repo_path:
                 query = """
                     MATCH (n)
-                    WHERE n.path STARTS WITH $repo_path OR n.file_path STARTS WITH $repo_path
+                    WHERE n.path STARTS WITH $repo_path OR n.path STARTS WITH $repo_path
                     RETURN n, labels(n) as labels
                 """
                 params = {"repo_path": str(repo_path.resolve())}
@@ -404,8 +404,8 @@ class CGCBundle:
             if repo_path:
                 query = """
                     MATCH (n)-[r]->(m)
-                    WHERE (n.path STARTS WITH $repo_path OR n.file_path STARTS WITH $repo_path)
-                       OR (m.path STARTS WITH $repo_path OR m.file_path STARTS WITH $repo_path)
+                    WHERE (n.path STARTS WITH $repo_path OR n.path STARTS WITH $repo_path)
+                       OR (m.path STARTS WITH $repo_path OR m.path STARTS WITH $repo_path)
                     RETURN n, r, m, type(r) as rel_type
                 """
                 params = {"repo_path": str(repo_path.resolve())}
@@ -556,10 +556,10 @@ cgc import <bundle-file>.cgc
     def _create_zip(self, source_dir: Path, output_file: Path):
         """Create a ZIP archive from the bundle directory."""
         with zipfile.ZipFile(output_file, 'w', zipfile.ZIP_DEFLATED) as zipf:
-            for file_path in source_dir.rglob('*'):
-                if file_path.is_file():
-                    arcname = file_path.relative_to(source_dir)
-                    zipf.write(file_path, arcname)
+            for path in source_dir.rglob('*'):
+                if path.is_file():
+                    arcname = path.relative_to(source_dir)
+                    zipf.write(path, arcname)
     
     # ========================================================================
     # IMPORT HELPERS

@@ -72,12 +72,12 @@ After indexing, you should be able to run queries like:
 // Find all JavaScript functions
 MATCH (f:Function) 
 WHERE f.lang = 'javascript'
-RETURN f.name, f.line_number, f.file_path, f.args
+RETURN f.name, f.line_number, f.path, f.args
 
 // Find all JavaScript classes
 MATCH (c:Class) 
 WHERE c.lang = 'javascript'
-RETURN c.name, c.line_number, c.file_path
+RETURN c.name, c.line_number, c.path
 
 // Find function call relationships
 MATCH (caller:Function)-[r:CALLS]->(callee:Function) 

@@ -57,15 +57,15 @@ class HaskellTreeSitterParser:
         self.language= generic_parser_wrapper.language
         self.parser= generic_parser_wrapper.parser
         
-    def parse(self,file_path: Path, is_dependency: bool= False, index_source: bool= False)->Dict[str,Any]:
+    def parse(self,path: Path, is_dependency: bool= False, index_source: bool= False)->Dict[str,Any]:
         try:
             self.index_source = index_source
-            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            with open(path, 'r', encoding='utf-8', errors='ignore') as f:
                 source_code= f.read()
             if not source_code.strip():
-                warning_logger(f"Empty or whitespace-only file: {file_path}")
+                warning_logger(f"Empty or whitespace-only file: {path}")
                 return {
-                    "file_path":str(file_path),
+                    "path":str(path),
                     "functions":[],
                     "classes":[],
                     "variables":[],
@@ -85,23 +85,23 @@ class HaskellTreeSitterParser:
             # parse variables first to populate for inference
             if 'variables' in HASKELL_QUERIES:
                 results = execute_query(self.language, HASKELL_QUERIES['variables'], tree.root_node)
-                parsed_variables = self._parse_variables(results, source_code, file_path)
+                parsed_variables = self._parse_variables(results, source_code, path)
 
             for capture_name, query in HASKELL_QUERIES.items():
                 if capture_name == 'variables' : continue
                 results = execute_query(self.language, query, tree.root_node)
 
                 if capture_name == "functions":
-                    parsed_functions.extend(self._parse_functions(results, source_code, file_path))
+                    parsed_functions.extend(self._parse_functions(results, source_code, path))
                 elif capture_name == "classes":
-                    parsed_classes.extend(self._parse_classes(results, source_code, file_path))
+                    parsed_classes.extend(self._parse_classes(results, source_code, path))
                 elif capture_name == "imports":
                     parsed_classes.extend(self._parse_imports(results, source_code))
                 elif capture_name == "calls":
-                    parsed_classes.extend(self._parse_calls(results, source_code, file_path, parsed_variables))
+                    parsed_classes.extend(self._parse_calls(results, source_code, path, parsed_variables))
 
             return {
-                "file_path": str(file_path),
+                "path": str(path),
                 "functions": parsed_functions,
                 "classes": parsed_classes,
                 "variables": parsed_variables,
@@ -111,9 +111,9 @@ class HaskellTreeSitterParser:
                 "lang": self.language_name,
             }
         except Exception as e:
-            error_logger(f"Error parsing Haskell file {file_path}: {e}")
+            error_logger(f"Error parsing Haskell file {path}: {e}")
             return {
-                "file_path": str(file_path),
+                "path": str(path),
                 "functions": [],
                 "classes": [],
                 "variables": [],
@@ -182,7 +182,7 @@ class HaskellTreeSitterParser:
         if not node: return ""
         return node.text.decode("utf-8")
 
-    def _parse_functions(self, captures: list, source_code: str, file_path: Path) -> list[Dict[str, Any]]:
+    def _parse_functions(self, captures: list, source_code: str, path: Path) -> list[Dict[str, Any]]:
         functions = []
         seen_nodes = set()
 
@@ -223,7 +223,7 @@ class HaskellTreeSitterParser:
                             "args": parameters,
                             "line_number": start_line,
                             "end_line": end_line,
-                            "file_path": str(file_path),
+                            "path": str(path),
                             "lang": self.language_name,
                             "context": context_name,
                             "class_context": context_name if context_type and ("class" in context_type or "object" in context_type) else None
@@ -234,11 +234,11 @@ class HaskellTreeSitterParser:
                         
                         functions.append(func_data)
                 except Exception as e:
-                    error_logger(f"Error parsing function in {file_path}: {e}")
+                    error_logger(f"Error parsing function in {path}: {e}")
                     continue
         return functions
 
-def _parse_classes(self, captures: list, source_code: str, file_path: Path) -> list[Dict[str, Any]]:
+def _parse_classes(self, captures: list, source_code: str, path: Path) -> list[Dict[str, Any]]:
         classes = []
         seen_nodes = set()
 
@@ -292,7 +292,7 @@ def _parse_classes(self, captures: list, source_code: str, file_path: Path) -> l
                         "line_number": start_line,
                         "end_line": end_line,
                         "bases": bases,
-                        "file_path": str(file_path),
+                        "path": str(path),
                         "lang": self.language_name,
                     }
 
@@ -301,10 +301,10 @@ def _parse_classes(self, captures: list, source_code: str, file_path: Path) -> l
                     
                     classes.append(class_data)
                 except Exception as e:
-                    error_logger(f"Error parsing class in {file_path}: {e}")
+                    error_logger(f"Error parsing class in {path}: {e}")
                     continue
             return classes
-def _parse_variables(self, captures: list, source_code: str, file_path: Path) -> list[Dict[str, Any]]:
+def _parse_variables(self, captures: list, source_code: str, path: Path) -> list[Dict[str, Any]]:
         variables = []
         seen_nodes = set()
 
@@ -353,7 +353,7 @@ def _parse_variables(self, captures: list, source_code: str, file_path: Path) ->
                             "name": var_name,
                             "type": var_type,
                             "line_number": start_line,
-                            "file_path": str(file_path),
+                            "path": str(path),
                             "lang": self.language_name,
                             "context": ctx_name,
                             "class_context": ctx_name if ctx_type and ("class" in ctx_type or "object" in ctx_type) else None
@@ -385,7 +385,7 @@ def _parse_imports(self, captures:list, source_code: str) -> list[dict]:
                 except Exception as e:
                     continue
         return imports
-def _parse_calls(self, captures: list, source_code: str, file_path: Path, variables: list[Dict[str,Any]]= []) -> list[Dict[str, Any]]:
+def _parse_calls(self, captures: list, source_code: str, path: Path, variables: list[Dict[str,Any]]= []) -> list[Dict[str, Any]]:
     calls = []
     seen_calls = set()
 
@@ -509,9 +509,9 @@ def _parse_calls(self, captures: list, source_code: str, file_path: Path, variab
 
 def pre_scan_haskell(file: list[Path], parser_wrapper) -> dict:
     name_to_files = {}
-    for file_path in files:
+    for path in files:
         try:
-            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            with open(path, 'r', encoding='utf-8', errors='ignore') as f:
                 content = f.read()
             # 1. Extract package
             # package com.example.project
@@ -529,14 +529,14 @@ def pre_scan_haskell(file: list[Path], parser_wrapper) -> dict:
                 # Map simple name
                 if name not in name_to_files:
                     name_to_files[name] = []
-                name_to_files[name].append(str(file_path))
+                name_to_files[name].append(str(path))
 
                 # If package exists, map FQN
                 if package_name:
                     fqn = f"{package_name}.{name}"
                     if fqn not in name_to_files:
                         name_to_files[fqn] = []
-                    name_to_files[fqn].append(str(file_path))
+                    name_to_files[fqn].append(str(path))
         except Exception as e:
             pass
     return name_to_files

@@ -96,7 +96,7 @@ TOOLS = {
             "type": "object",
             "properties": {
                 "function_name": {"type": "string", "description": "The name of the function to analyze."},
-                "file_path": {"type": "string", "description": "Optional: The full path to the file containing the function for a more specific query."} 
+                "path": {"type": "string", "description": "Optional: The full path to the file containing the function for a more specific query."} 
             },
             "required": ["function_name"]
         }
