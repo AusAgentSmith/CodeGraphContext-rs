@@ -20,7 +20,7 @@ DATABASE_CREDENTIAL_KEYS = {"NEO4J_URI", "NEO4J_USERNAME", "NEO4J_PASSWORD"}
 
 # Default configuration values
 DEFAULT_CONFIG = {
-    "DEFAULT_DATABASE": "falkordb",
+    "DEFAULT_DATABASE": "kuzudb",
     "FALKORDB_PATH": str(CONFIG_DIR / "falkordb.db"),
     "FALKORDB_SOCKET_PATH": str(CONFIG_DIR / "falkordb.sock"),
     "INDEX_VARIABLES": "true",
@@ -43,7 +43,7 @@ DEFAULT_CONFIG = {
 
 # Configuration key descriptions
 CONFIG_DESCRIPTIONS = {
-    "DEFAULT_DATABASE": "Default database backend (neo4j|falkordb)",
+    "DEFAULT_DATABASE": "Default database backend (neo4j|falkordb|kuzudb)",
     "FALKORDB_PATH": "Path to FalkorDB database file",
     "FALKORDB_SOCKET_PATH": "Path to FalkorDB Unix socket",
     "INDEX_VARIABLES": "Index variable nodes in the graph (lighter graph if false)",
@@ -66,7 +66,7 @@ CONFIG_DESCRIPTIONS = {
 
 # Valid values for each config key
 CONFIG_VALIDATORS = {
-    "DEFAULT_DATABASE": ["neo4j", "falkordb"],
+    "DEFAULT_DATABASE": ["neo4j", "falkordb", "kuzudb"],
     "INDEX_VARIABLES": ["true", "false"],
     "ALLOW_DB_DELETION": ["true", "false"],
     "DEBUG_LOGS": ["true", "false"],

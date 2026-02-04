@@ -226,11 +226,12 @@ class CodeFinder:
         with self.driver.session() as session:
             if path:
                 result = session.run("""
-                    MATCH (caller:Function)-[call:CALLS]->(target:Function {name: $function_name, path: $path})
+                    MATCH (caller)-[call:CALLS]->(target:Function {name: $function_name, path: $path})
+                    WHERE caller:Function OR caller:Class OR caller:File
                     OPTIONAL MATCH (caller_file:File)-[:CONTAINS]->(caller)
                     RETURN DISTINCT
                         caller.name as caller_function,
-                        caller.path as caller_file_path,
+                        COALESCE(caller.path, caller_file.path) as caller_file_path,
                         caller.line_number as caller_line_number,
                         caller.docstring as caller_docstring,
                         caller.is_dependency as caller_is_dependency,
@@ -238,19 +239,19 @@ class CodeFinder:
                         call.args as call_args,
                         call.full_call_name as full_call_name,
                         target.path as target_file_path
-                    ORDER BY caller.is_dependency ASC, caller.path, caller.line_number
+                ORDER BY caller_is_dependency ASC, caller_file_path, caller_line_number
                     LIMIT 20
                 """, function_name=function_name, path=path)
                 
-                results = [dict(record) for record in result]
+                results = result.data()
                 if not results:
                     result = session.run("""
-                        MATCH (target:Function {name: $function_name})
-                        MATCH (caller:Function)-[call:CALLS]->(target)
+                        MATCH (caller)-[call:CALLS]->(target:Function {name: $function_name})
+                        WHERE caller:Function OR caller:Class OR caller:File
                         OPTIONAL MATCH (caller_file:File)-[:CONTAINS]->(caller)
                         RETURN DISTINCT
                             caller.name as caller_function,
-                            caller.path as caller_file_path,
+                            COALESCE(caller.path, caller_file.path) as caller_file_path,
                             caller.line_number as caller_line_number,
                             caller.docstring as caller_docstring,
                             caller.is_dependency as caller_is_dependency,
@@ -258,14 +259,13 @@ class CodeFinder:
                             call.args as call_args,
                             call.full_call_name as full_call_name,
                             target.path as target_file_path
-                        ORDER BY caller.is_dependency ASC, caller.path, caller.line_number
+                    ORDER BY caller_is_dependency ASC, caller_file_path, caller_line_number
                         LIMIT 20
                     """, function_name=function_name)
-                    results = [dict(record) for record in result]
+                    results = result.data()
             else:
                 result = session.run("""
-                    MATCH (target:Function {name: $function_name})
-                    MATCH (caller:Function)-[call:CALLS]->(target)
+                    MATCH (caller:Function)-[call:CALLS]->(target:Function {name: $function_name})
                     OPTIONAL MATCH (caller_file:File)-[:CONTAINS]->(caller)
                     RETURN DISTINCT
                         caller.name as caller_function,
@@ -277,10 +277,10 @@ class CodeFinder:
                         call.args as call_args,
                         call.full_call_name as full_call_name,
                         target.path as target_file_path
-                    ORDER BY caller.is_dependency ASC, caller.path, caller.line_number
+                ORDER BY caller_is_dependency ASC, caller_file_path, caller_line_number
                     LIMIT 20
                 """, function_name=function_name)
-                results = [dict(record) for record in result]
+                results = result.data()
             
             return results
     
@@ -303,13 +303,12 @@ class CodeFinder:
                         call.line_number as call_line_number,
                         call.args as call_args,
                         call.full_call_name as full_call_name
-                    ORDER BY called.is_dependency ASC, called.name
+                    ORDER BY called_is_dependency ASC, called_function
                     LIMIT 20
                 """, function_name=function_name, absolute_file_path=absolute_file_path)
             else:
                 result = session.run("""
-                    MATCH (caller:Function {name: $function_name})
-                    MATCH (caller)-[call:CALLS]->(called:Function)
+                    MATCH (caller:Function {name: $function_name})-[call:CALLS]->(called:Function)
                     OPTIONAL MATCH (called_file:File)-[:CONTAINS]->(called)
                     RETURN DISTINCT
                         called.name as called_function,
@@ -320,7 +319,7 @@ class CodeFinder:
                         call.line_number as call_line_number,
                         call.args as call_args,
                         call.full_call_name as full_call_name
-                    ORDER BY called.is_dependency ASC, called.name
+                    ORDER BY called_is_dependency ASC, called_function
                     LIMIT 20
                 """, function_name=function_name)
             
@@ -400,7 +399,7 @@ class CodeFinder:
                     parent.line_number as parent_line_number,
                     parent.docstring as parent_docstring,
                     parent.is_dependency as parent_is_dependency
-                ORDER BY parent.is_dependency ASC, parent.name
+                ORDER BY parent_is_dependency ASC, parent_class
             """
             parents_result = session.run(parents_query, class_name=class_name, path=path)
             
@@ -414,7 +413,7 @@ class CodeFinder:
                     grandchild.line_number as child_line_number,
                     grandchild.docstring as child_docstring,
                     grandchild.is_dependency as child_is_dependency
-                ORDER BY grandchild.is_dependency ASC, grandchild.name
+                ORDER BY child_is_dependency ASC, child_class
             """
             children_result = session.run(children_query, class_name=class_name, path=path)
             
@@ -428,15 +427,15 @@ class CodeFinder:
                     method.args as method_args,
                     method.docstring as method_docstring,
                     method.is_dependency as method_is_dependency
-                ORDER BY method.is_dependency ASC, method.line_number
+                ORDER BY method_is_dependency ASC, method_line_number
             """
             methods_result = session.run(methods_query, class_name=class_name, path=path)
             
             return {
                 "class_name": class_name,
-                "parent_classes": [dict(record) for record in parents_result],
-                "child_classes": [dict(record) for record in children_result],
-                "methods": [dict(record) for record in methods_result]
+                "parent_classes": parents_result.data(),
+                "child_classes": children_result.data(),
+                "methods": methods_result.data()
             }
     
     def find_function_overrides(self, function_name: str) -> List[Dict]:
@@ -454,7 +453,7 @@ class CodeFinder:
                     func.docstring as function_docstring,
                     func.is_dependency as is_dependency,
                     file.name as file_name
-                ORDER BY func.is_dependency ASC, class.name
+                ORDER BY is_dependency ASC, class_name
                 LIMIT 20
             """, function_name=function_name)
             
@@ -491,7 +490,7 @@ class CodeFinder:
             """, exclude_decorated_with=exclude_decorated_with)
             
             return {
-                "potentially_unused_functions": [dict(record) for record in result],
+                "potentially_unused_functions": result.data(),
                 "note": "These functions might be unused, but could be entry points, callbacks, or called dynamically"
             }
     
@@ -499,20 +498,26 @@ class CodeFinder:
         """Find all direct and indirect callers of a specific function."""
         with self.driver.session() as session:
             if path:
-                # Find functions within the specified path that call the target function
+                # KùzuDB-compatible: Use anonymous end node and filter with WHERE
                 query = """
-                    MATCH (f:Function)-[:CALLS*]->(target:Function {name: $function_name, path: $path})
+                    MATCH p = (f:Function)-[:CALLS*]->()
+                    WITH f, p, nodes(p) as path_nodes
+                    WITH f, path_nodes, list_extract(path_nodes, size(path_nodes)) as target
+                    WHERE target.name = $function_name AND target.path = $path
                     RETURN DISTINCT f.name AS caller_name, f.path AS caller_file_path, f.line_number AS caller_line_number, f.is_dependency AS caller_is_dependency
-                    ORDER BY f.is_dependency ASC, f.path, f.line_number
+                    ORDER BY caller_is_dependency ASC, caller_file_path, caller_line_number
                     LIMIT 50
                 """
                 result = session.run(query, function_name=function_name, path=path)
             else:
-                # If no path (context) is provided, find all callers of the function by name
+                # KùzuDB-compatible: Use anonymous end node and filter with WHERE
                 query = """
-                    MATCH (f:Function)-[:CALLS*]->(target:Function {name: $function_name})
+                    MATCH p = (f:Function)-[:CALLS*]->()
+                    WITH f, p, nodes(p) as path_nodes
+                    WITH f, path_nodes, list_extract(path_nodes, size(path_nodes)) as target
+                    WHERE target.name = $function_name
                     RETURN DISTINCT f.name AS caller_name, f.path AS caller_file_path, f.line_number AS caller_line_number, f.is_dependency AS caller_is_dependency
-                    ORDER BY f.is_dependency ASC, f.path, f.line_number
+                    ORDER BY caller_is_dependency ASC, caller_file_path, caller_line_number
                     LIMIT 50
                 """
                 result = session.run(query, function_name=function_name)
@@ -522,20 +527,26 @@ class CodeFinder:
         """Find all direct and indirect callees of a specific function."""
         with self.driver.session() as session:
             if path:
+                # KùzuDB-compatible: Use anonymous end node and extract from path
                 query = """
                     MATCH (caller:Function {name: $function_name, path: $path})
-                    MATCH (caller)-[:CALLS*]->(f:Function)
+                    MATCH p = (caller)-[:CALLS*]->()
+                    WITH p, nodes(p) as path_nodes
+                    WITH list_extract(path_nodes, size(path_nodes)) as f
                     RETURN DISTINCT f.name AS callee_name, f.path AS callee_file_path, f.line_number AS callee_line_number, f.is_dependency AS callee_is_dependency
-                    ORDER BY f.is_dependency ASC, f.path, f.line_number
+                    ORDER BY callee_is_dependency ASC, callee_file_path, callee_line_number
                     LIMIT 50
                 """
                 result = session.run(query, function_name=function_name, path=path)
             else:
+                # KùzuDB-compatible: Use anonymous end node and extract from path
                 query = """
                     MATCH (caller:Function {name: $function_name})
-                    MATCH (caller)-[:CALLS*]->(f:Function)
+                    MATCH p = (caller)-[:CALLS*]->()
+                    WITH p, nodes(p) as path_nodes
+                    WITH list_extract(path_nodes, size(path_nodes)) as f
                     RETURN DISTINCT f.name AS callee_name, f.path AS callee_file_path, f.line_number AS callee_line_number, f.is_dependency AS callee_is_dependency
-                    ORDER BY f.is_dependency ASC, f.path, f.line_number
+                    ORDER BY callee_is_dependency ASC, callee_file_path, callee_line_number
                     LIMIT 50
                 """
                 result = session.run(query, function_name=function_name)
@@ -548,12 +559,14 @@ class CodeFinder:
             start_props = "{name: $start_function" + (", path: $start_file}" if start_file else "}")
             end_props = "{name: $end_function" + (", path: $end_file}" if end_file else "}")
 
+            # KùzuDB-compatible: Use anonymous end node and filter
             query = f"""
-                MATCH (start:Function {start_props}), (end:Function {end_props})
-                WITH start, end
-                MATCH path = (start)-[:CALLS*1..{max_depth}]->(end)
-                WHERE path IS NOT NULL
-                WITH path, nodes(path) as func_nodes, relationships(path) as call_rels
+                MATCH (start:Function {start_props}), (end_target:Function {end_props})
+                WITH start, end_target
+                MATCH path = (start)-[:CALLS*1..{max_depth}]->()
+                WITH path, end_target, nodes(path) as func_nodes, relationships(path) as call_rels
+                WITH path, func_nodes, call_rels, list_extract(func_nodes, size(func_nodes)) as path_end
+                WHERE path_end.name = end_target.name AND (end_target.path IS NULL OR path_end.path = end_target.path)
                 RETURN 
                     [node in func_nodes | {{
                         name: node.name,
@@ -615,7 +628,7 @@ class CodeFinder:
                 query = f"""
                     MATCH (n:{label})
                     RETURN n.name as name, n.path as path, n.line_number as line_number, n.is_dependency as is_dependency
-                    ORDER BY n.is_dependency ASC, n.name
+                    ORDER BY is_dependency ASC, name
                     LIMIT $limit
                 """
             
@@ -653,8 +666,8 @@ class CodeFinder:
             
             return {
                 "module_name": module_name,
-                "importers": [dict(record) for record in importers_result],
-                "imports": [dict(record) for record in imports_result]
+                "importers": importers_result.data(),
+                "imports": imports_result.data()
             }
     
     def find_variable_usage_scope(self, variable_name: str, path: str = None) -> Dict[str, Any]:
@@ -714,7 +727,7 @@ class CodeFinder:
             
             return {
                 "variable_name": variable_name,
-                "instances": [dict(record) for record in variable_instances]
+                "instances": variable_instances.data()
             }
     
     def analyze_code_relationships(self, query_type: str, target: str, context: str = None) -> Dict[str, Any]:

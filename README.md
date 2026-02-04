@@ -111,7 +111,7 @@ A powerful **MCP server** and **CLI toolkit** that indexes local code into a gra
 -   **Interactive Setup:** A user-friendly command-line wizard for easy setup.
 -   **Dual Mode:** Works as a standalone **CLI toolkit** for developers and as an **MCP server** for AI agents.
 -   **Multi-Language Support:** Full support for 12 programming languages.
--   **Flexible Database Backend:** FalkorDB Lite (default, inbuilt for Unix and through WSL for Windows) or Neo4j (all platforms via Docker/native).
+-   **Flexible Database Backend:** KùzuDB (default, zero-config for all platforms), FalkorDB Lite (Unix-only), or Neo4j (all platforms via Docker/native).
 
 ---
 
@@ -132,14 +132,16 @@ Each language parser extracts functions, classes, methods, parameters, inheritan
 
 ## Database Options
 
-CodeGraphContext supports two graph database backends:
+CodeGraphContext supports multiple graph database backends to suit your environment:
 
-| Feature | FalkorDB Lite (Default) | Neo4j |
-| :--- | :--- | :--- |
-| **Setup** | Zero-config / In-process | Docker / External |
-| **Platform** | Unix / WSL / macOS | All (incl. Windows Native) |
-| **Use Case** | Local dev & Quick tests | Production & Massive graphs |
-| **Requirement**| Python 3.12+ | Any supported Python |
+| Feature | KùzuDB (Default) | FalkorDB Lite | Neo4j |
+| :--- | :--- | :--- | :--- |
+| **Setup** | Zero-config / Embedded | Zero-config / In-process | Docker / External |
+| **Platform** | **All (Windows Native, macOS, Linux)** | Unix-only (Linux/macOS/WSL) | All Platforms |
+| **Use Case** | Desktop, IDE, Local development | Specialized Unix development | Enterprise, Massive graphs |
+| **Requirement**| `pip install kuzu` | `pip install falkordblite` | Neo4j Server / Docker |
+| **Speed** | ⚡ Extremely Fast | ⚡ Fast | 🚀 Scalable |
+| **Persistence**| Yes (to disk) | Yes (to disk) | Yes (to disk) |
 
 ---
 
@@ -246,10 +248,11 @@ Use CodeGraphContext as an **MCP server** for AI assistants:
     ``` 
     </details>
 
-2.  **Database Setup (Automatic for Unix/WSL)**
+2.  **Database Setup (Automatic)**
     
-    - **FalkorDB Lite (Default):** If you're on Unix/Linux/macOS/WSL with Python 3.12+, you're done! FalkorDB Lite is already configured.
-    - **Neo4j (Optional/Windows):** To use Neo4j instead, or if you're on Windows without WSL, run: `cgc neo4j setup`
+    - **KùzuDB (Default):** Runs natively on Windows, macOS, and Linux without any setup. Just `pip install kuzu` and you're ready!
+    - **FalkorDB Lite (Alternative):** Supported on Unix/macOS/WSL for Python 3.12+.
+    - **Neo4j (Alternative):** To use Neo4j instead, or if you prefer a server-based approach, run: `cgc neo4j setup`
 
 ---
 
