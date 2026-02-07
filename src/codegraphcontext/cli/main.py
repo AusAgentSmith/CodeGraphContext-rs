@@ -2049,7 +2049,7 @@ def cypher_legacy(query: str = typer.Argument(..., help="The read-only Cypher qu
 @app.command("i", rich_help_panel="Shortcuts")
 def index_abbrev(path: Optional[str] = typer.Argument(None, help="Path to index")):
     """Shortcut for 'cgc index'"""
-    index(path)
+    index(path, force=False)
 
 @app.command("ls", rich_help_panel="Shortcuts")
 def list_abbrev():
