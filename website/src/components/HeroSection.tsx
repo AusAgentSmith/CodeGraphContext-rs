@@ -118,9 +118,9 @@ const HeroSection = () => {
                 <ExternalLink className="ml-2 h-4 w-4" />
               </a>
             </Button>
-            <Button variant="ghost" size="lg" asChild className="w-full sm:w-auto">
-              <a href="https://codegraphcontext.github.io/CodeGraphContext/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 justify-center">
-                <ExternalLink className="h-5 w-5" />
+            <Button variant="outline" size="lg" asChild className="border-gray-300 hover:border-primary/60 bg-white/80 backdrop-blur-sm shadow-sm transition-smooth text-gray-900 dark:bg-transparent dark:text-foreground dark:border-primary/30 w-full sm:w-auto">
+              <a href="https://codegraphcontext.github.io/CodeGraphContext/" target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="mr-2 h-5 w-5" />
                 Documentation
               </a>
             </Button>
