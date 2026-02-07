@@ -277,7 +277,12 @@ class GraphBuilder:
             """, path=file_path_str, name=file_name, relative_path=relative_path, is_dependency=is_dependency)
 
             file_path_obj = Path(file_path_str)
-            repo_path_obj = Path(repo_result['path'])
+            if repo_result:
+                repo_path_obj = Path(repo_result['path'])
+            else:
+                # Fallback to the path we queried for
+                warning_logger(f"Repository node not found for {file_data['repo_path']} during indexing of {file_name}. Using original path.")
+                repo_path_obj = Path(file_data['repo_path']).resolve()
             
             relative_path_to_file = file_path_obj.relative_to(repo_path_obj)
             
