@@ -28,7 +28,7 @@ const Navbar: React.FC = () => {
         <ul className="flex space-x-8 font-semibold text-base text-[hsl(var(--foreground))]">
           <li><a href="#features" className="px-4 py-2 rounded-full hover:bg-[hsl(var(--primary)/0.15)] hover:text-[hsl(var(--primary))] transition" onClick={handleScroll}>Features</a></li>
           <li><a href="#bundle-registry" className="px-4 py-2 rounded-full hover:bg-[hsl(var(--primary)/0.15)] hover:text-[hsl(var(--primary))] transition" onClick={handleScroll}>Pre-indexed Repositories</a></li>
-          <li><a href="#bundle-generator" className="px-4 py-2 rounded-full hover:bg-[hsl(var(--primary)/0.15)] hover:text-[hsl(var(--primary))] transition" onClick={handleScroll}>Custom Bundle</a></li>
+          <li><a href="#bundle-generator" className="px-4 py-2 rounded-full hover:bg-[hsl(var(--primary)/0.15)] hover:text-[hsl(var(--primary))] transition" onClick={handleScroll}>Generate Bundle</a></li>
           <li><a href="#cookbook" className="px-4 py-2 rounded-full hover:bg-[hsl(var(--primary)/0.15)] hover:text-[hsl(var(--primary))] transition" onClick={handleScroll}>Cookbook</a></li>
           <li><a href="#demo" className="px-4 py-2 rounded-full hover:bg-[hsl(var(--primary)/0.15)] hover:text-[hsl(var(--primary))] transition" onClick={handleScroll}>Demo</a></li>
           <li><a href="#installation" className="px-4 py-2 rounded-full hover:bg-[hsl(var(--primary)/0.15)] hover:text-[hsl(var(--primary))] transition" onClick={handleScroll}>Installation</a></li>
