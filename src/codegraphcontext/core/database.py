@@ -136,7 +136,8 @@ class DatabaseManager:
             Tuple[bool, Optional[str]]: (is_valid, error_message)
         """
         # Validate URI format
-        uri_pattern = r'^(neo4j|neo4j\+s|neo4j\+ssc|bolt|bolt\+s|bolt\+ssc)://[^:]+:\d+$'
+        # Modified regex to make port optional "(:\\d+)?"
+        uri_pattern = r'^(neo4j|neo4j\+s|neo4j\+ssc|bolt|bolt\+s|bolt\+ssc)://[^:]+(:\d+)?$'
         if not re.match(uri_pattern, uri):
             return False, (
                 "Invalid Neo4j URI format.\n"
