@@ -1332,7 +1332,7 @@ def find_by_content_search(
             results = code_finder.find_by_content(query)
         except Exception as e:
             error_msg = str(e).lower()
-            if 'fulltext' in error_msg or 'db.index.fulltext' in error_msg:
+            if ('fulltext' in error_msg or 'db.index.fulltext' in error_msg) and "Falkor" in db_manager.__class__.__name__:
                 console.print("\n[bold red]❌ Full-text search is not supported on FalkorDB[/bold red]\n")
                 console.print("[yellow]💡 You have two options:[/yellow]\n")
                 console.print("  1. [cyan]Switch to Neo4j:[/cyan]")

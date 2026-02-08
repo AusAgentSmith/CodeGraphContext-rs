@@ -84,13 +84,14 @@ class CodeFinder:
                 CALL db.index.fulltext.queryNodes("code_search_index", $search_term) YIELD node, score
                 WITH node, score
                 WHERE node:Function OR node:Class OR node:Variable
+                MATCH (node)<-[:CONTAINS]-(f:File)
                 RETURN
                     CASE 
                         WHEN node:Function THEN 'function'
                         WHEN node:Class THEN 'class'
                         ELSE 'variable' 
                     END as type,
-                    node.name as name, node.path as path,
+                    node.name as name, f.path as path,
                     node.line_number as line_number, node.source as source,
                     node.docstring as docstring, node.is_dependency as is_dependency
                 ORDER BY score DESC
