@@ -7,7 +7,8 @@ export default async function handler(req: any, res: any) {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    const { repoUrl } = req.body;
+    const rawRepoUrl = req.body.repoUrl;
+    const repoUrl = rawRepoUrl ? rawRepoUrl.trim() : rawRepoUrl;
 
     // Validate input
     if (!repoUrl) {
@@ -15,7 +16,8 @@ export default async function handler(req: any, res: any) {
     }
 
     // Validate GitHub URL format
-    const githubUrlPattern = /^https?:\/\/(www\.)?github\.com\/([^\/]+)\/([^\/]+)(\.git)?$/;
+    // Allow optional trailing slash and .git extension
+    const githubUrlPattern = /^https?:\/\/(www\.)?github\.com\/([^\/]+)\/([^\/]+)(\.git)?\/?$/;
     const match = repoUrl.match(githubUrlPattern);
 
     if (!match) {
