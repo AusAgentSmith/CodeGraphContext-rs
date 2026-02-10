@@ -92,9 +92,9 @@ def load_config() -> Dict[str, str]:
     1. Environment variables
     2. Local .env file (in current or parent directories)
     3. Global ~/.codegraphcontext/.env
-    """
-    ensure_config_dir()
     
+    Note: Does NOT create config directory - caller must call ensure_config_dir() first if needed.
+    """
     # Start with defaults
     config = DEFAULT_CONFIG.copy()
     
@@ -160,12 +160,15 @@ def save_config(config: Dict[str, str], preserve_db_credentials: bool = True):
     """
     Save configuration to file.
     If preserve_db_credentials is True, existing database credentials will be preserved.
+    If preserve_db_credentials is False, credentials from config dict will be written.
     """
     ensure_config_dir()
     
-    # Load existing config to preserve database credentials
-    existing_config = {}
+    # Determine which credentials to write
+    credentials_to_write = {}
+    
     if preserve_db_credentials and CONFIG_FILE.exists():
+        # Load existing credentials from file to preserve them
         try:
             with open(CONFIG_FILE, "r") as f:
                 for line in f:
@@ -174,9 +177,14 @@ def save_config(config: Dict[str, str], preserve_db_credentials: bool = True):
                         key, value = line.split("=", 1)
                         key = key.strip()
                         if key in DATABASE_CREDENTIAL_KEYS:
-                            existing_config[key] = value.strip()
+                            credentials_to_write[key] = value.strip()
         except Exception:
             pass
+    else:
+        # Use credentials from the config dict being passed in
+        for key in DATABASE_CREDENTIAL_KEYS:
+            if key in config:
+                credentials_to_write[key] = config[key]
     
     try:
         with open(CONFIG_FILE, "w") as f:
@@ -184,11 +192,11 @@ def save_config(config: Dict[str, str], preserve_db_credentials: bool = True):
             f.write(f"# Location: {CONFIG_FILE}\n\n")
             
             # Write database credentials first if they exist
-            if existing_config:
+            if credentials_to_write:
                 f.write("# ===== Database Credentials =====\n")
                 for key in sorted(DATABASE_CREDENTIAL_KEYS):
-                    if key in existing_config:
-                        f.write(f"{key}={existing_config[key]}\n")
+                    if key in credentials_to_write:
+                        f.write(f"{key}={credentials_to_write[key]}\n")
                 f.write("\n")
             
             # Write configuration settings
@@ -296,6 +304,9 @@ def get_config_value(key: str) -> Optional[str]:
 
 def set_config_value(key: str, value: str) -> bool:
     """Set a configuration value. Returns True if successful."""
+    # Ensure config directory exists
+    ensure_config_dir()
+    
     # Validate
     is_valid, error_msg = validate_config_value(key, value)
     if not is_valid:
@@ -313,6 +324,7 @@ def set_config_value(key: str, value: str) -> bool:
 
 def reset_config():
     """Reset configuration to defaults (preserves database credentials)."""
+    ensure_config_dir()
     save_config(DEFAULT_CONFIG.copy(), preserve_db_credentials=True)
     console.print("[green]✅ Configuration reset to defaults[/green]")
     console.print("[cyan]Note: Database credentials were preserved[/cyan]")
