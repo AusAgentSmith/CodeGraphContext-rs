@@ -38,6 +38,7 @@ DEFAULT_CONFIG = {
     "PARALLEL_WORKERS": "4",
     "CACHE_ENABLED": "true",
     "IGNORE_DIRS": "node_modules,venv,.venv,env,.env,dist,build,target,out,.git,.idea,.vscode,__pycache__",
+    "INDEX_SOURCE": "true",
 }
 
 # Configuration key descriptions
@@ -60,6 +61,7 @@ CONFIG_DESCRIPTIONS = {
     "PARALLEL_WORKERS": "Number of parallel indexing workers",
     "CACHE_ENABLED": "Enable caching for faster re-indexing",
     "IGNORE_DIRS": "Comma-separated list of directory names to ignore during indexing",
+    "INDEX_SOURCE": "Store full source code in graph database (for faster indexing use false, for better performance use true)",
 }
 
 # Valid values for each config key
@@ -73,6 +75,7 @@ CONFIG_VALIDATORS = {
     "IGNORE_HIDDEN_FILES": ["true", "false"],
     "ENABLE_AUTO_WATCH": ["true", "false"],
     "CACHE_ENABLED": ["true", "false"],
+    "INDEX_SOURCE": ["true", "false"],
 }
 
 
@@ -89,9 +92,9 @@ def load_config() -> Dict[str, str]:
     1. Environment variables
     2. Local .env file (in current or parent directories)
     3. Global ~/.codegraphcontext/.env
-    """
-    ensure_config_dir()
     
+    Note: Does NOT create config directory - caller must call ensure_config_dir() first if needed.
+    """
     # Start with defaults
     config = DEFAULT_CONFIG.copy()
     
@@ -157,12 +160,15 @@ def save_config(config: Dict[str, str], preserve_db_credentials: bool = True):
     """
     Save configuration to file.
     If preserve_db_credentials is True, existing database credentials will be preserved.
+    If preserve_db_credentials is False, credentials from config dict will be written.
     """
     ensure_config_dir()
     
-    # Load existing config to preserve database credentials
-    existing_config = {}
+    # Determine which credentials to write
+    credentials_to_write = {}
+    
     if preserve_db_credentials and CONFIG_FILE.exists():
+        # Load existing credentials from file to preserve them
         try:
             with open(CONFIG_FILE, "r") as f:
                 for line in f:
@@ -171,9 +177,14 @@ def save_config(config: Dict[str, str], preserve_db_credentials: bool = True):
                         key, value = line.split("=", 1)
                         key = key.strip()
                         if key in DATABASE_CREDENTIAL_KEYS:
-                            existing_config[key] = value.strip()
+                            credentials_to_write[key] = value.strip()
         except Exception:
             pass
+    else:
+        # Use credentials from the config dict being passed in
+        for key in DATABASE_CREDENTIAL_KEYS:
+            if key in config:
+                credentials_to_write[key] = config[key]
     
     try:
         with open(CONFIG_FILE, "w") as f:
@@ -181,11 +192,11 @@ def save_config(config: Dict[str, str], preserve_db_credentials: bool = True):
             f.write(f"# Location: {CONFIG_FILE}\n\n")
             
             # Write database credentials first if they exist
-            if existing_config:
+            if credentials_to_write:
                 f.write("# ===== Database Credentials =====\n")
                 for key in sorted(DATABASE_CREDENTIAL_KEYS):
-                    if key in existing_config:
-                        f.write(f"{key}={existing_config[key]}\n")
+                    if key in credentials_to_write:
+                        f.write(f"{key}={credentials_to_write[key]}\n")
                 f.write("\n")
             
             # Write configuration settings
@@ -293,6 +304,9 @@ def get_config_value(key: str) -> Optional[str]:
 
 def set_config_value(key: str, value: str) -> bool:
     """Set a configuration value. Returns True if successful."""
+    # Ensure config directory exists
+    ensure_config_dir()
+    
     # Validate
     is_valid, error_msg = validate_config_value(key, value)
     if not is_valid:
@@ -310,13 +324,35 @@ def set_config_value(key: str, value: str) -> bool:
 
 def reset_config():
     """Reset configuration to defaults (preserves database credentials)."""
+    ensure_config_dir()
     save_config(DEFAULT_CONFIG.copy(), preserve_db_credentials=True)
     console.print("[green]✅ Configuration reset to defaults[/green]")
     console.print("[cyan]Note: Database credentials were preserved[/cyan]")
 
 
+
+def ensure_config_file():
+    """
+    Create default .env config file on first run if it does not exist.
+    """
+    ensure_config_dir()
+
+    if CONFIG_FILE.exists():
+        return False  # file already exists
+
+    save_config(DEFAULT_CONFIG.copy(), preserve_db_credentials=False)
+    return True  # file was created
+
+
+
+
 def show_config():
     """Display current configuration in a nice table."""
+    created = ensure_config_file()
+    if created:
+        console.print(
+            f"[green]🆕 Created default configuration at {CONFIG_FILE}[/green]\n"
+        )
     config = load_config()
     
     # Separate database credentials from configuration

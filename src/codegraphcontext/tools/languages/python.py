@@ -54,6 +54,12 @@ PY_QUERIES = {
     "docstrings": """
         (expression_statement (string) @docstring)
     """,
+    "dict_method_refs": """
+        (dictionary
+            (pair
+                key: (_) @key
+                value: (attribute) @method_ref))
+    """,
 }
 
 class PythonTreeSitterParser:
@@ -105,16 +111,17 @@ class PythonTreeSitterParser:
                     return self._get_node_text(first_child.children[0])
         return None
 
-    def parse(self, file_path: Path, is_dependency: bool = False, is_notebook: bool = False) -> Dict:
+    def parse(self, path: Path, is_dependency: bool = False, is_notebook: bool = False, index_source: bool = False) -> Dict:
         """Parses a file and returns its structure in a standardized dictionary format."""
-        original_file_path = file_path
+        original_file_path = path
         temp_py_file = None
         source_code = None
+        self.index_source = index_source
 
         try:
             if is_notebook:
-                info_logger(f"Converting notebook {file_path} to temporary Python file.")
-                with open(file_path, 'r', encoding='utf-8') as f:
+                info_logger(f"Converting notebook {path} to temporary Python file.")
+                with open(path, 'r', encoding='utf-8') as f:
                     notebook_node = nbformat.read(f, as_version=4)
                 
                 exporter = PythonExporter()
@@ -125,23 +132,23 @@ class PythonTreeSitterParser:
                     temp_py_file = Path(tf.name)
                 
                 # The file to be parsed is now the temporary file
-                file_path = temp_py_file
+                path = temp_py_file
 
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(path, "r", encoding="utf-8") as f:
                 source_code = f.read()
             
             tree = self.parser.parse(bytes(source_code, "utf8"))
             root_node = tree.root_node
 
             functions = self._find_functions(root_node)
-            functions.extend(self._find_lambda_assignments(root_node))
+            functions.extend(self._find_lambda_assignments(root_node, index_source))
             classes = self._find_classes(root_node)
             imports = self._find_imports(root_node)
             function_calls = self._find_calls(root_node)
             variables = self._find_variables(root_node)
 
             return {
-                "file_path": str(original_file_path), # Always return the original path
+                "path": str(original_file_path), # Always return the original path
                 "functions": functions,
                 "classes": classes,
                 "variables": variables,
@@ -152,13 +159,13 @@ class PythonTreeSitterParser:
             }
         except Exception as e:
             error_logger(f"Failed to parse {original_file_path}: {e}")
-            return {"file_path": str(original_file_path), "error": str(e)}
+            return {"path": str(original_file_path), "error": str(e)}
         finally:
             if temp_py_file and temp_py_file.exists():
                 os.remove(temp_py_file)
                 info_logger(f"Removed temporary file: {temp_py_file}")
 
-    def _find_lambda_assignments(self, root_node):
+    def _find_lambda_assignments(self, root_node, index_source: bool = False):
         functions = []
         query_str = PY_QUERIES.get('lambda_assignments')
         if not query_str: return []
@@ -181,9 +188,6 @@ class PythonTreeSitterParser:
                     "line_number": node.start_point[0] + 1,
                     "end_line": assignment_node.end_point[0] + 1,
                     "args": [p for p in [self._get_node_text(p) for p in params_node.children if p.type == 'identifier'] if p] if params_node else [],
-                    "source": self._get_node_text(assignment_node),
-
-                    "docstring": None,
                     "cyclomatic_complexity": 1,
                     "context": context,
                     "context_type": context_type,
@@ -192,10 +196,14 @@ class PythonTreeSitterParser:
                     "lang": self.language_name,
                     "is_dependency": False,
                 }
+                if self.index_source:
+                    func_data["source"] = self._get_node_text(assignment_node)
+                    func_data["docstring"] = None
+
                 functions.append(func_data)
         return functions
 
-    def _find_functions(self, root_node):
+    def _find_functions(self, root_node, index_source: bool = False):
         functions = []
         query_str = PY_QUERIES['functions']
         for match in execute_query(self.language, query_str, root_node):
@@ -247,9 +255,6 @@ class PythonTreeSitterParser:
                     "line_number": node.start_point[0] + 1,
                     "end_line": func_node.end_point[0] + 1,
                     "args": args,
-                    "source": self._get_node_text(func_node),
-
-                    "docstring": self._get_docstring(body_node),
                     "cyclomatic_complexity": self._calculate_complexity(func_node),
                     "context": context,
                     "context_type": context_type,
@@ -258,10 +263,15 @@ class PythonTreeSitterParser:
                     "lang": self.language_name,
                     "is_dependency": False,
                 }
+
+                if self.index_source:
+                    func_data["source"] = self._get_node_text(func_node)
+                    func_data["docstring"] = self._get_docstring(body_node)
+
                 functions.append(func_data)
         return functions
 
-    def _find_classes(self, root_node):
+    def _find_classes(self, root_node, index_source: bool = False):
         classes = []
         query_str = PY_QUERIES['classes']
         for match in execute_query(self.language, query_str, root_node):
@@ -287,13 +297,15 @@ class PythonTreeSitterParser:
                     "line_number": node.start_point[0] + 1,
                     "end_line": class_node.end_point[0] + 1,
                     "bases": [b for b in bases if b],
-                    "source": self._get_node_text(class_node),
-                    "docstring": self._get_docstring(body_node),
                     "context": context,
                     "decorators": [d for d in decorators if d],
                     "lang": self.language_name,
                     "is_dependency": False,
                 }
+                if self.index_source:
+                    class_data["source"] = self._get_node_text(class_node)
+                    class_data["docstring"] = self._get_docstring(body_node)
+
                 classes.append(class_data)
         return classes
 
@@ -368,6 +380,8 @@ class PythonTreeSitterParser:
 
     def _find_calls(self, root_node):
         calls = []
+        
+        # First, find all direct function calls
         query_str = PY_QUERIES['calls']
         for node, capture_name in execute_query(self.language, query_str, root_node):
             if capture_name == 'name':
@@ -387,13 +401,101 @@ class PythonTreeSitterParser:
                     "full_name": self._get_node_text(full_call_node),
                     "line_number": node.start_point[0] + 1,
                     "args": args,
-                    "inferred_obj_type": None, # Type inference is a complex topic to be added
+                    "inferred_obj_type": None,
                     "context": self._get_parent_context(node),
                     "class_context": self._get_parent_context(node, types=('class_definition',))[:2],
                     "lang": self.language_name,
                     "is_dependency": False,
                 }
                 calls.append(call_data)
+        
+        # Second, find dictionary-based method references (indirect calls)
+        # This handles patterns like: tool_map = {"name": self.method, ...}
+        # followed by: handler = tool_map.get(name); handler()
+        dict_method_calls = self._find_dict_method_references(root_node)
+        calls.extend(dict_method_calls)
+        
+        return calls
+    
+    def _find_dict_method_references(self, root_node):
+        """
+        Detects indirect function calls through dictionary mappings.
+        
+        Example pattern:
+            tool_map = {
+                "add_code": self.add_code_to_graph_tool,
+                "find_code": self.find_code_tool,
+            }
+            handler = tool_map.get(tool_name)
+            if handler:
+                handler(**args)
+        
+        This creates CALLS relationships from the context function to all
+        methods referenced in the dictionary.
+        """
+        calls = []
+        query_str = PY_QUERIES.get('dict_method_refs')
+        if not query_str:
+            return calls
+        
+        # Track dictionaries that contain method references
+        dict_assignments = {}  # dict_var_name -> list of method references
+        
+        for node, capture_name in execute_query(self.language, query_str, root_node):
+            if capture_name == 'method_ref':
+                # Found a method reference in a dictionary value
+                # Navigate up to find the assignment
+                dict_node = node.parent  # pair node
+                while dict_node and dict_node.type != 'dictionary':
+                    dict_node = dict_node.parent
+                
+                if dict_node:
+                    # Find the assignment node
+                    assignment_node = dict_node.parent
+                    if assignment_node and assignment_node.type == 'assignment':
+                        # Get the variable name being assigned
+                        left_node = assignment_node.child_by_field_name('left')
+                        if left_node:
+                            var_name = self._get_node_text(left_node)
+                            method_ref = self._get_node_text(node)
+                            
+                            # Extract just the method name (remove 'self.')
+                            method_name = method_ref.split('.')[-1] if '.' in method_ref else method_ref
+                            
+                            if var_name not in dict_assignments:
+                                dict_assignments[var_name] = {
+                                    'methods': [],
+                                    'context': self._get_parent_context(assignment_node),
+                                    'line_number': assignment_node.start_point[0] + 1
+                                }
+                            
+                            dict_assignments[var_name]['methods'].append({
+                                'name': method_name,
+                                'full_name': method_ref,
+                                'line_number': node.start_point[0] + 1
+                            })
+        
+        # Now create call relationships for each method in the dictionaries
+        # The context is the function where the dictionary is defined
+        for dict_var, data in dict_assignments.items():
+            context, context_type, context_line = data['context']
+            class_context, _, _ = (None, None, None)
+            
+            for method_info in data['methods']:
+                call_data = {
+                    "name": method_info['name'],
+                    "full_name": method_info['full_name'],
+                    "line_number": method_info['line_number'],
+                    "args": [],  # We don't know the args at this point
+                    "inferred_obj_type": None,
+                    "context": (context, context_type, context_line),
+                    "class_context": (class_context, None),
+                    "lang": self.language_name,
+                    "is_dependency": False,
+                    "is_indirect_call": True,  # Mark as indirect for debugging
+                }
+                calls.append(call_data)
+        
         return calls
 
     def _find_variables(self, root_node):
@@ -441,12 +543,12 @@ def pre_scan_python(files: list[Path], parser_wrapper) -> dict:
         (function_definition name: (identifier) @name)
     """
     
-    for file_path in files:
+    for path in files:
         temp_py_file = None
         try:
             source_to_parse = ""
-            if file_path.suffix == '.ipynb':
-                with open(file_path, 'r', encoding='utf-8') as f:
+            if path.suffix == '.ipynb':
+                with open(path, 'r', encoding='utf-8') as f:
                     notebook_node = nbformat.read(f, as_version=4)
                 exporter = PythonExporter()
                 python_code, _ = exporter.from_notebook_node(notebook_node)
@@ -456,7 +558,7 @@ def pre_scan_python(files: list[Path], parser_wrapper) -> dict:
                 with open(temp_py_file, "r", encoding="utf-8") as f:
                     source_to_parse = f.read()
             else:
-                with open(file_path, "r", encoding="utf-8") as f:
+                with open(path, "r", encoding="utf-8") as f:
                     source_to_parse = f.read()
 
             tree = parser_wrapper.parser.parse(bytes(source_to_parse, "utf8"))
@@ -465,9 +567,9 @@ def pre_scan_python(files: list[Path], parser_wrapper) -> dict:
                 name = capture.text.decode('utf-8')
                 if name not in imports_map:
                     imports_map[name] = []
-                imports_map[name].append(str(file_path.resolve()))
+                imports_map[name].append(str(path.resolve()))
         except Exception as e:
-            warning_logger(f"Tree-sitter pre-scan failed for {file_path}: {e}")
+            warning_logger(f"Tree-sitter pre-scan failed for {path}: {e}")
         finally:
             if temp_py_file and temp_py_file.exists():
                 os.remove(temp_py_file)
