@@ -63,6 +63,46 @@ const tableData = [
   },
 ];
 
+type ToolKey = "copilot" | "cursor" | "cgc";
+
+const toolMeta: {
+  key: ToolKey;
+  label: string;
+  accent: string;
+  border: string;
+  glow: string;
+  gradient: string;
+  iconBg: string;
+}[] = [
+  {
+    key: "cgc",
+    label: "CodeGraphContext",
+    accent: "text-emerald-400",
+    border: "border-emerald-500/40",
+    glow: "shadow-emerald-500/15",
+    gradient: "from-emerald-500/10 via-emerald-500/5 to-transparent",
+    iconBg: "bg-emerald-500/15",
+  },
+  {
+    key: "copilot",
+    label: "GitHub Copilot",
+    accent: "text-sky-400",
+    border: "border-sky-500/30",
+    glow: "shadow-sky-500/10",
+    gradient: "from-sky-500/10 via-sky-500/5 to-transparent",
+    iconBg: "bg-sky-500/15",
+  },
+  {
+    key: "cursor",
+    label: "Cursor",
+    accent: "text-violet-400",
+    border: "border-violet-500/30",
+    glow: "shadow-violet-500/10",
+    gradient: "from-violet-500/10 via-violet-500/5 to-transparent",
+    iconBg: "bg-violet-500/15",
+  },
+];
+
 const StatusBadge = ({ status, text }: { status: string; text: string }) => {
   const getStatusStyles = () => {
     switch (status) {
@@ -154,6 +194,107 @@ const FloatingBackground = () => (
   </div>
 );
 
+/* ─── Mobile vertical card for a single tool ─── */
+const ToolCard = ({
+  tool,
+  index,
+  isInView,
+}: {
+  tool: (typeof toolMeta)[number];
+  index: number;
+  isInView: boolean;
+}) => {
+  const isCGC = tool.key === "cgc";
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 40 }}
+      animate={isInView ? { opacity: 1, y: 0 } : {}}
+      transition={{ duration: 0.6, delay: 0.5 + index * 0.15 }}
+      className="w-full"
+    >
+      <Card
+        className={`
+          relative overflow-hidden rounded-2xl
+          border ${tool.border}
+          bg-background/60 backdrop-blur-md
+          shadow-lg ${tool.glow}
+          ${isCGC ? "ring-1 ring-emerald-500/30" : ""}
+          transition-all duration-300
+        `}
+      >
+        {/* Gradient glow at top */}
+        <div
+          className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${tool.gradient.replace(
+            "to-transparent",
+            "to-transparent"
+          )}`}
+          style={{
+            background: isCGC
+              ? "linear-gradient(90deg, transparent, rgba(16,185,129,0.5), transparent)"
+              : tool.key === "copilot"
+              ? "linear-gradient(90deg, transparent, rgba(56,189,248,0.4), transparent)"
+              : "linear-gradient(90deg, transparent, rgba(139,92,246,0.4), transparent)",
+          }}
+        />
+
+        <CardContent className="p-0">
+          {/* Card header */}
+          <div
+            className={`flex items-center gap-3 px-5 py-4 bg-gradient-to-r ${tool.gradient} border-b border-border/10`}
+          >
+            <div
+              className={`w-9 h-9 rounded-xl ${tool.iconBg} flex items-center justify-center`}
+            >
+              <span className={`text-base font-bold ${tool.accent}`}>
+                {tool.label.charAt(0)}
+              </span>
+            </div>
+            <div>
+              <h3
+                className={`text-base font-bold ${tool.accent} leading-tight`}
+              >
+                {tool.label}
+              </h3>
+              {isCGC && (
+                <span className="text-[0.6rem] uppercase tracking-widest text-emerald-500/70 font-semibold">
+                  Recommended
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Feature list */}
+          <ul className="divide-y divide-border/10">
+            {tableData.map((row, fi) => {
+              const cell = row[tool.key];
+              return (
+                <motion.li
+                  key={row.feature}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={isInView ? { opacity: 1, x: 0 } : {}}
+                  transition={{
+                    duration: 0.4,
+                    delay: 0.6 + index * 0.15 + fi * 0.04,
+                  }}
+                  className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-primary/5 transition-colors duration-200"
+                >
+                  <span className="text-xs text-muted-foreground font-medium leading-snug flex-1 min-w-0">
+                    {row.feature}
+                  </span>
+                  <div className="flex-shrink-0">
+                    <StatusBadge status={cell.status} text={cell.text} />
+                  </div>
+                </motion.li>
+              );
+            })}
+          </ul>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+};
+
 export default function ComparisonTable() {
   const containerRef = useRef(null);
   const isInView = useInView(containerRef, { once: true, margin: "-100px" });
@@ -190,11 +331,13 @@ export default function ComparisonTable() {
           </div>
         </AnimatedCard>
 
+        {/* ─── Desktop / large-screen table (>= 810px) ─── */}
         <AnimatedCard delay={0.3}>
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={isInView ? { opacity: 1, scale: 1 } : {}}
             transition={{ duration: 0.8, delay: 0.5 }}
+            className="hidden min-[810px]:block"
           >
             {/* Scrollable table wrapper */}
             <div className="overflow-x-auto rounded-3xl -mx-1 sm:mx-0">
@@ -287,6 +430,18 @@ export default function ComparisonTable() {
             </div>
           </motion.div>
         </AnimatedCard>
+
+        {/* ─── Mobile / small-screen vertical cards (< 810px) ─── */}
+        <div className="flex flex-col gap-6 px-1 min-[810px]:hidden">
+          {toolMeta.map((tool, index) => (
+            <ToolCard
+              key={tool.key}
+              tool={tool}
+              index={index}
+              isInView={isInView}
+            />
+          ))}
+        </div>
 
         <AnimatedCard delay={0.9}>
           <motion.div
