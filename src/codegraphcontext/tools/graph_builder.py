@@ -162,7 +162,7 @@ class GraphBuilder:
                     session.run("""
                         CREATE FULLTEXT INDEX code_search_index IF NOT EXISTS
                         FOR (n:Function|Class|Variable)
-                        ON EACH [n.name, coalesce(n.source, ''), coalesce(n.docstring, '')]
+                        ON EACH [n.name, n.source, n.docstring]
                     """)
                 
                 info_logger("Database schema verified/created successfully")
