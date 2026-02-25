@@ -39,6 +39,7 @@ DEFAULT_CONFIG = {
     "CACHE_ENABLED": "true",
     "IGNORE_DIRS": "node_modules,venv,.venv,env,.env,dist,build,target,out,.git,.idea,.vscode,__pycache__",
     "INDEX_SOURCE": "true",
+    "SKIP_EXTERNAL_RESOLUTION": "false",
 }
 
 # Configuration key descriptions
@@ -62,6 +63,7 @@ CONFIG_DESCRIPTIONS = {
     "CACHE_ENABLED": "Enable caching for faster re-indexing",
     "IGNORE_DIRS": "Comma-separated list of directory names to ignore during indexing",
     "INDEX_SOURCE": "Store full source code in graph database (for faster indexing use false, for better performance use true)",
+    "SKIP_EXTERNAL_RESOLUTION": "Skip resolution attempts for external library method calls (recommended for large Java/Spring codebases)",
 }
 
 # Valid values for each config key
@@ -76,6 +78,7 @@ CONFIG_VALIDATORS = {
     "ENABLE_AUTO_WATCH": ["true", "false"],
     "CACHE_ENABLED": ["true", "false"],
     "INDEX_SOURCE": ["true", "false"],
+    "SKIP_EXTERNAL_RESOLUTION": ["true", "false"],
 }
 
 
