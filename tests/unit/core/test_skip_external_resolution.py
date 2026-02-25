@@ -17,7 +17,7 @@ from codegraphcontext.cli.config_manager import (
 
 
 class TestSkipExternalResolutionConfig:
-    """Test the SKIP_EXTERNAL_RESOLUTION configuration option."""
+    """Test the SKIP_EXTERNAL_RESOLUTION configuration cli option."""
 
     def test_config_exists_in_descriptions(self):
         """Test that SKIP_EXTERNAL_RESOLUTION has a description."""

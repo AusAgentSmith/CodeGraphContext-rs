@@ -63,7 +63,7 @@ CONFIG_DESCRIPTIONS = {
     "CACHE_ENABLED": "Enable caching for faster re-indexing",
     "IGNORE_DIRS": "Comma-separated list of directory names to ignore during indexing",
     "INDEX_SOURCE": "Store full source code in graph database (for faster indexing use false, for better performance use true)",
-    "SKIP_EXTERNAL_RESOLUTION": "Skip resolution attempts for external library method calls (recommended for large Java/Spring codebases)",
+    "SKIP_EXTERNAL_RESOLUTION": "Skip resolution attempts for external library method calls (recommended for enterprise large Java/Spring codebases)",
 }
 
 # Valid values for each config key

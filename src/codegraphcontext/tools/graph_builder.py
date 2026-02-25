@@ -461,7 +461,7 @@ class GraphBuilder:
         local_imports = {imp.get('alias') or imp['name'].split('.')[-1]: imp['name'] 
                         for imp in file_data.get('imports', [])}
         
-        # Check if we should skip external resolution attempts
+        # Check if we should skip external resolution attempts - 
         skip_external = (get_config_value("SKIP_EXTERNAL_RESOLUTION") or "false").lower() == "true"
         
         for call in file_data.get('function_calls', []):
