@@ -117,8 +117,6 @@ class GraphBuilder:
             # '.h': TreeSitterParser('c'), # Need to write an algo for distinguishing C vs C++ headers
             '.java': TreeSitterParser('java'),
             '.rb': TreeSitterParser('ruby'),
-            '.java': TreeSitterParser('java'),
-            '.rb': TreeSitterParser('ruby'),
             '.cs': TreeSitterParser('c_sharp'),
             '.php': TreeSitterParser('php'),
             '.kt': TreeSitterParser('kotlin'),
