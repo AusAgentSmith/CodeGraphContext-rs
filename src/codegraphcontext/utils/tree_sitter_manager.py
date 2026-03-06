@@ -52,6 +52,9 @@ LANGUAGE_ALIASES = {
     "swift": "swift",
     ".swift": "swift",
     "dart": "dart",
+    "perl": "perl",
+    "pl": "perl",
+    "pm": "perl",
 }
 
 
