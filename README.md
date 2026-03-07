@@ -288,6 +288,26 @@ cgc help
 
 **See the full [CLI Commands Guide](CLI_Commands.md) for all available commands and usage scenarios.**
 
+### 🎨 Premium Interactive Visualization
+CodeGraphContext can generate stunning, interactive knowledge graphs of your code. Unlike static diagrams, these are premium web-based explorers:
+
+- **Premium Aesthetics**: Dark mode, glassmorphism, and modern typography (Outfit/JetBrains Mono).
+- **Interactive Inspection**: Click any node to open a detailed side panel with symbol information, file paths, and context.
+- **Quick Search**: Live-search through the graph to find specific symbols instantly.
+- **Intelligent Layouts**: Force-directed and hierarchical layouts that make complex relationships readable.
+- **Zero-Dependency Viewing**: Standalone HTML files that work in any modern browser.
+
+```bash
+# Visualize function calls
+cgc analyze calls my_function --viz
+
+# Explore class hierarchies
+cgc analyze tree MyClass --viz
+
+# Visualize search results
+cgc find pattern "Auth" --viz
+```
+
 
 ---
 
