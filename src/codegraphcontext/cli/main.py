@@ -44,10 +44,24 @@ from .cli_helpers import (
     list_watching_helper,
 )
 
-# Set the log level for the noisy neo4j, asyncio, and urllib3 loggers to WARNING to keep the output clean.
-logging.getLogger("neo4j").setLevel(logging.WARNING)
-logging.getLogger("asyncio").setLevel(logging.WARNING)
-logging.getLogger("urllib3").setLevel(logging.WARNING)
+# Set the log level for the noisy neo4j, asyncio, and urllib3 loggers to keep the output clean.
+# Get the log level from config, defaulting to WARNING
+def _configure_library_loggers():
+    """Configure third-party library loggers based on config setting."""
+    try:
+        log_level_str = config_manager.get_config_value('LIBRARY_LOG_LEVEL')
+        if log_level_str is None:
+            log_level_str = 'WARNING'
+        log_level_str = str(log_level_str).upper()
+        log_level = getattr(logging, log_level_str, logging.WARNING)
+    except (AttributeError, Exception):
+        log_level = logging.WARNING
+    
+    logging.getLogger("neo4j").setLevel(log_level)
+    logging.getLogger("asyncio").setLevel(log_level)
+    logging.getLogger("urllib3").setLevel(log_level)
+
+_configure_library_loggers()
 
 
 # Import visualization module
