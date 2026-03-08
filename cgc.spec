@@ -5,7 +5,7 @@
 import sys
 import os
 from pathlib import Path
-from PyInstaller.utils.hooks import collect_data_files, collect_submodules
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules, collect_all
 
 block_cipher = None
 
@@ -61,19 +61,17 @@ add_binary('kuzu', ext)
 # ── 2. Data files ────────────────────────────────────────────────────────────
 datas = []
 
-# FalkorDB Lite (only for Unix-like systems)
+# Tricky packages collection (redislite, falkordb)
 if not is_win:
-    add_binary('redislite/bin', '*')
-    add_binary('falkordblite.scripts', ext)
+    for pkg in ['redislite', 'falkordb']:
+        t_datas, t_binaries, t_hiddenimports = collect_all(pkg)
+        datas += t_datas
+        binaries += t_binaries
+        hidden_imports += t_hiddenimports
     
-    # Also include the python modules as datas if they aren't being picked up
-    def add_package_data(package_name):
-        pkg_path = site_packages / package_name
-        if pkg_path.exists():
-            datas.append((str(pkg_path), package_name))
-            
-    add_package_data('redislite')
-    add_package_data('falkordblite')
+    # Specific additions for falkordblite
+    add_binary('falkordblite.scripts', ext)
+    add_binary('falkordblite.libs', '*')
 
 # stdlibs: dynamically imports py3.py, py312.py, etc. via importlib
 stdlibs_dir = site_packages / 'stdlibs'
@@ -96,13 +94,6 @@ if ts_pack_dir.exists():
         datas.append((str(f), 'tree_sitter_language_pack'))
     for f in ts_pack_dir.glob('*.pyi'):
         datas.append((str(f), 'tree_sitter_language_pack'))
-
-# redislite configs (Unix only)
-if not is_win:
-    redislite_dir = site_packages / 'redislite'
-    if redislite_dir.exists():
-        for f in redislite_dir.glob('*.conf'):
-            datas.append((str(f), 'redislite'))
 
 # ── 3. Hidden imports ────────────────────────────────────────────────────────
 hidden_imports = [
@@ -227,6 +218,10 @@ hidden_imports = [
     'socket',
     'atexit',
 ]
+
+# Add redislite submodules to hidden imports
+hidden_imports += collect_submodules('redislite')
+hidden_imports += collect_submodules('falkordb')
 
 # Add platform-specific watchers
 if is_win:

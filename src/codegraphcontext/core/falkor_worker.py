@@ -61,8 +61,10 @@ def run_worker():
         while True:
             time.sleep(1)
             
-    except ImportError:
-        logger.error("Failed to import redislite.falkordb_client. Is falkordblite installed?")
+    except ImportError as e:
+        logger.error(f"Failed to import redislite.falkordb_client: {e}")
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
     except Exception as e:
         logger.error(f"FalkorDB Worker Critical Failure: {e}")
