@@ -204,6 +204,14 @@ class FalkorDBManager:
             env['CGC_RUN_FALKOR_WORKER'] = 'true'
             cmd = [python_exe]
         else:
+            # If not frozen, sys.executable should be python.
+            # But on some platforms (like PIP installs), it might be the 'cgc' entry point script.
+            # We check if it looks like python, otherwise search the PATH.
+            import shutil
+            exe_name = os.path.basename(python_exe).lower()
+            if not any(x in exe_name for x in ['python', 'py.exe', 'pypy']):
+                python_exe = shutil.which('python3') or shutil.which('python') or sys.executable
+            
             cmd = [python_exe, '-m', 'codegraphcontext.core.falkor_worker']
         
         info_logger("Starting FalkorDB Lite worker subprocess...")
@@ -224,16 +232,13 @@ class FalkorDBManager:
             if self._process.poll() is not None:
                 out, err = self._process.communicate()
                 returncode = self._process.returncode
-                # Exit code 2 means falkordb.so not found or GRAPH.QUERY broken
-                # — signal the caller to fall back to KùzuDB
-                if returncode == 2:
-                    raise FalkorDBUnavailableError(
-                        f"FalkorDB Lite worker could not load falkordb.so or GRAPH.QUERY "
-                        f"is unavailable in this environment.\nSTDERR: {err.decode().strip()}"
-                    )
-                raise RuntimeError(
-                    f"FalkorDB worker failed to start (Exit Code {returncode}):"
-                    f"\nSTDOUT: {out.decode()}\nSTDERR: {err.decode()}"
+                
+                # Any non-zero exit code during startup means this backend is toast
+                # Raise FalkorDBUnavailableError to trigger the automatic KùzuDB fallback
+                raise FalkorDBUnavailableError(
+                    f"FalkorDB Lite worker failed to start (Exit Code {returncode}).\n"
+                    f"STDOUT: {out.decode().strip()}\n"
+                    f"STDERR: {err.decode().strip()}"
                 )
             
             time.sleep(0.5)
