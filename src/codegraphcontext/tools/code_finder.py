@@ -525,7 +525,9 @@ class CodeFinder:
                   AND NOT func.name STARTS WITH '_test'
                   AND NOT func.name STARTS WITH 'test_'
                   AND NOT func.name CONTAINS 'main'
-                  AND NOT func.name =~ '(?i).*(application|entry|entrypoint).*'
+                  AND NOT toLower(func.name) CONTAINS 'application'
+                  AND NOT toLower(func.name) CONTAINS 'entry'
+                  AND NOT toLower(func.name) CONTAINS 'entrypoint'
                   AND ALL(decorator_name IN $exclude_decorated_with WHERE NOT decorator_name IN func.decorators)
                 WITH func
                 OPTIONAL MATCH (caller:Function)-[:CALLS]->(func)
