@@ -58,6 +58,9 @@ add_binary('tree_sitter_c_sharp', ext)
 # KùzuDB native extension
 add_binary('kuzu', ext)
 
+# ── 2. Data files ────────────────────────────────────────────────────────────
+datas = []
+
 # FalkorDB Lite (only for Unix-like systems)
 if not is_win:
     add_binary('redislite/bin', '*')
@@ -71,9 +74,6 @@ if not is_win:
             
     add_package_data('redislite')
     add_package_data('falkordblite')
-
-# ── 2. Data files ────────────────────────────────────────────────────────────
-datas = []
 
 # stdlibs: dynamically imports py3.py, py312.py, etc. via importlib
 stdlibs_dir = site_packages / 'stdlibs'
