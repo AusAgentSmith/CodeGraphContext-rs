@@ -190,7 +190,13 @@ class FalkorDBManager:
         python_exe = sys.executable
         
         # We assume codegraphcontext is installed or in python path
-        cmd = [python_exe, '-m', 'codegraphcontext.core.falkor_worker']
+        if getattr(sys, 'frozen', False):
+            # In frozen mode, the executable is the bundle itself.
+            # We tell the bundle to run the worker instead of the app via environment variable.
+            env['CGC_RUN_FALKOR_WORKER'] = 'true'
+            cmd = [python_exe]
+        else:
+            cmd = [python_exe, '-m', 'codegraphcontext.core.falkor_worker']
         
         info_logger("Starting FalkorDB Lite worker subprocess...")
         self._process = subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
