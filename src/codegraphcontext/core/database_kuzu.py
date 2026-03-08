@@ -124,7 +124,7 @@ class KuzuDBManager:
                 self._conn.execute(f"CREATE NODE TABLE `{table_name}`({schema})")
             except Exception as e:
                 if "already exists" not in str(e).lower():
-                    print(f"Kuzu Schema Node Error ({table_name}): {e}")
+                    warning_logger(f"Kuzu Schema Node Error ({table_name}): {e}")
                     debug_log(f"Kuzu Schema Node Error ({table_name}): {e}")
 
         for table_name, schema in rel_tables:
@@ -133,7 +133,7 @@ class KuzuDBManager:
                 self._conn.execute(f"CREATE REL TABLE `{table_name}`({schema})")
             except Exception as e:
                 if "already exists" not in str(e).lower():
-                    print(f"Kuzu Schema Rel Error ({table_name}): {e}")
+                    warning_logger(f"Kuzu Schema Rel Error ({table_name}): {e}")
                     debug_log(f"Kuzu Schema Rel Error ({table_name}): {e}")
 
     def close_driver(self):
@@ -315,7 +315,7 @@ class KuzuSessionWrapper:
                          query = query.replace(old_block, new_block)
                          # print(f"DEBUG: Replaced MERGE block: {old_block} -> {new_block}")
                     else:
-                         print(f"DEBUG_FAILURE: Could not find old_block in query: '{old_block}'")
+                         warning_logger(f"Kuzu UID injection: could not find props block in query for label '{label}'")
                     
                     parameters[uid_param] = uid_val
                     # print(f"DEBUG: Injected UID for {label}: {uid_val}")
