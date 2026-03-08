@@ -293,7 +293,7 @@ def _load_credentials():
     if runtime_db:
         default_db = runtime_db.lower()
     else:
-        default_db = os.environ.get("DEFAULT_DATABASE", "falkordb").lower()
+        default_db = (os.environ.get("DEFAULT_DATABASE") or os.environ.get("DATABASE_TYPE") or "kuzudb").lower()
     
     if default_db == "neo4j":
         has_neo4j_creds = all([
@@ -308,18 +308,24 @@ def _load_credentials():
             else:
                 console.print("[cyan]Using database: Neo4j[/cyan]")
         else:
-            console.print("[yellow]⚠ DEFAULT_DATABASE=neo4j but credentials not found. Falling back to FalkorDB.[/yellow]")
+            console.print("[yellow]⚠ DEFAULT_DATABASE=neo4j but credentials not found. Falling back to default.[/yellow]")
+    elif default_db == "kuzudb":
+        console.print("[cyan]Using database: KùzuDB[/cyan]")
     elif default_db == "falkordb-remote":
         host = os.environ.get("FALKORDB_HOST")
         if host:
             console.print(f"[cyan]Using database: FalkorDB Remote ({host})[/cyan]")
         else:
             console.print("[yellow]⚠ DATABASE_TYPE=falkordb-remote but FALKORDB_HOST not set.[/yellow]")
-    else:
+    elif default_db == "falkordb":
         if os.environ.get("FALKORDB_HOST"):
             console.print(f"[cyan]Using database: FalkorDB Remote ({os.environ.get('FALKORDB_HOST')})[/cyan]")
         else:
             console.print("[cyan]Using database: FalkorDB[/cyan]")
+    else:
+        console.print(f"[cyan]Using database: {default_db}[/cyan]")
+
+
 
 # ============================================================================
 # CONFIG COMMAND GROUP

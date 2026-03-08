@@ -1,6 +1,6 @@
-# src/codegraphcontext/cli/cli_helpers.py
 import asyncio
 import json
+import uuid
 import urllib.parse
 from pathlib import Path
 import time
@@ -263,16 +263,28 @@ def cypher_helper_visual(query: str):
 import webbrowser
 
 def visualize_helper(query: str):
-    """Generates a visualization."""
+    """"Generates a visualization."""
     services = _initialize_services()
     if not all(services):
         return
 
     db_manager, _, _ = services
     
-    # Check if FalkorDB
-    if "FalkorDB" in db_manager.__class__.__name__:
+    # Check Backend Type
+    backend = getattr(db_manager, "name", "").lower()
+    if not backend:
+        # Fallback check
+        if "FalkorDB" in db_manager.__class__.__name__:
+            backend = "falkordb"
+        elif "Kuzu" in db_manager.__class__.__name__:
+            backend = "kuzudb"
+        else:
+            backend = "neo4j"
+
+    if backend == "falkordb":
         _visualize_falkordb(db_manager)
+    elif backend == "kuzudb":
+        _visualize_kuzudb(db_manager)
     else:
         try:
             encoded_query = urllib.parse.quote(query)
@@ -348,6 +360,138 @@ def _visualize_falkordb(db_manager):
 <html>
 <head>
   <title>CodeGraphContext Visualization</title>
+  <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+  <style type="text/css">
+    #mynetwork {{
+      width: 100%;
+      height: 100vh;
+      border: 1px solid lightgray;
+    }}
+  </style>
+</head>
+<body>
+  <div id="mynetwork"></div>
+  <script type="text/javascript">
+    var nodes = new vis.DataSet({json.dumps(data_nodes)});
+    var edges = new vis.DataSet({json.dumps(data_edges)});
+    var container = document.getElementById('mynetwork');
+    var data = {{ nodes: nodes, edges: edges }};
+    var options = {{
+        nodes: {{ shape: 'dot', size: 16 }},
+        physics: {{ stabilization: false }},
+        layout: {{ improvedLayout: false }}
+    }};
+    var network = new vis.Network(container, data, options);
+  </script>
+</body>
+</html>
+"""
+        
+        out_path = Path(filename).resolve()
+        with open(out_path, "w") as f:
+            f.write(html_content)
+            
+        console.print(f"[green]Visualization generated at:[/green] {out_path}")
+        console.print("Opening in default browser...")
+        webbrowser.open(f"file://{out_path}")
+
+    except Exception as e:
+        console.print(f"[bold red]Visualization failed:[/bold red] {e}")
+        import traceback
+        traceback.print_exc()
+    finally:
+        db_manager.close_driver()
+
+
+def _visualize_kuzudb(db_manager):
+    console.print("[dim]Generating KùzuDB visualization (showing up to 500 relationships)...[/dim]")
+    try:
+        data_nodes = []
+        data_edges = []
+        
+        with db_manager.get_driver().session() as session:
+            # Fetch nodes and edges
+            # KùzuDB returns dicts for n, r, m in the result
+            q = "MATCH (n)-[r]->(m) RETURN n, r, m LIMIT 500"
+            result = session.run(q)
+            
+            seen_nodes = set()
+            
+            # Helper to extract Node ID and props
+            def process_node(node):
+                uid = None
+                lbl = 'Node'
+                props = {}
+                
+                # Handle Kuzu Node Object (processed by wrapper)
+                if hasattr(node, 'properties'):
+                    props = node.properties or {}
+                    if hasattr(node, 'labels') and node.labels:
+                        lbl = node.labels[0]
+                    if hasattr(node, 'id'):
+                        uid = str(node.id)
+                # Handle Dictionary (raw Kuzu result)
+                elif isinstance(node, dict):
+                    if '_id' in node:
+                        uid = f"{node['_id']['table']}_{node['_id']['offset']}"
+                    lbl = node.get('_label', 'Node')
+                    props = {k: v for k, v in node.items() if not k.startswith('_')}
+                
+                if not uid:
+                    uid = str(uuid.uuid4())
+                    
+                name = props.get('name', str(uid))
+                
+                if uid not in seen_nodes:
+                    seen_nodes.add(uid)
+                    color = "#97c2fc" # Default blue
+                    if "Repository" == lbl: color = "#ffb3ba"
+                    elif "File" == lbl: color = "#baffc9"
+                    elif "Class" == lbl: color = "#bae1ff"
+                    elif "Function" == lbl: color = "#ffffba"
+                    elif "Module" == lbl: color = "#ffdfba"
+                    
+                    data_nodes.append({
+                        "id": uid, 
+                        "label": name, 
+                        "group": lbl, 
+                        "title": str(props),
+                        "color": color
+                    })
+                return uid
+            
+            # Iterate results
+            for record in result:
+                # record is dict-like access to row items
+                n = record['n']
+                r = record['r']
+                m = record['m']
+                
+                nid = process_node(n)
+                mid = process_node(m)
+                
+                # Process Edge
+                e_type = 'REL'
+                if hasattr(r, 'type'):
+                    e_type = r.type
+                elif isinstance(r, dict):
+                    e_type = r.get('_label', 'REL')
+                elif hasattr(r, 'label'): # Some versions
+                     e_type = r.label
+                
+                data_edges.append({
+                    "from": nid,
+                    "to": mid,
+                    "label": e_type,
+                    "arrows": "to"
+                })
+        
+        filename = "codegraph_viz.html"
+        html_content = f"""
+<!DOCTYPE html>
+<html>
+<head>
+  <title>CodeGraphContext KùzuDB Visualization</title>
   <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
   <style type="text/css">
     #mynetwork {{
