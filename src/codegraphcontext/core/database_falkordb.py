@@ -174,15 +174,16 @@ class FalkorDBManager:
             try:
                 from falkordb import FalkorDB
                 d = FalkorDB(unix_socket_path=self.socket_path)
-                try:
-                    d.execute_command("PING")
-                except AttributeError:
-                    pass
-                info_logger("Connected to existing FalkorDB Lite process.")
+                # Test not just connectivity (PING), but functionality (GRAPH.QUERY)
+                # This ensures we don't connect to a "stale" process that doesn't have the module loaded
+                test_graph = d.select_graph('__cgc_health_check')
+                test_graph.query("RETURN 1")
+                info_logger("Connected to existing (functional) FalkorDB Lite process.")
                 return
-            except Exception:
-                # Stale socket or unresponsive
-                info_logger("Found stale socket, cleaning up...")
+            except Exception as e:
+                # Stale socket, unresponsive, or "brainless" (unknown command GRAPH.QUERY)
+                info_logger(f"Existing FalkorDB process at {self.socket_path} is stale or non-functional: {e}")
+                info_logger("Cleaning up and attempting fresh start...")
                 try:
                     os.remove(self.socket_path)
                 except OSError:
