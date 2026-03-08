@@ -183,9 +183,9 @@ add_binary('kuzu', ext)
 
 # ── 2. Bundle Logic ──────────────────────────────────────────────────────────
 
-# Tricky packages collection (redislite, falkordb)
+# Tricky packages collection (redislite, falkordb, falkordblite)
 if not is_win:
-    for pkg in ['redislite', 'falkordb']:
+    for pkg in ['redislite', 'falkordb', 'falkordblite']:
         t_datas, t_binaries, t_hiddenimports = collect_all(pkg)
         datas += t_datas
         binaries += t_binaries
