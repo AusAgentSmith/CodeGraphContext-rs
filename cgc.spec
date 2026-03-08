@@ -32,9 +32,6 @@ search_paths = list(set([p for p in search_paths if p.exists()]))
 print(f"Detected Platform: {sys.platform}")
 print(f"Searching for dependencies in: {[str(p) for p in search_paths]}")
 
-print(f"Detected Platform: {sys.platform}")
-print(f"Using site-packages: {site_packages}")
-
 # ── 1. Component Lists (Binaries, Datas, Hidden Imports) ───────────────────
 binaries = []
 datas = []
