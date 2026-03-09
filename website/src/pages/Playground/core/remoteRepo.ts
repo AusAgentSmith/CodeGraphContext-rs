@@ -47,8 +47,15 @@ export async function fetchRemoteRepo(config: RepoConfig, progressCallback: (msg
   const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
   let finalDownloadUrl = downloadUrl;
 
-  // Use Vite proxies in development to bypass CORS
-  if (isDev) {
+  // In production (Vercel), we must use our serverless proxy to bypass CORS redirects
+  if (!isDev) {
+    const proxyUrl = new URL('/api/proxy', window.location.origin);
+    proxyUrl.searchParams.set('url', downloadUrl);
+    proxyUrl.searchParams.set('provider', provider);
+    if (token) proxyUrl.searchParams.set('token', token);
+    finalDownloadUrl = proxyUrl.toString();
+  } else {
+    // Use Vite proxies in development
     if (provider === 'github') {
       finalDownloadUrl = downloadUrl.replace('https://api.github.com', '/proxy/github-api');
     } else if (provider === 'gitlab') {
