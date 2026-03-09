@@ -231,6 +231,18 @@ body {
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Utility classes used in sections */
+  .bg-gradient-subtle {
+    background: linear-gradient(to bottom, transparent, hsl(var(--secondary) / 0.3), transparent);
+  }
+
+  .bg-grid-pattern {
+    background-image: 
+      linear-gradient(to right, hsl(var(--primary) / 0.05) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--primary) / 0.05) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
 }
 
 @theme inline {

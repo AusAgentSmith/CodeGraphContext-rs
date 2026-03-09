@@ -68,18 +68,7 @@ export async function processFiles(files: FileData[], progressCallback: (msg: st
 
   for (const file of files) {
     fileMap[file.path] = file.content;
-    const lang = detectLanguage(file.path);
-    if (!lang) {
-      processed++;
-      continue;
-    }
-
-    const language = await getLanguage(lang);
-    if (!language) continue;
-
-    parser.setLanguage(language);
-    
-    // Create folder hierarchy
+    // Create folder hierarchy (ENSURE folders and files exist even if lang not supported)
     const parts = file.path.split('/');
     let currentDir = "";
     for (let i = 0; i < parts.length - 1; i++) {
@@ -101,6 +90,17 @@ export async function processFiles(files: FileData[], progressCallback: (msg: st
     if (currentDir) {
        edges.push({ id: `dir_contains_${currentDir}_${file.path}`, source: currentDir, target: file.path, type: 'contains' });
     }
+
+    const lang = detectLanguage(file.path);
+    if (!lang) {
+      processed++;
+      continue;
+    }
+
+    const language = await getLanguage(lang);
+    if (!language) continue;
+
+    parser.setLanguage(language);
 
     progressCallback(`Parsing ${Math.round((processed / fileCount) * 100)}%: ${file.path}`);
     const tree = parser.parse(file.content);
@@ -163,7 +163,7 @@ export async function processFiles(files: FileData[], progressCallback: (msg: st
   progressCallback('Graph constructed.');
 
   const validNodes = new Set(nodes.map(n => n.id));
-  const validEdges = edges.filter(e => validNodes.has(e.target) || e.target.indexOf('.js') === -1); 
+  const validEdges = edges.filter(e => validNodes.has(e.source) && validNodes.has(e.target)); 
 
   return { nodes, edges: validEdges, files: fileMap };
 }
