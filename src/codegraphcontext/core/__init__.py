@@ -88,10 +88,23 @@ def get_database_manager() -> Union['DatabaseManager', 'FalkorDBManager', 'Falko
 
         elif db_type == 'falkordb':
             if not _is_falkordb_available():
+                info_logger("FalkorDB Lite is not supported or not installed. Falling back to KùzuDB.")
+                if _is_kuzudb_available():
+                    from .database_kuzu import KuzuDBManager
+                    return KuzuDBManager()
                 raise ValueError("Database set to 'falkordb' but FalkorDB Lite is not installed or not supported on this OS.\nRun 'pip install falkordblite'")
-            from .database_falkordb import FalkorDBManager
-            info_logger("Using FalkorDB Lite (explicit)")
-            return FalkorDBManager()
+            
+            from .database_falkordb import FalkorDBManager, FalkorDBUnavailableError
+            try:
+                mgr = FalkorDBManager()
+                info_logger("Using FalkorDB Lite (explicit)")
+                return mgr
+            except FalkorDBUnavailableError as falkor_err:
+                info_logger(f"FalkorDB Lite not functional ({falkor_err}). Falling back to KùzuDB.")
+                if _is_kuzudb_available():
+                    from .database_kuzu import KuzuDBManager
+                    return KuzuDBManager()
+                raise
 
         elif db_type == 'falkordb-remote':
             if not _is_falkordb_remote_configured():
