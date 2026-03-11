@@ -183,13 +183,13 @@ add_binary('tree_sitter_embedded_template', ext)
 add_binary('tree_sitter_c_sharp', ext)
 
 # KùzuDB complete collection
-try:
-    k_datas, k_binaries, k_hiddenimports = collect_all('kuzu')
-    datas += k_datas
-    binaries += k_binaries
-    hidden_imports += k_hiddenimports
-except Exception as e:
-    print(f"Warning: collect_all failed for kuzu: {e}")
+# We use find_pkg_dir to add the entire folder to datas, ensuring we don't miss any .so, .pyd, or .dylib files
+kuzu_dir = find_pkg_dir('kuzu')
+if kuzu_dir:
+    print(f"Force bundling entire Kuzu directory: {kuzu_dir}")
+    datas.append((str(kuzu_dir), 'kuzu'))
+else:
+    print("WARNING: Could not find 'kuzu' directory to bundle!")
 # ── 2. Bundle Logic (Aggressive FalkorDB Collection) ──────────────────────────
 
 # Native dependencies detection
