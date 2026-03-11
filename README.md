@@ -1,5 +1,16 @@
 # 🏗️ CodeGraphContext (CGC)
 
+**Turn code repositories into a queryable graph for AI agents.**
+
+🌐 **Languages:**
+- 🇬🇧 [English](README.md)
+- 🇨🇳 [中文](README.zh-CN.md)
+- 🇯🇵 日本語 (Soon)
+- 🇷🇺 Русский (Soon)
+- 🇪🇸 Español (Soon)
+
+🌍 **Help translate CodeGraphContext to your language by raising an issue & PR on https://github.com/Shashankss1205/CodeGraphContext/issues!**
+
 <p align="center">
   <br>
   <b>Bridge the gap between deep code graphs and AI context.</b>
