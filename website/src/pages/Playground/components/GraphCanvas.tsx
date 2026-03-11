@@ -25,11 +25,11 @@ export interface GraphCanvasProps {
 
 /* ── Colors ─────────────────────────────────────────────────────────── */
 const NODE_COLORS: Record<string, string> = {
-  file:       '#3b82f6',
-  folder:     '#6366f1',
+  file:       '#22c55e',
+  folder:     '#3b82f6',
   class:      '#f59e0b',
   interface:  '#ec4899',
-  function:   '#10b981',
+  function:   '#ef5be8',
   method:     '#14b8a6',
   struct:     '#f97316',
   enum:       '#a78bfa',
@@ -53,13 +53,13 @@ const NODE_SIZES: Record<string, number> = {
 };
 
 export const EDGE_STYLES: Record<string, { color: string }> = {
-  contains:   { color: '#10b981' },
-  defines:    { color: '#06b6d4' },
-  imports:    { color: '#3b82f6' },
-  calls:      { color: '#8b5cf6' },
-  inherits:   { color: '#f97316' },
-  implements: { color: '#ec4899' },
-  extends:    { color: '#f59e0b' },
+  contains:   { color: '#22c55e' },
+  defines:    { color: '#22c55e' },
+  imports:    { color: '#22c55e' },
+  calls:      { color: '#22c55e' },
+  inherits:   { color: '#22c55e' },
+  implements: { color: '#22c55e' },
+  extends:    { color: '#22c55e' },
 };
 
 const getColor  = (type: string, custom?: Record<string, string>) => (custom && custom[type]) || NODE_COLORS[type]  || NODE_COLORS.default;

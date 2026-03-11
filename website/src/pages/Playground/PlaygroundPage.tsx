@@ -6,15 +6,16 @@ import { processFiles } from './core/astWorker';
 import type { FileData, GraphData } from './core/astWorker';
 import { fetchRemoteRepo } from './core/remoteRepo';
 import { GraphCanvas, EDGE_STYLES } from './components/GraphCanvas';
-import { UploadCloud, Box, Search, Settings, HelpCircle, Heart, X, FileCode2, FileText, Link, Lock, Globe, Filter, ChevronRight, ChevronDown, Lightbulb, Share2, Menu, Pipette, Download, Twitter, MessageSquare, ExternalLink } from 'lucide-react';
+import { CityCanvas } from './components/CityCanvas';
+import { UploadCloud, Box, Search, Settings, HelpCircle, Heart, X, FileCode2, FileText, Link, Lock, Globe, Filter, ChevronRight, ChevronDown, Lightbulb, Share2, Menu, Pipette, Download, Twitter, MessageSquare, ExternalLink, Map } from 'lucide-react';
 
 // Node colour map for search results (mirrors GitNexus Header.tsx)
 const NODE_TYPE_COLORS: Record<string, string> = {
-  file:       '#3b82f6',
-  folder:     '#6366f1',
+  file:       '#22c55e',
+  folder:     '#3b82f6',
   class:      '#f59e0b',
   interface:  '#ec4899',
-  function:   '#10b981',
+  function:   '#ef5be8',
   method:     '#14b8a6',
   struct:     '#f97316',
   enum:       '#a78bfa',
@@ -53,6 +54,7 @@ function App() {
   const [searchParams, setSearchParams] = useSearchParams();
   const actionProcessedRef = useRef(false);
   const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d');
  
   const performRemoteFetch = useCallback(async (url: string, token?: string) => {
     if (!url.trim()) return;
@@ -396,6 +398,15 @@ function App() {
               </div>
 
               <button 
+                onClick={() => setViewMode(prev => prev === '2d' ? '3d' : '2d')}
+                className="px-3 h-9 flex items-center gap-2 rounded-md bg-accent/10 border border-accent/20 text-accent hover:bg-accent hover:text-white transition-all shadow-glow-soft text-xs font-medium"
+                title={viewMode === '2d' ? 'Switch to 3D City View' : 'Switch to 2D Graph View'}
+              >
+                {viewMode === '2d' ? <Map className="w-4 h-4" /> : <Globe className="w-4 h-4" />}
+                <span>{viewMode === '2d' ? '3D City' : '2D Graph'}</span>
+              </button>
+
+              <button 
                 onClick={() => graphCanvasRef.current?.exportHTML()}
                 className="px-3 h-9 flex items-center gap-2 rounded-md bg-accent/10 border border-accent/20 text-accent hover:bg-accent hover:text-white transition-all shadow-glow-soft text-xs font-medium"
                 title="Download Standalone Interactive HTML"
@@ -536,26 +547,39 @@ function App() {
             </div>
             {/* Graph Canvas */}
             <div className="flex-1 relative min-w-0">
-              <GraphCanvas 
-                ref={graphCanvasRef}
-                data={graphData} 
-                onReset={() => { setGraphData(null); setSelectedFile(null); setIllustratedPath(null); setSelectedNodeLabel(null); }}
-                selectedFile={selectedFile}
-                selectedPath={illustratedPath}
-                customNodeColors={customNodeColors}
-                customEdgeColors={customEdgeColors}
-                visibleNodeTypes={visibleNodeTypes}
-                visibleEdgeTypes={visibleEdgeTypes}
-                onNodeClick={(file, label) => {
-                  setSelectedFile(file);
-                  setSelectedNodeLabel(label);
-                }}
-                onStageClick={() => {
-                   setIllustratedPath(null);
-                   setSelectedFile(null);
-                   setSelectedNodeLabel(null);
-                }}
-              />
+              {viewMode === '2d' ? (
+                <GraphCanvas 
+                  ref={graphCanvasRef}
+                  data={graphData} 
+                  onReset={() => { setGraphData(null); setSelectedFile(null); setIllustratedPath(null); setSelectedNodeLabel(null); }}
+                  selectedFile={selectedFile}
+                  selectedPath={illustratedPath}
+                  customNodeColors={customNodeColors}
+                  customEdgeColors={customEdgeColors}
+                  visibleNodeTypes={visibleNodeTypes}
+                  visibleEdgeTypes={visibleEdgeTypes}
+                  onNodeClick={(file, label) => {
+                    setSelectedFile(file);
+                    setSelectedNodeLabel(label);
+                  }}
+                  onStageClick={() => {
+                     setIllustratedPath(null);
+                     setSelectedFile(null);
+                     setSelectedNodeLabel(null);
+                  }}
+                />
+              ) : (
+                <CityCanvas
+                  data={graphData}
+                  visibleNodeTypes={visibleNodeTypes}
+                  visibleEdgeTypes={visibleEdgeTypes}
+                  customNodeColors={customNodeColors}
+                  onNodeClick={(file, label) => {
+                    setSelectedFile(file);
+                    setSelectedNodeLabel(label);
+                  }}
+                />
+              )}
               
               {/* Type Toggles Floating Panel */}
               <div className="absolute top-4 left-4 z-20 flex flex-col gap-4">

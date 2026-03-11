@@ -65,6 +65,7 @@ export async function processFiles(files: FileData[], progressCallback: (msg: st
   const fileCount = files.length;
   let processed = 0;
   const dirs = new Set<string>();
+  const unresolvedCalls: Array<{ source: string, targetName: string }> = [];
 
   for (const file of files) {
     fileMap[file.path] = file.content;
@@ -138,16 +139,13 @@ export async function processFiles(files: FileData[], progressCallback: (msg: st
           }
           
           // Identify if this is a call
-          // Identify if this is a call
           const callNameCapture = match.captures.find(c => c.name === 'call.name');
 
           if (callNameCapture) {
              const name = callNameCapture.node.text;
-             edges.push({
-               id: `call_${file.path}_to_${name}_${Math.random()}`,
+             unresolvedCalls.push({
                source: file.path, 
-               target: name, 
-               type: 'calls'
+               targetName: name
              });
           }
         }
@@ -158,6 +156,26 @@ export async function processFiles(files: FileData[], progressCallback: (msg: st
     
     tree.delete();
     processed++;
+  }
+
+  // Resolve Calls (Cross-File or Same-File)
+  const defMap = new Map<string, string>();
+  for (const node of nodes) {
+    if (['function', 'class', 'method'].includes(node.type)) {
+      defMap.set(node.label, node.id);
+    }
+  }
+
+  for (const call of unresolvedCalls) {
+    const targetId = defMap.get(call.targetName);
+    if (targetId) {
+      edges.push({
+         id: `call_${call.source}_to_${targetId}_${Math.random()}`,
+         source: call.source,
+         target: targetId,
+         type: 'calls'
+      });
+    }
   }
 
   progressCallback('Graph constructed.');
