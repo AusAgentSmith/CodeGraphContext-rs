@@ -6,16 +6,15 @@ import { processFiles } from './core/astWorker';
 import type { FileData, GraphData } from './core/astWorker';
 import { fetchRemoteRepo } from './core/remoteRepo';
 import { GraphCanvas, EDGE_STYLES } from './components/GraphCanvas';
-import { CityCanvas } from './components/CityCanvas';
-import { UploadCloud, Box, Search, Settings, HelpCircle, Heart, X, FileCode2, FileText, Link, Lock, Globe, Filter, ChevronRight, ChevronDown, Lightbulb, Share2, Menu, Pipette, Download, Twitter, MessageSquare, ExternalLink, Map } from 'lucide-react';
+import { UploadCloud, Box, Search, Settings, HelpCircle, Heart, X, FileCode2, FileText, Link, Lock, Globe, Filter, ChevronRight, ChevronDown, Lightbulb, Share2, Menu, Pipette, Download, Twitter, MessageSquare, ExternalLink } from 'lucide-react';
 
 // Node colour map for search results (mirrors GitNexus Header.tsx)
 const NODE_TYPE_COLORS: Record<string, string> = {
-  file:       '#22c55e',
-  folder:     '#3b82f6',
+  file:       '#3b82f6',
+  folder:     '#6366f1',
   class:      '#f59e0b',
   interface:  '#ec4899',
-  function:   '#ef5be8',
+  function:   '#10b981',
   method:     '#14b8a6',
   struct:     '#f97316',
   enum:       '#a78bfa',
@@ -23,6 +22,8 @@ const NODE_TYPE_COLORS: Record<string, string> = {
   namespace:  '#7c3aed',
   default:    '#6b7280',
 };
+
+const MOBILE_BREAKPOINT = 768;
 
 function App() {
   const [loading, setLoading] = useState(false);
@@ -38,7 +39,12 @@ function App() {
   const [repoUrl, setRepoUrl] = useState('');
   const [repoToken, setRepoToken] = useState('');
   const [explorerWidth, setExplorerWidth] = useState(260);
-  const [isExplorerCollapsed, setIsExplorerCollapsed] = useState(false);
+  const [isMobileView, setIsMobileView] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth < MOBILE_BREAKPOINT : false,
+  );
+  const [isExplorerCollapsed, setIsExplorerCollapsed] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth < MOBILE_BREAKPOINT : false,
+  );
   const [isResizing, setIsResizing] = useState(false);
   const [collapsedPaths, setCollapsedPaths] = useState<Set<string>>(new Set());
   const [customNodeColors, setCustomNodeColors] = useState<Record<string, string>>({});
@@ -54,7 +60,22 @@ function App() {
   const [searchParams, setSearchParams] = useSearchParams();
   const actionProcessedRef = useRef(false);
   const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d');
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
+    const onChange = (event: MediaQueryListEvent) => setIsMobileView(event.matches);
+
+    setIsMobileView(mediaQuery.matches);
+    mediaQuery.addEventListener('change', onChange);
+
+    return () => mediaQuery.removeEventListener('change', onChange);
+  }, []);
+
+  useEffect(() => {
+    if (isMobileView) {
+      setIsExplorerCollapsed(true);
+    }
+  }, [isMobileView]);
  
   const performRemoteFetch = useCallback(async (url: string, token?: string) => {
     if (!url.trim()) return;
@@ -273,8 +294,13 @@ function App() {
       <header className="flex items-center justify-between px-5 py-3 bg-deep border-b border-dashed border-border-subtle shrink-0 z-50">
 
         {/* Left: logo + project badge */}
-        <div className="flex items-center gap-4">
-          <button className="md:hidden p-1.5 -ml-1 text-text-muted hover:text-white transition-colors">
+        <div className="flex min-w-0 items-center gap-4">
+          <button
+            onClick={() => graphData && setIsExplorerCollapsed(prev => !prev)}
+            className={`md:hidden p-1.5 -ml-1 text-text-muted transition-colors ${graphData ? 'hover:text-white' : 'cursor-not-allowed opacity-40'}`}
+            disabled={!graphData}
+            aria-label="Toggle explorer"
+          >
             <Menu className="w-5 h-5" />
           </button>
           <RouterLink to="/" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
@@ -296,8 +322,8 @@ function App() {
 
         {/* Center: search (only when graph loaded) */}
         {graphData ? (
-          <div className="flex-1 max-w-md mx-6 relative" ref={searchRef}>
-            <div className="flex items-center gap-2.5 px-3.5 py-2 bg-surface border border-border-subtle rounded-lg transition-all focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20">
+          <div className="relative mx-2 flex-1 min-w-0 max-w-md sm:mx-6" ref={searchRef}>
+            <div className="flex w-full min-w-0 items-center gap-2.5 px-3.5 py-2 bg-surface border border-border-subtle rounded-lg transition-all focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20">
               <Search className="w-4 h-4 text-text-muted flex-shrink-0" />
               <input
                 ref={inputRef}
@@ -307,9 +333,9 @@ function App() {
                 onChange={e => { setSearchQuery(e.target.value); setIsSearchOpen(true); }}
                 onFocus={() => setIsSearchOpen(true)}
                 onBlur={() => setTimeout(() => setIsSearchOpen(false), 150)}
-                className="flex-1 bg-transparent border-none outline-none text-sm text-text-primary placeholder:text-text-muted"
+                className="min-w-0 flex-1 bg-transparent border-none outline-none text-sm text-text-primary placeholder:text-text-muted"
               />
-              <kbd className="px-1.5 py-0.5 bg-elevated border border-border-subtle rounded text-[10px] text-text-muted font-mono">⌘K</kbd>
+              <kbd className="hidden shrink-0 px-1.5 py-0.5 bg-elevated border border-border-subtle rounded text-[10px] text-text-muted font-mono md:inline-flex">⌘K</kbd>
             </div>
 
             {/* Search dropdown */}
@@ -347,16 +373,16 @@ function App() {
         )}
 
         {/* Right: icons */}
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           {graphData && (
             <div className="flex items-center gap-2">
               <div className="relative">
                 <button 
-                  className="px-3 h-9 flex items-center gap-2 rounded-md bg-purple-600/10 border border-purple-500/20 text-purple-400/60 cursor-not-allowed transition-all text-xs font-semibold"
+                  className="h-9 px-2 sm:px-3 flex items-center gap-2 rounded-md bg-purple-600/10 border border-purple-500/20 text-purple-400/60 cursor-not-allowed transition-all text-xs font-semibold"
                   title="Exporting features are coming soon!"
                 >
                   <Share2 className="w-4 h-4" />
-                  <span>Work in Progress</span>
+                  <span className="hidden sm:inline">Work in Progress</span>
                 </button>
                 
                 {isExportDropdownOpen && (
@@ -398,21 +424,12 @@ function App() {
               </div>
 
               <button 
-                onClick={() => setViewMode(prev => prev === '2d' ? '3d' : '2d')}
-                className="px-3 h-9 flex items-center gap-2 rounded-md bg-accent/10 border border-accent/20 text-accent hover:bg-accent hover:text-white transition-all shadow-glow-soft text-xs font-medium"
-                title={viewMode === '2d' ? 'Switch to 3D City View' : 'Switch to 2D Graph View'}
-              >
-                {viewMode === '2d' ? <Map className="w-4 h-4" /> : <Globe className="w-4 h-4" />}
-                <span>{viewMode === '2d' ? '3D City' : '2D Graph'}</span>
-              </button>
-
-              <button 
                 onClick={() => graphCanvasRef.current?.exportHTML()}
-                className="px-3 h-9 flex items-center gap-2 rounded-md bg-accent/10 border border-accent/20 text-accent hover:bg-accent hover:text-white transition-all shadow-glow-soft text-xs font-medium"
+                className="h-9 px-2 sm:px-3 flex items-center gap-2 rounded-md bg-accent/10 border border-accent/20 text-accent hover:bg-accent hover:text-white transition-all shadow-glow-soft text-xs font-medium"
                 title="Download Standalone Interactive HTML"
               >
                 <Download className="w-4 h-4" />
-                <span>Download Graph</span>
+                <span className="hidden sm:inline">Download Graph</span>
               </button>
             </div>
           )}
@@ -530,7 +547,7 @@ function App() {
                   {/* Resize Handle */}
                   <div 
                     onMouseDown={startResizing}
-                    className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-accent/40 active:bg-accent transition-colors z-20"
+                    className="absolute top-0 right-0 z-20 hidden h-full w-1 cursor-col-resize transition-colors hover:bg-accent/40 active:bg-accent md:block"
                   />
                 </div>
               ) : (
@@ -547,48 +564,35 @@ function App() {
             </div>
             {/* Graph Canvas */}
             <div className="flex-1 relative min-w-0">
-              {viewMode === '2d' ? (
-                <GraphCanvas 
-                  ref={graphCanvasRef}
-                  data={graphData} 
-                  onReset={() => { setGraphData(null); setSelectedFile(null); setIllustratedPath(null); setSelectedNodeLabel(null); }}
-                  selectedFile={selectedFile}
-                  selectedPath={illustratedPath}
-                  customNodeColors={customNodeColors}
-                  customEdgeColors={customEdgeColors}
-                  visibleNodeTypes={visibleNodeTypes}
-                  visibleEdgeTypes={visibleEdgeTypes}
-                  onNodeClick={(file, label) => {
-                    setSelectedFile(file);
-                    setSelectedNodeLabel(label);
-                  }}
-                  onStageClick={() => {
-                     setIllustratedPath(null);
-                     setSelectedFile(null);
-                     setSelectedNodeLabel(null);
-                  }}
-                />
-              ) : (
-                <CityCanvas
-                  data={graphData}
-                  visibleNodeTypes={visibleNodeTypes}
-                  visibleEdgeTypes={visibleEdgeTypes}
-                  customNodeColors={customNodeColors}
-                  onNodeClick={(file, label) => {
-                    setSelectedFile(file);
-                    setSelectedNodeLabel(label);
-                  }}
-                />
-              )}
+              <GraphCanvas 
+                ref={graphCanvasRef}
+                data={graphData} 
+                onReset={() => { setGraphData(null); setSelectedFile(null); setIllustratedPath(null); setSelectedNodeLabel(null); }}
+                selectedFile={selectedFile}
+                selectedPath={illustratedPath}
+                customNodeColors={customNodeColors}
+                customEdgeColors={customEdgeColors}
+                visibleNodeTypes={visibleNodeTypes}
+                visibleEdgeTypes={visibleEdgeTypes}
+                onNodeClick={(file, label) => {
+                  setSelectedFile(file);
+                  setSelectedNodeLabel(label);
+                }}
+                onStageClick={() => {
+                   setIllustratedPath(null);
+                   setSelectedFile(null);
+                   setSelectedNodeLabel(null);
+                }}
+              />
               
               {/* Type Toggles Floating Panel */}
               <div className="absolute top-4 left-4 z-20 flex flex-col gap-4">
                 <div className={`bg-[#12121c]/90 border border-[#2a2a3a] rounded-xl backdrop-blur-md shadow-2xl transition-all duration-300 overflow-hidden ${isFiltersCollapsed ? 'w-10 h-10' : 'px-4 py-3 max-w-xs'}`}>
-                  <div className={`flex items-center justify-between ${isFiltersCollapsed ? 'w-full h-full flex justify-center items-center' : 'mb-3 border-b border-border-subtle/50 pb-2'}`}>
+                  <div className={isFiltersCollapsed ? 'flex w-full h-full items-center justify-center' : 'mb-3 flex items-center justify-between border-b border-border-subtle/50 pb-2'}>
                     {!isFiltersCollapsed && <span className="text-[11px] font-bold text-text-muted uppercase tracking-wider font-mono">Filters</span>}
                     <button 
                       onClick={() => setIsFiltersCollapsed(!isFiltersCollapsed)}
-                      className="p-1.5 rounded-md hover:bg-white/10 transition-colors"
+                      className={`flex items-center justify-center rounded-md hover:bg-white/10 transition-colors ${isFiltersCollapsed ? 'w-full h-full p-0' : 'p-1.5'}`}
                       title={isFiltersCollapsed ? 'Expand Filters' : 'Collapse Filters'}
                     >
                       <Filter className={`w-3.5 h-3.5 text-text-muted transition-transform duration-300 ${isFiltersCollapsed ? 'rotate-0' : 'scale-110 opacity-80'}`} />
@@ -599,26 +603,26 @@ function App() {
                     <div className="space-y-4">
                     <div>
                       <p className="text-[10px] uppercase tracking-widest text-[#8888a0] mb-2 font-semibold">Nodes</p>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                         {['folder', 'file', 'class', 'function', 'interface', 'method', 'struct', 'enum', 'namespace', 'module'].map(type => {
                           const isActive = visibleNodeTypes.has(type);
                           const color = customNodeColors[type] || NODE_TYPE_COLORS[type] || '#6b7280';
                           return (
-                            <div key={type} className="group relative flex items-center gap-1">
+                            <div key={type} className="group relative flex min-w-0 items-center gap-1">
                               <button
                                 onClick={() => {
                                   const next = new Set(visibleNodeTypes);
                                   if (isActive) next.delete(type); else next.add(type);
                                   setVisibleNodeTypes(next);
                                 }}
-                                className={`flex-1 flex items-center gap-2 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-all border
+                                className={`flex-1 min-w-0 flex items-center gap-2 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-all border
                                   ${isActive 
                                     ? 'bg-accent/20 border-accent/40 text-text-primary' 
                                     : 'bg-void border-transparent text-text-muted hover:border-[#2a2a3a] hover:text-text-secondary'}`}
                               >
                                 <div className="w-1.5 h-1.5 rounded-full shrink-0" 
                                   style={{ backgroundColor: color }} />
-                                <span className="capitalize">{type}</span>
+                                <span className="capitalize truncate">{type}</span>
                               </button>
                               <div className="relative flex items-center">
                                 <label className="cursor-pointer p-1 rounded hover:bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -639,26 +643,26 @@ function App() {
 
                       <div>
                         <p className="text-[10px] uppercase tracking-widest text-[#8888a0] mb-2 font-semibold">Edges</p>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                           {['contains', 'defines', 'imports', 'calls', 'inherits', 'implements', 'extends'].map(type => {
                             const isActive = visibleEdgeTypes.has(type);
                             const edgeColor = customEdgeColors[type] || EDGE_STYLES[type]?.color || '#7c3aed';
                             return (
-                              <div key={type} className="group relative flex items-center gap-1">
+                              <div key={type} className="group relative flex min-w-0 items-center gap-1">
                                 <button
                                   onClick={() => {
                                     const next = new Set(visibleEdgeTypes);
                                     if (isActive) next.delete(type); else next.add(type);
                                     setVisibleEdgeTypes(next);
                                   }}
-                                  className={`flex-1 flex items-center gap-2 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-all border
+                                  className={`flex-1 min-w-0 flex items-center gap-2 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-all border
                                     ${isActive 
                                       ? 'bg-accent/20 border-accent/40 text-text-primary' 
                                       : 'bg-void border-transparent text-text-muted hover:border-[#2a2a3a] hover:text-text-secondary'}`}
                                 >
                                   <div className="w-3 h-0.5 rounded-full shrink-0" 
                                     style={{ backgroundColor: edgeColor }} />
-                                  <span className="capitalize">{type}</span>
+                                  <span className="capitalize truncate">{type}</span>
                                 </button>
                                 <div className="relative flex items-center">
                                   <label className="cursor-pointer p-1 rounded hover:bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity">

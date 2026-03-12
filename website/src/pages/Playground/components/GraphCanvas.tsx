@@ -25,11 +25,11 @@ export interface GraphCanvasProps {
 
 /* ── Colors ─────────────────────────────────────────────────────────── */
 const NODE_COLORS: Record<string, string> = {
-  file:       '#22c55e',
-  folder:     '#3b82f6',
+  file:       '#3b82f6',
+  folder:     '#6366f1',
   class:      '#f59e0b',
   interface:  '#ec4899',
-  function:   '#ef5be8',
+  function:   '#10b981',
   method:     '#14b8a6',
   struct:     '#f97316',
   enum:       '#a78bfa',
@@ -53,13 +53,13 @@ const NODE_SIZES: Record<string, number> = {
 };
 
 export const EDGE_STYLES: Record<string, { color: string }> = {
-  contains:   { color: '#22c55e' },
-  defines:    { color: '#22c55e' },
-  imports:    { color: '#22c55e' },
-  calls:      { color: '#22c55e' },
-  inherits:   { color: '#22c55e' },
-  implements: { color: '#22c55e' },
-  extends:    { color: '#22c55e' },
+  contains:   { color: '#10b981' },
+  defines:    { color: '#06b6d4' },
+  imports:    { color: '#3b82f6' },
+  calls:      { color: '#8b5cf6' },
+  inherits:   { color: '#f97316' },
+  implements: { color: '#ec4899' },
+  extends:    { color: '#f59e0b' },
 };
 
 const getColor  = (type: string, custom?: Record<string, string>) => (custom && custom[type]) || NODE_COLORS[type]  || NODE_COLORS.default;
@@ -455,7 +455,7 @@ export const GraphCanvas = forwardRef<any, GraphCanvasProps>(({
       
       {/* Layout Indicator - Top Center to avoid blockages */}
       {isLayoutRunning && (
-        <div className="absolute top-6 left-1/2 -translate-x-1/2 flex items-center gap-3 px-4 py-2 bg-emerald-500/10 border border-emerald-500/30 rounded-full backdrop-blur-md z-30 shadow-[0_0_20px_rgba(16,185,129,0.1)]">
+        <div className="absolute left-1/2 top-6 z-30 hidden -translate-x-1/2 items-center gap-3 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 shadow-[0_0_20px_rgba(16,185,129,0.1)] backdrop-blur-md md:flex">
           <div className="w-2.5 h-2.5 bg-emerald-400 rounded-full animate-ping" />
           <span className="text-xs text-emerald-400 font-semibold tracking-wide uppercase">Mapping Codebase...</span>
         </div>
@@ -472,10 +472,10 @@ export const GraphCanvas = forwardRef<any, GraphCanvasProps>(({
       )}
 
       {/* Floating Control Bar — High Contrast & Elevated UI */}
-      <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 bg-[#0a0a10]/98 border border-[#3a3a4a] px-6 py-3 rounded-3xl backdrop-blur-2xl shadow-[0_20px_60px_rgba(0,0,0,0.9)] transition-all hover:border-accent/40 group">
+      <div className="absolute bottom-3 sm:bottom-12 left-1/2 -translate-x-1/2 z-50 flex max-w-[calc(100%-1rem)] items-center gap-2 sm:gap-4 overflow-x-auto bg-[#0a0a10]/98 border border-[#3a3a4a] px-3 sm:px-6 py-2.5 sm:py-3 rounded-2xl sm:rounded-3xl backdrop-blur-2xl shadow-[0_20px_60px_rgba(0,0,0,0.9)] transition-all hover:border-accent/40 group">
         
         {/* Zoom Controls (Large & Tap-Friendly) */}
-        <div className="flex items-center gap-2.5 pr-5 border-r border-[#2a2a3a]">
+        <div className="flex shrink-0 items-center gap-2.5 pr-3 sm:pr-5 border-r border-[#2a2a3a]">
           <button onClick={zoomIn} title="Zoom In"
             className="w-11 h-11 flex items-center justify-center rounded-2xl bg-accent/10 border border-accent/20 text-accent hover:bg-accent hover:text-white transition-all transform active:scale-90 shadow-inner">
             <ZoomIn className="w-[22px] h-[22px]" />
@@ -487,7 +487,7 @@ export const GraphCanvas = forwardRef<any, GraphCanvasProps>(({
         </div>
 
         {/* Framing Group (Recenter and Fit All) */}
-        <div className="flex items-center gap-2.5 pr-5 border-r border-[#2a2a3a]">
+        <div className="flex shrink-0 items-center gap-2.5 pr-3 sm:pr-5 border-r border-[#2a2a3a]">
           <button onClick={recenter} title="Recenter Camera"
             className="w-11 h-11 flex items-center justify-center rounded-2xl bg-void/50 border border-border-subtle text-text-secondary hover:bg-accent hover:text-white transition-all transform active:scale-90">
             <Target className="w-[22px] h-[22px]" />
@@ -499,7 +499,7 @@ export const GraphCanvas = forwardRef<any, GraphCanvasProps>(({
         </div>
 
         {/* Layout & Delete Actions */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex shrink-0 items-center gap-2.5">
           <button
             onClick={() => {
               if (isLayoutRunning) {
@@ -524,11 +524,17 @@ export const GraphCanvas = forwardRef<any, GraphCanvasProps>(({
       </div>
 
       {/* Stats Overlay */}
-      <div className="absolute top-6 right-6 z-20">
-        <div className="flex items-center gap-4 text-[12px] font-mono font-bold text-[#8888a0] bg-[#12121c]/90 border border-[#3a3a4a] px-4 py-2 rounded-xl backdrop-blur-xl shadow-xl">
-          <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-[#3b82f6] rounded-full" /><span>{data.nodes.length} N</span></div>
+      <div className="absolute right-2 top-3 z-20 sm:right-6 sm:top-6">
+        <div className="flex items-center gap-2 whitespace-nowrap rounded-xl border border-[#3a3a4a] bg-[#12121c]/90 px-3 py-1.5 text-[10px] font-bold text-[#8888a0] shadow-xl backdrop-blur-xl sm:gap-4 sm:px-4 sm:py-2 sm:text-[12px]">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#3b82f6]" />
+            <span className="shrink-0">{data.nodes.length} N</span>
+          </div>
           <div className="w-px h-3 bg-[#3a3a4a]" />
-          <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-[#10b981] rounded-full" /><span>{data.edges.length} E</span></div>
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#10b981]" />
+            <span className="shrink-0">{data.edges.length} E</span>
+          </div>
         </div>
       </div>
     </div>
