@@ -449,7 +449,7 @@ class CodeFinder:
     def find_class_hierarchy(self, class_name: str, path: Optional[str] = None, repo_path: Optional[str] = None) -> Dict[str, Any]:
         """Find class inheritance relationships using INHERITS relationships"""
         with self.driver.session() as session:
-            repo_filter = "WHERE 1=1 AND parent.path STARTS WITH $repo_path" if repo_path else ""
+            repo_filter = "AND parent.path STARTS WITH $repo_path" if repo_path else ""
             if path:
                 match_clause = "MATCH (child:Class {name: $class_name, path: $path})"
             else:
@@ -470,7 +470,7 @@ class CodeFinder:
             """
             parents_result = session.run(parents_query, class_name=class_name, path=path, repo_path=repo_path)
             
-            repo_filter_child = "WHERE 1=1 AND grandchild.path STARTS WITH $repo_path" if repo_path else ""
+            repo_filter_child = "AND grandchild.path STARTS WITH $repo_path" if repo_path else ""
             children_query = f"""
                 {match_clause}
                 MATCH (grandchild:Class)-[:INHERITS]->(child)
