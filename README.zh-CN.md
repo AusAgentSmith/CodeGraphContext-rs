@@ -203,7 +203,7 @@ pip install codegraphcontext
 
 ### 如果找不到 'cgc' 命令，请运行我们的一键修复：
 ```
-curl -sSL [https://raw.githubusercontent.com/CodeGraphContext/CodeGraphContext/main/scripts/post_install_fix.sh](https://raw.githubusercontent.com/CodeGraphContext/CodeGraphContext/main/scripts/post_install_fix.sh) | bash
+curl -sSL https://raw.githubusercontent.com/CodeGraphContext/CodeGraphContext/main/scripts/post_install_fix.sh | bash
 ```
 
 ---
