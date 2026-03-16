@@ -1240,7 +1240,11 @@ class GraphBuilder:
 
             supported_extensions = self.parsers.keys()
             all_files = path.rglob("*") if path.is_dir() else [path]
-            files = [f for f in all_files if f.is_file() and f.suffix in supported_extensions]
+
+            # Previously only files with supported extensions were indexed.
+            # Updated to include all files so that unsupported file types
+            # can still be represented as minimal File nodes in the graph.
+            files = [f for f in all_files if f.is_file()]
 
             # Filter default ignored directories
             ignore_dirs_str = get_config_value("IGNORE_DIRS") or ""
@@ -1291,10 +1295,19 @@ class GraphBuilder:
                         self.job_manager.update_job(job_id, current_file=str(file))
                     repo_path = path.resolve() if path.is_dir() else file.parent.resolve()
                     file_data = self.parse_file(repo_path, file, is_dependency)
+                    # Previously only files with supported extensions were indexed.
+                    # Updated to include all files so that unsupported file types
+                    # can still be represented as minimal File nodes in the graph.
                     if "error" not in file_data:
                         self.add_file_to_graph(file_data, repo_name, imports_map)
                         all_file_data.append(file_data)
-                    processed_count += 1
+                    # Previously only files with supported extensions were indexed.
+                    # Updated to include all files so that unsupported file types
+                    # can still be represented as minimal File nodes in the graph.
+                    else:
+                        # create minimal node if parser not available
+                        self.add_minimal_file_node(file, repo_path, is_dependency)
+
                     if job_id:
                         self.job_manager.update_job(job_id, processed_files=processed_count)
                     await asyncio.sleep(0.01)
@@ -1318,3 +1331,67 @@ class GraphBuilder:
                 self.job_manager.update_job(
                     job_id, status=status, end_time=datetime.now(), errors=[str(e)]
                 )
+
+    # Create a minimal File node for unsupported file types.
+    # These files do not contain parsed entities but should still
+    # appear in the repository graph as requested in issue #707.
+    def add_minimal_file_node(self, file_path: Path, repo_path: Path, is_dependency: bool = False):
+
+        file_path_str = str(file_path.resolve())
+        file_name = file_path.name
+        repo_name = repo_path.name
+        repo_path_str = str(repo_path.resolve())
+
+        with self.driver.session() as session:
+
+            session.run(
+                """
+                MERGE (r:Repository {path: $repo_path})
+                SET r.name = $repo_name
+                """,
+                repo_path=repo_path_str,
+                repo_name=repo_name
+            )
+
+            session.run(
+                """
+                MERGE (f:File {path: $file_path})
+                SET f.name = $file_name,
+                    f.is_dependency = $is_dependency
+                """,
+                file_path=file_path_str,
+                file_name=file_name,
+                is_dependency=is_dependency
+            )
+
+            # Establish directory structure
+            file_path_obj = Path(file_path_str)
+            repo_path_obj = Path(repo_path_str)
+            try:
+                relative_path_to_file = file_path_obj.relative_to(repo_path_obj)
+            except ValueError:
+                # Fallback if not relative
+                relative_path_to_file = Path(file_path_obj.name)
+            
+            parent_path = repo_path_str
+            parent_label = 'Repository'
+
+            for part in relative_path_to_file.parts[:-1]:
+                current_path = Path(parent_path) / part
+                current_path_str = str(current_path)
+                
+                session.run(f"""
+                    MATCH (p:{parent_label} {{path: $parent_path}})
+                    MERGE (d:Directory {{path: $current_path}})
+                    SET d.name = $part
+                    MERGE (p)-[:CONTAINS]->(d)
+                """, parent_path=parent_path, current_path=current_path_str, part=part)
+
+                parent_path = current_path_str
+                parent_label = 'Directory'
+
+            session.run(f"""
+                MATCH (p:{parent_label} {{path: $parent_path}})
+                MATCH (f:File {{path: $file_path}})
+                MERGE (p)-[:CONTAINS]->(f)
+            """, parent_path=parent_path, file_path=file_path_str)
