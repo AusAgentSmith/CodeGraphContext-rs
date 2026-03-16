@@ -1301,6 +1301,8 @@ class GraphBuilder:
                     if "error" not in file_data:
                         self.add_file_to_graph(file_data, repo_name, imports_map)
                         all_file_data.append(file_data)
+                    processed_count += 1
+
                     # Previously only files with supported extensions were indexed.
                     # Updated to include all files so that unsupported file types
                     # can still be represented as minimal File nodes in the graph.
