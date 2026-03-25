@@ -526,7 +526,7 @@ class GraphBuilder:
                         {set_clause_str}
                         MERGE (f)-[r:IMPORTS]->(m)
                         SET r += $rel_props
-                    """, **params)
+                    """, **_sanitize_props(params))
 
 
             # Handle CONTAINS relationship between class to their children like variables
