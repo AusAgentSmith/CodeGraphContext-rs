@@ -1021,8 +1021,11 @@ class GraphBuilder:
                 """, path=path)
 
     def delete_repository_from_graph(self, repo_path: str) -> bool:
-        """Deletes a repository and all its contents from the graph. Returns True if deleted, False if not found."""
+        """Deletes a repository and all its contents from the graph using batched deletes.
+        Avoids the OPTIONAL MATCH [:CONTAINS*] cartesian-product explosion for large repos.
+        Returns True if deleted, False if not found."""
         repo_path_str = str(Path(repo_path).resolve())
+        path_prefix = repo_path_str + "/"
         with self.driver.session() as session:
             # Check if it exists
             result = session.run("MATCH (r:Repository {path: $path}) RETURN count(r) as cnt", path=repo_path_str).single()
@@ -1030,47 +1033,55 @@ class GraphBuilder:
                 warning_logger(f"Attempted to delete non-existent repository: {repo_path_str}")
                 return False
 
-            # Phase 1: delete via CONTAINS chain (fast, handles well-formed graph)
-            session.run("""MATCH (r:Repository {path: $path})
-                          OPTIONAL MATCH (r)-[:CONTAINS*]->(e)
-                          DETACH DELETE r, e""", path=repo_path_str)
-            # Phase 2: delete orphaned nodes by path prefix (handles nodes that
-            # lost their CONTAINS chain due to a previous crash or partial index).
-            #
-            # Strategy: delete relationships first (cheap — no node loading overhead),
-            # then delete the now-bare nodes. This avoids Neo4j OOM errors that occur
-            # when DETACH DELETE on nodes tries to cascade-delete millions of
-            # relationships in a single transaction.
-            prefix = repo_path_str + "/"
-            for rel_type in ("CALLS", "INHERITS", "CONTAINS"):
-                # Delete where source is in this repo
-                while True:
-                    result = session.run(
-                        f"MATCH (a)-[r:{rel_type}]->() WHERE a.path STARTS WITH $prefix "
-                        "WITH r LIMIT 10000 DELETE r RETURN count(r) AS deleted",
-                        prefix=prefix
-                    ).single()
-                    if not result or result["deleted"] == 0:
-                        break
-                # Delete where target is in this repo (inbound from external nodes)
-                while True:
-                    result = session.run(
-                        f"MATCH ()-[r:{rel_type}]->(b) WHERE b.path STARTS WITH $prefix "
-                        "WITH r LIMIT 10000 DELETE r RETURN count(r) AS deleted",
-                        prefix=prefix
-                    ).single()
-                    if not result or result["deleted"] == 0:
-                        break
+        # Step 1: Delete all CALLS/INHERITS relationships in batches (avoids ConstraintValidationFailed on later node delete)
+        for rel_type in ("CALLS", "INHERITS", "IMPORTS"):
             while True:
-                result = session.run(
-                    "MATCH (n) WHERE n.path STARTS WITH $prefix "
-                    "WITH n LIMIT 5000 DELETE n RETURN count(n) AS deleted",
-                    prefix=prefix
-                ).single()
-                if not result or result["deleted"] == 0:
+                with self.driver.session() as session:
+                    result = session.run(
+                        f"MATCH (a)-[r:{rel_type}]->(b) "
+                        "WHERE a.path STARTS WITH $prefix OR b.path STARTS WITH $prefix "
+                        "WITH r LIMIT 5000 DELETE r RETURN count(r) AS deleted",
+                        prefix=path_prefix,
+                    ).single()
+                    deleted = result["deleted"] if result else 0
+                if deleted == 0:
                     break
-            info_logger(f"Deleted repository and its contents from graph: {repo_path_str}")
-            return True
+                info_logger(f"[DELETE] Removed {deleted} {rel_type} rels for {repo_path_str}")
+
+        # Step 2: Delete CONTAINS relationships in batches
+        while True:
+            with self.driver.session() as session:
+                result = session.run(
+                    "MATCH (a)-[r:CONTAINS]->(b) "
+                    "WHERE a.path STARTS WITH $prefix OR a.path = $path "
+                    "WITH r LIMIT 10000 DELETE r RETURN count(r) AS deleted",
+                    prefix=path_prefix, path=repo_path_str,
+                ).single()
+                deleted = result["deleted"] if result else 0
+            if deleted == 0:
+                break
+            info_logger(f"[DELETE] Removed {deleted} CONTAINS rels for {repo_path_str}")
+
+        # Step 3: Delete Function/Class/File nodes in batches by path prefix
+        for label in ("Function", "Class", "File"):
+            while True:
+                with self.driver.session() as session:
+                    result = session.run(
+                        f"MATCH (n:{label}) WHERE n.path STARTS WITH $prefix "
+                        "WITH n LIMIT 10000 DETACH DELETE n RETURN count(n) AS deleted",
+                        prefix=path_prefix,
+                    ).single()
+                    deleted = result["deleted"] if result else 0
+                if deleted == 0:
+                    break
+                info_logger(f"[DELETE] Removed {deleted} {label} nodes for {repo_path_str}")
+
+        # Step 4: Delete the Repository node itself
+        with self.driver.session() as session:
+            session.run("MATCH (r:Repository {path: $path}) DETACH DELETE r", path=repo_path_str)
+
+        info_logger(f"Deleted repository and its contents from graph: {repo_path_str}")
+        return True
 
     def get_caller_file_paths(self, file_path_str: str) -> set:
         """Return file paths that have CALLS relationships targeting nodes in the given file.
