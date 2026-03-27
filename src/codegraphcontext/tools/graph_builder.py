@@ -1036,12 +1036,36 @@ class GraphBuilder:
                           DETACH DELETE r, e""", path=repo_path_str)
             # Phase 2: delete orphaned nodes by path prefix (handles nodes that
             # lost their CONTAINS chain due to a previous crash or partial index).
-            # Runs in batches to stay under Neo4j's transaction memory limit.
+            #
+            # Strategy: delete relationships first (cheap — no node loading overhead),
+            # then delete the now-bare nodes. This avoids Neo4j OOM errors that occur
+            # when DETACH DELETE on nodes tries to cascade-delete millions of
+            # relationships in a single transaction.
+            prefix = repo_path_str + "/"
+            for rel_type in ("CALLS", "INHERITS", "CONTAINS"):
+                # Delete where source is in this repo
+                while True:
+                    result = session.run(
+                        f"MATCH (a)-[r:{rel_type}]->() WHERE a.path STARTS WITH $prefix "
+                        "WITH r LIMIT 10000 DELETE r RETURN count(r) AS deleted",
+                        prefix=prefix
+                    ).single()
+                    if not result or result["deleted"] == 0:
+                        break
+                # Delete where target is in this repo (inbound from external nodes)
+                while True:
+                    result = session.run(
+                        f"MATCH ()-[r:{rel_type}]->(b) WHERE b.path STARTS WITH $prefix "
+                        "WITH r LIMIT 10000 DELETE r RETURN count(r) AS deleted",
+                        prefix=prefix
+                    ).single()
+                    if not result or result["deleted"] == 0:
+                        break
             while True:
                 result = session.run(
                     "MATCH (n) WHERE n.path STARTS WITH $prefix "
-                    "WITH n LIMIT 5000 DETACH DELETE n RETURN count(n) AS deleted",
-                    prefix=repo_path_str + "/"
+                    "WITH n LIMIT 5000 DELETE n RETURN count(n) AS deleted",
+                    prefix=prefix
                 ).single()
                 if not result or result["deleted"] == 0:
                     break
