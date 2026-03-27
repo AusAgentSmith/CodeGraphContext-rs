@@ -723,13 +723,23 @@ class GraphBuilder:
                 'full_call_name': call.get('full_name', called_name),
             }
 
-    def _create_all_function_calls(self, all_file_data: list[Dict], imports_map: dict):
+    def _create_all_function_calls(self, all_file_data: list[Dict], imports_map: dict, file_class_lookup: Optional[Dict] = None):
         """Create CALLS relationships using fully label-specific UNWIND queries (V3).
-        Both caller AND called sides use specific labels — no OR scans anywhere."""
-        skip_external = (get_config_value("SKIP_EXTERNAL_RESOLUTION") or "false").lower() == "true"
+        Both caller AND called sides use specific labels — no OR scans anywhere.
         
-        # Build global lookup: which names are classes in which files
-        file_class_lookup = {}
+        Args:
+            file_class_lookup: Optional pre-built {file_path: set_of_class_names} covering the full
+                repo. When supplied (incremental mode), the lookup is supplemented with data from
+                all_file_data so newly-created/renamed classes are reflected immediately. When None
+                (full-scan mode) the lookup is built solely from all_file_data as before.
+        """
+        skip_external = (get_config_value("SKIP_EXTERNAL_RESOLUTION") or "false").lower() == "true"
+
+        # Build or supplement the global lookup: which names are classes in which files.
+        # In incremental mode an externally-built lookup (from Neo4j) is passed in; we still
+        # overlay the parsed subset so in-flight changes are reflected.
+        if file_class_lookup is None:
+            file_class_lookup = {}
         for fd in all_file_data:
             fp = str(Path(fd['path']).resolve())
             file_class_lookup[fp] = {c['name'] for c in fd.get('classes', [])}
@@ -1054,6 +1064,70 @@ class GraphBuilder:
                           DETACH DELETE r, e""", path=repo_path_str)
             info_logger(f"Deleted repository and its contents from graph: {repo_path_str}")
             return True
+
+    def get_caller_file_paths(self, file_path_str: str) -> set:
+        """Return file paths that have CALLS relationships targeting nodes in the given file.
+        Used before deleting the file's nodes so we know which callers need re-linking."""
+        with self.driver.session() as session:
+            result = session.run(
+                "MATCH (caller)-[:CALLS]->(callee) "
+                "WHERE callee.path = $path "
+                "RETURN DISTINCT coalesce(caller.path, '') AS p",
+                path=file_path_str,
+            )
+            return {r["p"] for r in result if r["p"] and r["p"] != file_path_str}
+
+    def get_inheritance_neighbor_paths(self, file_path_str: str) -> set:
+        """Return file paths connected by INHERITS to nodes in the given file."""
+        with self.driver.session() as session:
+            result = session.run(
+                "MATCH (a)-[:INHERITS]->(b) "
+                "WHERE a.path = $path OR b.path = $path "
+                "RETURN DISTINCT CASE WHEN a.path = $path THEN b.path ELSE a.path END AS p",
+                path=file_path_str,
+            )
+            return {r["p"] for r in result if r["p"] and r["p"] != file_path_str}
+
+    def delete_outgoing_calls_from_files(self, file_paths: list):
+        """Delete all CALLS relationships originating from the given files.
+        Used in incremental mode before re-creating CALLS for affected caller files."""
+        with self.driver.session() as session:
+            result = session.run(
+                "MATCH (a)-[r:CALLS]->(b) WHERE a.path IN $paths DELETE r RETURN count(r) AS cnt",
+                paths=file_paths,
+            ).single()
+            cnt = result["cnt"] if result else 0
+        info_logger(f"[RELINK] Deleted {cnt} outgoing CALLS from {len(file_paths)} caller files")
+
+    def delete_inherits_for_files(self, file_paths: list):
+        """Delete INHERITS relationships where either end is in the given files."""
+        with self.driver.session() as session:
+            result = session.run(
+                "MATCH (a)-[r:INHERITS]->(b) WHERE a.path IN $paths OR b.path IN $paths "
+                "DELETE r RETURN count(r) AS cnt",
+                paths=file_paths,
+            ).single()
+            cnt = result["cnt"] if result else 0
+        info_logger(f"[RELINK] Deleted {cnt} INHERITS for {len(file_paths)} affected files")
+
+    def get_repo_class_lookup(self, repo_path: Path) -> dict:
+        """Query Neo4j for all Class nodes in the repo.
+        Returns {file_path: set_of_class_names} — a full-repo file_class_lookup built without
+        re-parsing any files. Used by the incremental watcher update path."""
+        prefix = str(repo_path.resolve()) + "/"
+        result_map: Dict[str, set] = {}
+        with self.driver.session() as session:
+            result = session.run(
+                "MATCH (c:Class) WHERE c.path STARTS WITH $prefix "
+                "RETURN c.name AS name, c.path AS path",
+                prefix=prefix,
+            )
+            for record in result:
+                path = record["path"]
+                if path not in result_map:
+                    result_map[path] = set()
+                result_map[path].add(record["name"])
+        return result_map
 
     def delete_relationship_links(self, repo_path: Path):
         """Delete all CALLS and INHERITS relationships for a repo before re-linking.
