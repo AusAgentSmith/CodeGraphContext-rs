@@ -115,38 +115,53 @@ class GraphBuilder:
         self.loop = loop
         self.driver = self.db_manager.get_driver()
         self.parsers = {
-            '.py': TreeSitterParser('python'),
-            '.ipynb': TreeSitterParser('python'),
-            '.js': TreeSitterParser('javascript'),
-            '.jsx': TreeSitterParser('javascript'),
-            '.mjs': TreeSitterParser('javascript'),
-            '.cjs': TreeSitterParser('javascript'),
-            '.go': TreeSitterParser('go'),
-            '.ts': TreeSitterParser('typescript'),
-            '.tsx': TreeSitterParser('typescript'),
-            '.cpp': TreeSitterParser('cpp'),
-            '.h': TreeSitterParser('cpp'),
-            '.hpp': TreeSitterParser('cpp'),
-            '.hh': TreeSitterParser('cpp'),
-            '.rs': TreeSitterParser('rust'),
-            '.c': TreeSitterParser('c'),
-            # '.h': TreeSitterParser('c'), # Need to write an algo for distinguishing C vs C++ headers
-            '.java': TreeSitterParser('java'),
-            '.rb': TreeSitterParser('ruby'),
-            '.cs': TreeSitterParser('c_sharp'),
-            '.php': TreeSitterParser('php'),
-            '.kt': TreeSitterParser('kotlin'),
-            '.scala': TreeSitterParser('scala'),
-            '.sc': TreeSitterParser('scala'),
-            '.swift': TreeSitterParser('swift'),
-            '.hs': TreeSitterParser('haskell'),
-            '.dart': TreeSitterParser('dart'),
-            '.pl': TreeSitterParser('perl'),
-            '.pm': TreeSitterParser('perl'),
-            '.ex': TreeSitterParser('elixir'),
-            '.exs': TreeSitterParser('elixir'),
+            '.py': 'python',
+            '.ipynb': 'python',
+            '.js': 'javascript',
+            '.jsx': 'javascript',
+            '.mjs': 'javascript',
+            '.cjs': 'javascript',
+            '.go': 'go',
+            '.ts': 'typescript',
+            '.tsx': 'typescript',
+            '.cpp': 'cpp',
+            '.h': 'cpp',
+            '.hpp': 'cpp',
+            '.hh': 'cpp',
+            '.rs': 'rust',
+            '.c': 'c',
+            # '.h': 'c', # Need to write an algo for distinguishing C vs C++ headers
+            '.java': 'java',
+            '.rb': 'ruby',
+            '.cs': 'c_sharp',
+            '.php': 'php',
+            '.kt': 'kotlin',
+            '.scala': 'scala',
+            '.sc': 'scala',
+            '.swift': 'swift',
+            '.hs': 'haskell',
+            '.dart': 'dart',
+            '.pl': 'perl',
+            '.pm': 'perl',
+            '.ex': 'elixir',
+            '.exs': 'elixir',
         }
+        self._parsed_cache = {}
         self.create_schema()
+
+    def get_parser(self, extension: str) -> Optional[TreeSitterParser]:
+        """Gets or creates a TreeSitterParser for the given extension."""
+        lang_name = self.parsers.get(extension)
+        if not lang_name:
+            return None
+        
+        if lang_name not in self._parsed_cache:
+            try:
+                self._parsed_cache[lang_name] = TreeSitterParser(lang_name)
+            except Exception as e:
+                warning_logger(f"Failed to initialize parser for {lang_name}: {e}")
+                return None
+        return self._parsed_cache[lang_name]
 
     # A general schema creation based on common features across languages
     def create_schema(self):
@@ -175,6 +190,7 @@ class GraphBuilder:
                 session.run("CREATE INDEX function_lang IF NOT EXISTS FOR (f:Function) ON (f.lang)")
                 session.run("CREATE INDEX class_lang IF NOT EXISTS FOR (c:Class) ON (c.lang)")
                 session.run("CREATE INDEX annotation_lang IF NOT EXISTS FOR (a:Annotation) ON (a.lang)")
+                
                 is_falkordb = getattr(self.db_manager, 'get_backend_type', lambda: 'neo4j')() != 'neo4j'
                 if is_falkordb:
                     # FalkorDB uses db.idx.fulltext.createNodeIndex per label
@@ -242,85 +258,85 @@ class GraphBuilder:
 
         if '.py' in files_by_lang:
             from .languages import python as python_lang_module
-            imports_map.update(python_lang_module.pre_scan_python(files_by_lang['.py'], self.parsers['.py']))
+            imports_map.update(python_lang_module.pre_scan_python(files_by_lang['.py'], self.get_parser('.py')))
         if '.ipynb' in files_by_lang:
             from .languages import python as python_lang_module
-            imports_map.update(python_lang_module.pre_scan_python(files_by_lang['.ipynb'], self.parsers['.ipynb']))
+            imports_map.update(python_lang_module.pre_scan_python(files_by_lang['.ipynb'], self.get_parser('.ipynb')))
         if '.js' in files_by_lang:
             from .languages import javascript as js_lang_module
-            imports_map.update(js_lang_module.pre_scan_javascript(files_by_lang['.js'], self.parsers['.js']))
+            imports_map.update(js_lang_module.pre_scan_javascript(files_by_lang['.js'], self.get_parser('.js')))
         if '.jsx' in files_by_lang:
             from .languages import javascript as js_lang_module
-            imports_map.update(js_lang_module.pre_scan_javascript(files_by_lang['.jsx'], self.parsers['.jsx']))
+            imports_map.update(js_lang_module.pre_scan_javascript(files_by_lang['.jsx'], self.get_parser('.jsx')))
         if '.mjs' in files_by_lang:
             from .languages import javascript as js_lang_module
-            imports_map.update(js_lang_module.pre_scan_javascript(files_by_lang['.mjs'], self.parsers['.mjs']))
+            imports_map.update(js_lang_module.pre_scan_javascript(files_by_lang['.mjs'], self.get_parser('.mjs')))
         if '.cjs' in files_by_lang:
             from .languages import javascript as js_lang_module
-            imports_map.update(js_lang_module.pre_scan_javascript(files_by_lang['.cjs'], self.parsers['.cjs']))
+            imports_map.update(js_lang_module.pre_scan_javascript(files_by_lang['.cjs'], self.get_parser('.cjs')))
         if '.go' in files_by_lang:
              from .languages import go as go_lang_module
-             imports_map.update(go_lang_module.pre_scan_go(files_by_lang['.go'], self.parsers['.go']))
+             imports_map.update(go_lang_module.pre_scan_go(files_by_lang['.go'], self.get_parser('.go')))
         if '.ts' in files_by_lang:
             from .languages import typescript as ts_lang_module
-            imports_map.update(ts_lang_module.pre_scan_typescript(files_by_lang['.ts'], self.parsers['.ts']))
+            imports_map.update(ts_lang_module.pre_scan_typescript(files_by_lang['.ts'], self.get_parser('.ts')))
         if '.tsx' in files_by_lang:
             from .languages import typescriptjsx as tsx_lang_module
-            imports_map.update(tsx_lang_module.pre_scan_typescript(files_by_lang['.tsx'], self.parsers['.tsx']))
+            imports_map.update(tsx_lang_module.pre_scan_typescript(files_by_lang['.tsx'], self.get_parser('.tsx')))
         if '.cpp' in files_by_lang:
             from .languages import cpp as cpp_lang_module
-            imports_map.update(cpp_lang_module.pre_scan_cpp(files_by_lang['.cpp'], self.parsers['.cpp']))
+            imports_map.update(cpp_lang_module.pre_scan_cpp(files_by_lang['.cpp'], self.get_parser('.cpp')))
         if '.h' in files_by_lang:
             from .languages import cpp as cpp_lang_module
-            imports_map.update(cpp_lang_module.pre_scan_cpp(files_by_lang['.h'], self.parsers['.h']))
+            imports_map.update(cpp_lang_module.pre_scan_cpp(files_by_lang['.h'], self.get_parser('.h')))
         if '.hpp' in files_by_lang:
             from .languages import cpp as cpp_lang_module
-            imports_map.update(cpp_lang_module.pre_scan_cpp(files_by_lang['.hpp'], self.parsers['.hpp']))
+            imports_map.update(cpp_lang_module.pre_scan_cpp(files_by_lang['.hpp'], self.get_parser('.hpp')))
         if '.hh' in files_by_lang:
             from .languages import cpp as cpp_lang_module
-            imports_map.update(cpp_lang_module.pre_scan_cpp(files_by_lang['.hh'], self.parsers['.hh']))
+            imports_map.update(cpp_lang_module.pre_scan_cpp(files_by_lang['.hh'], self.get_parser('.hh')))
         if '.rs' in files_by_lang:
             from .languages import rust as rust_lang_module
-            imports_map.update(rust_lang_module.pre_scan_rust(files_by_lang['.rs'], self.parsers['.rs']))
+            imports_map.update(rust_lang_module.pre_scan_rust(files_by_lang['.rs'], self.get_parser('.rs')))
         if '.c' in files_by_lang:
             from .languages import c as c_lang_module
-            imports_map.update(c_lang_module.pre_scan_c(files_by_lang['.c'], self.parsers['.c']))
+            imports_map.update(c_lang_module.pre_scan_c(files_by_lang['.c'], self.get_parser('.c')))
         elif '.java' in files_by_lang:
             from .languages import java as java_lang_module
-            imports_map.update(java_lang_module.pre_scan_java(files_by_lang['.java'], self.parsers['.java']))
+            imports_map.update(java_lang_module.pre_scan_java(files_by_lang['.java'], self.get_parser('.java')))
         elif '.rb' in files_by_lang:
             from .languages import ruby as ruby_lang_module
-            imports_map.update(ruby_lang_module.pre_scan_ruby(files_by_lang['.rb'], self.parsers['.rb']))
+            imports_map.update(ruby_lang_module.pre_scan_ruby(files_by_lang['.rb'], self.get_parser('.rb')))
         elif '.cs' in files_by_lang:
             from .languages import csharp as csharp_lang_module
-            imports_map.update(csharp_lang_module.pre_scan_csharp(files_by_lang['.cs'], self.parsers['.cs']))
+            imports_map.update(csharp_lang_module.pre_scan_csharp(files_by_lang['.cs'], self.get_parser('.cs')))
         if '.kt' in files_by_lang:
             from .languages import kotlin as kotlin_lang_module
-            imports_map.update(kotlin_lang_module.pre_scan_kotlin(files_by_lang['.kt'], self.parsers['.kt']))
+            imports_map.update(kotlin_lang_module.pre_scan_kotlin(files_by_lang['.kt'], self.get_parser('.kt')))
         if '.scala' in files_by_lang:
             from .languages import scala as scala_lang_module
-            imports_map.update(scala_lang_module.pre_scan_scala(files_by_lang['.scala'], self.parsers['.scala']))
+            imports_map.update(scala_lang_module.pre_scan_scala(files_by_lang['.scala'], self.get_parser('.scala')))
         if '.sc' in files_by_lang:
             from .languages import scala as scala_lang_module
-            imports_map.update(scala_lang_module.pre_scan_scala(files_by_lang['.sc'], self.parsers['.sc']))
+            imports_map.update(scala_lang_module.pre_scan_scala(files_by_lang['.sc'], self.get_parser('.sc')))
         if '.swift' in files_by_lang:
             from .languages import swift as swift_lang_module
-            imports_map.update(swift_lang_module.pre_scan_swift(files_by_lang['.swift'], self.parsers['.swift']))
+            imports_map.update(swift_lang_module.pre_scan_swift(files_by_lang['.swift'], self.get_parser('.swift')))
         if '.dart' in files_by_lang:
             from .languages import dart as dart_lang_module
-            imports_map.update(dart_lang_module.pre_scan_dart(files_by_lang['.dart'], self.parsers['.dart']))
+            imports_map.update(dart_lang_module.pre_scan_dart(files_by_lang['.dart'], self.get_parser('.dart')))
         if '.pl' in files_by_lang:
             from .languages import perl as perl_lang_module
-            imports_map.update(perl_lang_module.pre_scan_perl(files_by_lang['.pl'], self.parsers['.pl']))
+            imports_map.update(perl_lang_module.pre_scan_perl(files_by_lang['.pl'], self.get_parser('.pl')))
         if '.pm' in files_by_lang:
             from .languages import perl as perl_lang_module
-            imports_map.update(perl_lang_module.pre_scan_perl(files_by_lang['.pm'], self.parsers['.pm']))
+            imports_map.update(perl_lang_module.pre_scan_perl(files_by_lang['.pm'], self.get_parser('.pm')))
         if '.ex' in files_by_lang:
             from .languages import elixir as elixir_lang_module
-            imports_map.update(elixir_lang_module.pre_scan_elixir(files_by_lang['.ex'], self.parsers['.ex']))
+            imports_map.update(elixir_lang_module.pre_scan_elixir(files_by_lang['.ex'], self.get_parser('.ex')))
         if '.exs' in files_by_lang:
             from .languages import elixir as elixir_lang_module
-            imports_map.update(elixir_lang_module.pre_scan_elixir(files_by_lang['.exs'], self.parsers['.exs']))
+            imports_map.update(elixir_lang_module.pre_scan_elixir(files_by_lang['.exs'], self.get_parser('.exs')))
 
         return imports_map
 
@@ -996,7 +1012,7 @@ class GraphBuilder:
 
     def parse_file(self, repo_path: Path, path: Path, is_dependency: bool = False) -> Dict:
         """Parses a file with the appropriate language parser and extracts code elements."""
-        parser = self.parsers.get(path.suffix)
+        parser = self.get_parser(path.suffix)
         if not parser:
             warning_logger(f"No parser found for file extension {path.suffix}. Skipping {path}")
             return {"path": str(path), "error": f"No parser for {path.suffix}"}
@@ -1123,9 +1139,9 @@ class GraphBuilder:
 
                 # Step 5: Tree-sitter supplement — add source text, complexity, imports and bases
                 file_path = Path(abs_path_str)
-                if file_path.exists() and file_path.suffix in self.parsers:
+                ts_parser = self.get_parser(file_path.suffix)
+                if file_path.exists() and ts_parser:
                     try:
-                        ts_parser = self.parsers[file_path.suffix]
                         ts_data = ts_parser.parse(file_path, is_dependency, index_source=True)
                         if "error" not in ts_data:
                             # 1. Functions: complexity, source, decorators
