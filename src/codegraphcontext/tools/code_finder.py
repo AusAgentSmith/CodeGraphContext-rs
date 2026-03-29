@@ -539,7 +539,9 @@ class CodeFinder:
 
         with self.driver.session() as session:
             repo_filter = "AND func.path STARTS WITH $repo_path" if repo_path else ""
-            result = session.run(f"""
+            decorator_filter = "AND ALL(decorator_name IN $exclude_decorated_with WHERE NOT decorator_name IN func.decorators)" if exclude_decorated_with else ""
+            
+            query = f"""
                 MATCH (func:Function)
                 WHERE func.is_dependency = false {repo_filter}
                   AND NOT func.name IN ['main', 'setup', 'run']
@@ -550,7 +552,7 @@ class CodeFinder:
                   AND NOT toLower(func.name) CONTAINS 'application'
                   AND NOT toLower(func.name) CONTAINS 'entry'
                   AND NOT toLower(func.name) CONTAINS 'entrypoint'
-                  AND ALL(decorator_name IN $exclude_decorated_with WHERE NOT decorator_name IN func.decorators)
+                  {decorator_filter}
                 WITH func
                 OPTIONAL MATCH (caller:Function)-[:CALLS]->(func)
                 WHERE caller.is_dependency = false
@@ -566,7 +568,15 @@ class CodeFinder:
                     file.name as file_name
                 ORDER BY func.path, func.line_number
                 LIMIT 50
-            """, exclude_decorated_with=exclude_decorated_with, repo_path=repo_path)
+            """
+            
+            params = {}
+            if repo_path:
+                params["repo_path"] = repo_path
+            if exclude_decorated_with:
+                params["exclude_decorated_with"] = exclude_decorated_with
+                
+            result = session.run(query, **params)
             
             return {
                 "potentially_unused_functions": result.data(),
