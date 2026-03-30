@@ -517,8 +517,12 @@ class GraphBuilder:
                     # Ensure full_import_name is available in params for SET clause
                     params = imp.copy()
                     params['path'] = file_path_str
-                    params['rel_props'] = rel_props
                     params['module_name'] = imp.get('name') # Use 'name' from imp as module name
+
+                    # Sanitize scalar params but keep rel_props as a dict
+                    # (FalkorDB SET r += $rel_props requires a map, not a string)
+                    sanitized = self._sanitize_props(params)
+                    sanitized['rel_props'] = rel_props
 
                     session.run(f"""
                         MATCH (f:File {{path: $path}})
@@ -526,7 +530,7 @@ class GraphBuilder:
                         {set_clause_str}
                         MERGE (f)-[r:IMPORTS]->(m)
                         SET r += $rel_props
-                    """, **params)
+                    """, **sanitized)
 
 
             # Handle CONTAINS relationship between class to their children like variables
@@ -710,7 +714,7 @@ class GraphBuilder:
                 
                 # KùzuDB workaround: Try Function->Function first, then other combinations
                 # This avoids polymorphic MERGE which KùzuDB doesn't support
-                call_params = {
+                call_params = self._sanitize_props({
                     'caller_name': caller_name,
                     'caller_file_path': caller_file_path,
                     'caller_line_number': caller_line_number,
@@ -719,8 +723,9 @@ class GraphBuilder:
                     'line_number': call['line_number'],
                     'args': call.get('args', []),
                     'full_call_name': call.get('full_name', called_name)
-                }
-                 # Try Function caller -> Function callee
+                })
+
+                # Try Function caller -> Function callee
                 if not self._safe_run_create(session, """
                     OPTIONAL MATCH (caller:Function {name: $caller_name, path: $caller_file_path})
                     OPTIONAL MATCH (called:Function {name: $called_name, path: $called_file_path})
@@ -799,14 +804,15 @@ class GraphBuilder:
                                 """, call_params)
             else:
                 # File-level calls: Try Function first, then Class
-                call_params = {
+                call_params = self._sanitize_props({
                     'caller_file_path': caller_file_path,
                     'called_name': called_name,
                     'called_file_path': resolved_path,
                     'line_number': call['line_number'],
                     'args': call.get('args', []),
                     'full_call_name': call.get('full_name', called_name)
-                }
+                })
+
 
                 if not self._safe_run_create(session, """
                     OPTIONAL MATCH (caller:File {path: $caller_file_path})
