@@ -296,6 +296,12 @@ def run_command(command, console, shell=False, check=True, input_text=None):
     Returns the completed process object on success, None on failure.
     """
     cmd_str = command if isinstance(command, str) else ' '.join(command)
+    
+    # Mask passwords from being printed out
+    if "set-initial-password" in cmd_str:
+        import re
+        cmd_str = re.sub(r'(set-initial-password\s+)(\S+)', r'\g<1>********', cmd_str)
+        
     console.print(f"[cyan]$ {cmd_str}[/cyan]")
     try:
         process = subprocess.run(
@@ -377,7 +383,7 @@ def configure_mcp_client():
                     if line and not line.startswith("#") and "=" in line:
                         key, value = line.split("=", 1)
                         key = key.strip()
-                        if key in ["NEO4J_URI", "NEO4J_USERNAME", "NEO4J_PASSWORD"]:
+                        if key in ["NEO4J_URI", "NEO4J_USERNAME", "NEO4J_PASSWORD", "NEO4J_DATABASE"]:
                             env_vars[key] = value.strip()
         except Exception:
             pass
