@@ -56,6 +56,7 @@ jobs:
             quay.io/pypa/manylinux2014_x86_64 \
             /bin/bash -c "
               set -e
+              yum install -y libffi-devel gcc python3-devel
               cd /src
               /opt/python/cp312-cp312/bin/python -m pip install --upgrade pip
               /opt/python/cp312-cp312/bin/pip install . --no-binary :all: pyinstaller
