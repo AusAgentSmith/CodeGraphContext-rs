@@ -224,7 +224,7 @@ def cli_test_stubs(monkeypatch, tmp_path):
     monkeypatch.setattr(cli_main.config_manager, "CONFIG_DIR", tmp_path)
     monkeypatch.setattr(cli_main.config_manager, "CONFIG_FILE", tmp_path / "config.json")
 
-    monkeypatch.setattr(cli_main, "_load_credentials", lambda: None)
+    monkeypatch.setattr(cli_main, "_load_credentials", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(cli_main, "configure_mcp_client", lambda: None)
     monkeypatch.setattr(cli_main, "run_neo4j_setup_wizard", lambda: None)
 
@@ -293,7 +293,7 @@ def cli_test_stubs(monkeypatch, tmp_path):
 
 
 def _matrix_command_set(entries: list[list[str]]) -> set[tuple[str, str]]:
-    families = {"mcp", "neo4j", "config", "bundle", "registry", "find", "analyze"}
+    families = set(_inventory_from_main_source().keys()) - {"root"}
     covered: set[tuple[str, str]] = set()
     for args in entries:
         if args[0] in families:
@@ -306,7 +306,7 @@ def _matrix_command_set(entries: list[list[str]]) -> set[tuple[str, str]]:
 def test_cli_inventory_grouped_from_source():
     inventory = _inventory_from_main_source()
 
-    assert set(inventory.keys()) == {"root", "mcp", "neo4j", "config", "bundle", "registry", "find", "analyze"}
+    assert {"root", "mcp", "neo4j", "config", "bundle", "registry", "find", "analyze"}.issubset(set(inventory.keys()))
     assert inventory["mcp"] == {"setup", "start", "tools"}
     assert inventory["neo4j"] == {"setup"}
     assert inventory["config"] == {"show", "set", "reset", "db"}
@@ -314,6 +314,8 @@ def test_cli_inventory_grouped_from_source():
     assert inventory["registry"] == {"list", "search", "download", "request"}
     assert inventory["find"] == {"name", "pattern", "type", "variable", "content", "decorator", "argument"}
     assert inventory["analyze"] == {"calls", "callers", "chain", "deps", "tree", "complexity", "dead-code", "overrides", "variable"}
+    if "context" in inventory:
+        assert inventory["context"] == {"list", "create", "delete", "mode", "default"}
 
 
 def test_all_canonical_cli_commands_run_with_kuzudb(kuzudb_env, cli_test_stubs):
@@ -379,7 +381,19 @@ def test_all_canonical_cli_commands_run_with_kuzudb(kuzudb_env, cli_test_stubs):
         ["load", bundle_file],
     ]
 
-    expected_inventory = _inventory_from_main_source()
+    source_inventory = _inventory_from_main_source()
+    if "context" in source_inventory:
+        command_matrix.extend(
+            [
+                ["context", "list"],
+                ["context", "create", "ci-context"],
+                ["context", "delete", "ci-context"],
+                ["context", "mode", "single"],
+                ["context", "default", "ci-context"],
+            ]
+        )
+
+    expected_inventory = source_inventory
     expected_set = {(family, name) for family, names in expected_inventory.items() for name in names}
     assert _matrix_command_set(command_matrix) == expected_set
 
@@ -417,7 +431,7 @@ def test_find_content_falkordb_known_limitation_message(monkeypatch):
         def find_by_content(self, _query):
             raise Exception("CALL db.index.fulltext.queryNodes is unsupported")
 
-    monkeypatch.setattr(cli_main, "_load_credentials", lambda: None)
+    monkeypatch.setattr(cli_main, "_load_credentials", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(cli_main, "_initialize_services", lambda: (_FakeFalkorDBManager(), _FakeGraphBuilder(), _FailingFinder()))
 
     result = runner.invoke(app, ["--database", "falkordb", "find", "content", "foo"])
