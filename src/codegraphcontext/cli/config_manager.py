@@ -243,6 +243,10 @@ def save_config(config: Dict[str, str], preserve_db_credentials: bool = True):
                             credentials_to_write[key] = value.strip()
         except Exception:
             pass
+        # Merge credentials from the config dict (handles both new and updated values)
+        for key in DATABASE_CREDENTIAL_KEYS:
+            if key in config:
+                credentials_to_write[key] = config[key]
     else:
         # Use credentials from the config dict being passed in
         for key in DATABASE_CREDENTIAL_KEYS:

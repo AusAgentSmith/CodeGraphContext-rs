@@ -510,45 +510,22 @@ def clean_helper(context: Optional[str] = None):
     console.print("[cyan]🧹 Cleaning database (removing orphaned nodes)...[/cyan]")
     
     try:
-        # Determine backend type for query compatibility
-        db_type = db_manager.__class__.__name__
-        is_falkordb = "Falkor" in db_type
-        is_kuzu = "Kuzu" in db_type
-        
         total_deleted = 0
-        batch_size = 1000
+        batch_size = 500
         
         with db_manager.get_driver().session() as session:
-            # Keep deleting orphaned nodes in batches until none are found
+            # Layer-by-layer deletion: iteratively delete nodes that lost
+            # their CONTAINS parent. Each pass peels one layer of the
+            # Repository → File → Class/Function → Variable hierarchy.
             while True:
-                if is_falkordb or is_kuzu:
-                    # FalkorDB / KùzuDB-compatible query using OPTIONAL MATCH
-                    # (KùzuDB does not support the Neo4j `NOT EXISTS { MATCH ... }` subquery syntax)
-                    query = """
+                result = session.run("""
                     MATCH (n)
                     WHERE NOT (n:Repository)
-                    OPTIONAL MATCH p = (n)-[*..10]-(r:Repository)
-                    WITH n, p
-                    WHERE p IS NULL
+                      AND NOT ()-[:CONTAINS]->(n)
                     WITH n LIMIT $batch_size
                     DETACH DELETE n
                     RETURN count(n) as deleted
-                    """
-                else:
-                    # Neo4j optimized query using NOT EXISTS with bounded path
-                    # This is much faster than OPTIONAL MATCH with variable-length paths
-                    query = """
-                    MATCH (n)
-                    WHERE NOT (n:Repository)
-                      AND NOT EXISTS {
-                        MATCH (n)-[*..10]-(r:Repository)
-                      }
-                    WITH n LIMIT $batch_size
-                    DETACH DELETE n
-                    RETURN count(n) as deleted
-                    """
-                
-                result = session.run(query, batch_size=batch_size)
+                """, batch_size=batch_size)
                 record = result.single()
                 deleted_count = record["deleted"] if record else 0
                 total_deleted += deleted_count
@@ -556,16 +533,12 @@ def clean_helper(context: Optional[str] = None):
                 if deleted_count == 0:
                     break
                     
-                console.print(f"[dim]Deleted {deleted_count} orphaned nodes (batch)...[/dim]")
+                console.print(f"[dim]  Deleted {deleted_count} orphaned nodes (batch)...[/dim]")
             
             if total_deleted > 0:
                 console.print(f"[green]✓[/green] Deleted {total_deleted} orphaned nodes total")
             else:
                 console.print("[green]✓[/green] No orphaned nodes found")
-            
-            # Clean up any duplicate relationships (if any)
-            console.print("[dim]Checking for duplicate relationships...[/dim]")
-            # Note: This is database-specific and might not work for all backends
             
         console.print("[green]✅ Database cleanup complete![/green]")
     except Exception as e:

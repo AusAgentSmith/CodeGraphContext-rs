@@ -249,10 +249,12 @@ def context_list():
 @context_app.command("create")
 def context_create(
     name: str = typer.Argument(..., help="Name of the new context"),
-    database: str = typer.Option("falkordb", "--database", "-d", help="Database backend (falkordb, kuzudb, neo4j)"),
+    database: str = typer.Option(None, "--database", "-d", help="Database backend (falkordb, kuzudb, neo4j). Defaults to DEFAULT_DATABASE from config."),
     db_path: str = typer.Option(None, "--db-path", help="Explicit path for the DB (defaults to ~/.codegraphcontext/contexts/<name>/db)"),
 ):
     """Create a new logical context."""
+    if database is None:
+        database = config_manager.get_config_value("DEFAULT_DATABASE") or "falkordb"
     config_manager.create_context(name, database, db_path)
 
 @context_app.command("delete")

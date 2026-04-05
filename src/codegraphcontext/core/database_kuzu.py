@@ -5,6 +5,7 @@ KùzuDB is an embedded graph database that is cross-platform (including Windows)
 and requires no external server setup.
 """
 import os
+import time
 import threading
 import re
 import json
@@ -60,27 +61,34 @@ class KuzuDBManager:
 
     def get_driver(self):
         """
-        Gets the KùzuDB connection.
+        Gets the KùzuDB connection. Retries on file-lock errors.
         """
         if self._conn is None:
             with self._lock:
                 if self._conn is None:
-                    try:
-                        import kuzu
-                        info_logger(f"Initializing KùzuDB at {self.db_path}")
-                        self._db = kuzu.Database(self.db_path)
-                        self._conn = kuzu.Connection(self._db)
-                        
-                        # Initialize Schema
-                        self._initialize_schema()
-                        
-                        info_logger("KùzuDB connection established and schema verified")
-                    except ImportError:
-                        error_logger("KùzuDB is not installed. Run 'pip install kuzu'")
-                        raise ValueError("KùzuDB missing.")
-                    except Exception as e:
-                        error_logger(f"Failed to initialize KùzuDB: {e}")
-                        raise
+                    import kuzu
+                    max_retries = 5
+                    for attempt in range(max_retries):
+                        try:
+                            info_logger(f"Initializing KùzuDB at {self.db_path}")
+                            self._db = kuzu.Database(self.db_path)
+                            self._conn = kuzu.Connection(self._db)
+                            self._initialize_schema()
+                            info_logger("KùzuDB connection established and schema verified")
+                            break
+                        except ImportError:
+                            error_logger("KùzuDB is not installed. Run 'pip install kuzu'")
+                            raise ValueError("KùzuDB missing.")
+                        except Exception as e:
+                            if "lock" in str(e).lower() and attempt < max_retries - 1:
+                                wait = 0.5 * (2 ** attempt)
+                                warning_logger(f"KùzuDB lock contention, retrying in {wait:.1f}s ({attempt+1}/{max_retries})...")
+                                self._db = None
+                                self._conn = None
+                                time.sleep(wait)
+                            else:
+                                error_logger(f"Failed to initialize KùzuDB: {e}")
+                                raise
 
         return KuzuDriverWrapper(self._conn)
 
@@ -362,9 +370,10 @@ class KuzuSessionWrapper:
             label = match.group(3)
             return f"{prefix}label({var_name}) = '{label}'"
             
-        query = re.sub(r'(WHERE\s+|AND\s+|OR\s+)(\w+):([a-zA-Z0-9_]+)', single_label_replacer, query, flags=re.IGNORECASE)
+        query = re.sub(r'(WHERE\s+|AND\s+|OR\s+|WHEN\s+)(\w+):([a-zA-Z0-9_]+)', single_label_replacer, query, flags=re.IGNORECASE)
 
         query = query.replace("coalesce(", "COALESCE(")
+        query = re.sub(r'\btype\(', 'label(', query)
         if any(x in query.upper() for x in ["CREATE CONSTRAINT", "CREATE INDEX"]):
             return "RETURN 1", {}
 
