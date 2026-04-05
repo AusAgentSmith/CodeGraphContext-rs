@@ -58,7 +58,7 @@ jobs:
               set -e
               cd /src
               /opt/python/cp312-cp312/bin/python -m pip install --upgrade pip
-              /opt/python/cp312-cp312/bin/pip install . pyinstaller
+              /opt/python/cp312-cp312/bin/pip install . --no-binary :all: pyinstaller
               /opt/python/cp312-cp312/bin/pyinstaller cgc.spec --clean
             "
           sudo chown -R $USER:$USER dist build
