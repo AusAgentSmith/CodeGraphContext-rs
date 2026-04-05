@@ -788,15 +788,17 @@ def doctor():
     console.print("[bold cyan]🏥 Running CodeGraphContext Diagnostics...[/bold cyan]\n")
     
     all_checks_passed = True
+
+    config_manager.ensure_first_run_bootstrap()
+    config_manager.ensure_config_file()
     
     # 1. Check configuration
     console.print("[bold]1. Checking Configuration...[/bold]")
     try:
         config = config_manager.load_config()
         
-        # Check if config file actually exists
         if config_manager.CONFIG_FILE.exists():
-            console.print(f"   [green]✓[/green] Old config loaded from {config_manager.CONFIG_FILE}")
+            console.print(f"   [green]✓[/green] Config loaded from {config_manager.CONFIG_FILE}")
         else:
             console.print(f"   [yellow]ℹ[/yellow] No .env config found, using defaults")
             console.print(f"   [dim]Config will be created at: {config_manager.CONFIG_FILE}[/dim]")
@@ -869,14 +871,21 @@ def doctor():
             from tree_sitter_language_pack import get_language
             console.print(f"   [green]✓[/green] tree-sitter-language-pack is installed")
             
-            # Test a few languages
-            test_langs = ["python", "javascript", "typescript"]
-            for lang in test_langs:
+            from codegraphcontext.utils.tree_sitter_manager import LANGUAGE_ALIASES, LANGUAGE_PACK_NAMES
+            all_langs = sorted(set(LANGUAGE_ALIASES.values()))
+            console.print(f"   [dim]Supported languages ({len(all_langs)}): {', '.join(all_langs)}[/dim]")
+            probe_langs = ["python", "javascript", "typescript", "java", "go", "rust", "c", "cpp"]
+            available, unavailable = [], []
+            for lang in probe_langs:
                 try:
-                    get_language(lang)
-                    console.print(f"   [green]✓[/green] {lang} parser available")
+                    pack_name = LANGUAGE_PACK_NAMES.get(lang, lang)
+                    get_language(pack_name)
+                    available.append(lang)
                 except Exception:
-                    console.print(f"   [yellow]⚠[/yellow] {lang} parser not available")
+                    unavailable.append(lang)
+            console.print(f"   [green]✓[/green] {len(available)}/{len(probe_langs)} probed parsers OK: {', '.join(available)}")
+            if unavailable:
+                console.print(f"   [yellow]⚠[/yellow] Unavailable: {', '.join(unavailable)}")
         except ImportError:
             console.print(f"   [red]✗[/red] tree-sitter-language-pack not installed")
             all_checks_passed = False
