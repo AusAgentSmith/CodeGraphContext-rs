@@ -71,7 +71,8 @@ def read_cgcignore_patterns(path: Path, default_patterns: list[str]) -> list[str
         return list(default_patterns)
 
     user_patterns = parse_cgcignore_lines(path.read_text(encoding="utf-8").splitlines())
-    return list(default_patterns) + user_patterns
+    # User patterns first so explicit repo rules take precedence.
+    return user_patterns + list(default_patterns)
 
 def build_ignore_spec(
     ignore_root: Path,

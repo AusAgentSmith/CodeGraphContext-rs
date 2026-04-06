@@ -62,7 +62,7 @@ def test_read_cgcignore_patterns_merges_defaults_with_user_patterns(tmp_path: Pa
 
     merged = read_cgcignore_patterns(cgcignore, ["*.png", "*.json"])
 
-    assert merged == ["*.png", "*.json", "*.txt", "*.log"]
+    assert merged == ["*.txt", "*.log", "*.png", "*.json"]
 
 
 def test_find_cgcignore_does_not_escape_non_git_root(tmp_path: Path):
