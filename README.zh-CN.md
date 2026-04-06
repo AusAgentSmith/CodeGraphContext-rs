@@ -7,8 +7,8 @@
 - 🇨🇳 [中文](README.zh-CN.md)
 - 🇰🇷 [한국어](README.kor.md)
 - 🇺🇦 [Українська](README.uk.md)
+- 🇷🇺 Русский (README.ru-RU.md)
 - 🇯🇵 日本語 (即将推出)
-- 🇷🇺 Русский (即将推出)
 - 🇪🇸 Español (即将推出)
 
 🌍 **帮助我们将 CodeGraphContext 翻译成您的语言！**
