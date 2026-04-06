@@ -7,7 +7,7 @@
 - 🇨🇳 [中文](README.zh-CN.md)
 - 🇰🇷 [한국어](README.kor.md)
 - 🇺🇦 [Українська](README.uk.md)
-- 🇷🇺 Русский (README.ru-RU.md)
+- 🇷🇺 [Русский](README.ru-RU.md)
 - 🇯🇵 日本語 (Незабаром)
 - 🇪🇸 Español (Незабаром)
 
