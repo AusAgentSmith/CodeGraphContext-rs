@@ -23,7 +23,6 @@ if not os.environ.get("CGC_USE_PYTHON_PARSER"):
             parse_and_prescan as _rust_parse_and_prescan,
             resolve_call_groups as _rust_resolve_calls,
             resolve_inheritance as _rust_resolve_inheritance,
-            sanitize_props as _rust_sanitize_props,
         )
         RUST_AVAILABLE = True
         logger.info("Rust parsing engine loaded successfully")
@@ -92,13 +91,6 @@ def resolve_inheritance(all_file_data, imports_map):
     if not RUST_AVAILABLE:
         raise RuntimeError("Rust engine required for resolve_inheritance")
     return _rust_resolve_inheritance(all_file_data, imports_map)
-
-
-def sanitize_props(props):
-    """Sanitize properties for graph DB storage using Rust."""
-    if not RUST_AVAILABLE:
-        raise RuntimeError("Rust engine required for sanitize_props")
-    return _rust_sanitize_props(props)
 
 
 # Languages supported by the Rust engine

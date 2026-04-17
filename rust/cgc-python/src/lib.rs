@@ -154,18 +154,6 @@ fn resolve_inheritance(
     Ok(inheritance_list.into_any().unbind())
 }
 
-/// Sanitize a dict of properties for graph DB storage.
-#[pyfunction]
-fn sanitize_props(py: Python<'_>, props: &Bound<'_, PyDict>) -> PyResult<PyObject> {
-    let result = PyDict::new(py);
-    for (key, value) in props.iter() {
-        let key_str: String = key.extract()?;
-        let sanitized = sanitize_py_value(py, &value)?;
-        result.set_item(key_str, sanitized)?;
-    }
-    Ok(result.into_any().unbind())
-}
-
 // --- Helper conversion functions ---
 
 fn py_dict_to_imports_map(d: &Bound<'_, PyDict>) -> PyResult<HashMap<String, Vec<String>>> {
@@ -431,29 +419,6 @@ fn call_groups_to_py(py: Python<'_>, groups: &CallGroups) -> PyResult<PyObject> 
     Ok(result.into_any().unbind())
 }
 
-const MAX_STR_LEN: usize = 4096;
-
-fn sanitize_py_value(py: Python<'_>, value: &Bound<'_, PyAny>) -> PyResult<PyObject> {
-    if value.is_none() {
-        return Ok(py.None());
-    }
-    if let Ok(s) = value.extract::<String>() {
-        if s.len() > MAX_STR_LEN {
-            return Ok(s[..MAX_STR_LEN].into_pyobject(py)?.into_any().unbind());
-        }
-        return Ok(s.into_pyobject(py)?.into_any().unbind());
-    }
-    if let Ok(list) = value.downcast::<PyList>() {
-        let new_list = PyList::empty(py);
-        for item in list.iter() {
-            new_list.append(sanitize_py_value(py, &item)?)?;
-        }
-        return Ok(new_list.into_any().unbind());
-    }
-    // For other types (int, float, bool), pass through
-    Ok(value.clone().unbind())
-}
-
 #[pymodule]
 fn _cgc_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(parse_file, m)?)?;
@@ -462,7 +427,6 @@ fn _cgc_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(parse_and_prescan, m)?)?;
     m.add_function(wrap_pyfunction!(resolve_call_groups, m)?)?;
     m.add_function(wrap_pyfunction!(resolve_inheritance, m)?)?;
-    m.add_function(wrap_pyfunction!(sanitize_props, m)?)?;
     m.add_class::<writer::PyGraphWriter>()?;
     Ok(())
 }

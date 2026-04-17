@@ -188,146 +188,30 @@ class TestResolveFunctionCall:
 # 2. _create_all_function_calls  (V3 UNWIND batching)
 # ---------------------------------------------------------------------------
 
-class TestCreateAllFunctionCallsV3:
-    """Tests for the V3 _create_all_function_calls method (Change 2)."""
+# Writer-behaviour tests (UNWIND usage, MERGE semantics, label-specific
+# queries, repo_path_str parameter handling) previously lived here and
+# drove the Python write path via a _RecordingSession. The writes now run
+# through Rust + neo4rs, so those query-recording assertions no longer
+# apply. Equivalent coverage lives in the integration test against a
+# live Neo4j in tests/integration/ and in the Rust unit tests under
+# rust/cgc-core/src/writer/.
 
-    def _run(self, all_file_data, imports_map=None, file_class_lookup=None,
-             skip_external_env="false"):
-        session = _RecordingSession()
-        gb, _ = _make_graph_builder(session)
-        with patch("codegraphcontext.tools.indexing.resolution.calls.get_config_value",
-                   return_value=skip_external_env):
-            gb._create_all_function_calls(
-                all_file_data,
-                imports_map or {},
-                file_class_lookup,
-            )
-        return session.calls
-
-    def test_uses_unwind_queries(self):
-        """All DB writes should use UNWIND (not individual MERGE per call)."""
-        file_data = [{
-            "path": "/repo/a.py",
-            "functions": [{"name": "foo", "line_number": 1}],
-            "classes": [],
-            "imports": [],
-            "function_calls": [{
-                "name": "foo",
-                "line_number": 5,
-                "full_name": "foo",
-                "args": [],
-                "context": ("bar", None, 4),
-            }],
-        }]
-        calls = self._run(file_data)
-        queries = [c["query"] for c in calls]
-        assert any("UNWIND" in q for q in queries), "Expected UNWIND queries"
-
-    def test_uses_merge_for_calls_rel(self):
-        """CALLS relationships should use MERGE to prevent duplicates on re-index."""
-        file_data = [{
-            "path": "/repo/a.py",
-            "functions": [{"name": "foo", "line_number": 1}],
-            "classes": [],
-            "imports": [],
-            "function_calls": [{
-                "name": "foo",
-                "line_number": 5,
-                "full_name": "foo",
-                "args": [],
-                "context": ("bar", None, 4),
-            }],
-        }]
-        calls = self._run(file_data)
-        call_rels = [c["query"] for c in calls if "CALLS" in c["query"]]
-        for q in call_rels:
-            assert "MERGE" in q, f"Expected MERGE in CALLS query, got: {q[:120]}"
-
-    def test_empty_file_data_writes_nothing(self):
-        calls = self._run([])
-        call_rels = [c for c in calls if "CALLS" in c.get("query", "")]
-        assert call_rels == []
-
-    def test_file_class_lookup_supplemented_from_file_data(self):
-        """External file_class_lookup is supplemented with classes from all_file_data."""
-        file_data = [{
-            "path": "/repo/b.py",
-            "functions": [],
-            "classes": [{"name": "MyClass"}],
-            "imports": [],
-            "function_calls": [],
-        }]
-        external_lookup = {"/repo/other.py": {"OtherClass"}}
-        session = _RecordingSession()
-        gb, _ = _make_graph_builder(session)
-        with patch("codegraphcontext.tools.indexing.resolution.calls.get_config_value",
-                   return_value="false"):
-            gb._create_all_function_calls(file_data, {}, external_lookup)
-        resolved_b = str(Path("/repo/b.py").resolve())
-        assert resolved_b in external_lookup
-        assert "MyClass" in external_lookup[resolved_b]
-
-    def test_label_specific_queries_used(self):
-        """Queries should reference specific labels like Function, Class, File — not generic nodes."""
-        file_data = [{
-            "path": "/repo/a.py",
-            "functions": [{"name": "caller_fn", "line_number": 1}],
-            "classes": [],
-            "imports": [],
-            "function_calls": [{
-                "name": "callee",
-                "line_number": 3,
-                "full_name": "callee",
-                "args": [],
-                "context": ("caller_fn", None, 2),
-            }],
-        }]
-        calls = self._run(file_data)
-        call_queries = [c["query"] for c in calls if "CALLS" in c.get("query", "")]
-        labels_found = any(
-            ":Function" in q or ":Class" in q or ":File" in q
-            for q in call_queries
-        )
-        assert labels_found, "Expected label-specific MATCH in CALLS queries"
-
-
-# ---------------------------------------------------------------------------
-# 3. add_file_to_graph — new repo_path_str param + UNWIND writes
-# ---------------------------------------------------------------------------
 
 class TestAddFileToGraph:
-    """Tests for the batched add_file_to_graph method (Change 7)."""
+    """Signature-level tests for add_file_to_graph — kept because the
+    public API surface still matters to callers even though the writes
+    are Rust-backed."""
 
     def test_accepts_repo_path_str_kwarg(self):
-        """Should accept the new repo_path_str parameter without error."""
         from codegraphcontext.tools.graph_builder import GraphBuilder
         sig = inspect.signature(GraphBuilder.add_file_to_graph)
         assert "repo_path_str" in sig.parameters
 
     def test_repo_path_str_is_optional(self):
-        """repo_path_str should have a default value (None)."""
         from codegraphcontext.tools.graph_builder import GraphBuilder
         sig = inspect.signature(GraphBuilder.add_file_to_graph)
         param = sig.parameters["repo_path_str"]
         assert param.default is None
-
-    def test_writes_use_unwind(self):
-        """Node writes should use UNWIND (not individual per-item MERGE)."""
-        session = _RecordingSession(responses=[_FakeResult()])
-        gb, _ = _make_graph_builder(session)
-        file_data = {
-            "path": "/repo/a.py",
-            "lang": "python",
-            "is_dependency": False,
-            "functions": [{"name": "foo", "line_number": 1, "cyclomatic_complexity": 1, "args": []}],
-            "classes": [],
-            "variables": [],
-            "imports": [],
-            "function_calls": [],
-        }
-        gb.add_file_to_graph(file_data, "my_repo", {}, repo_path_str="/repo")
-        queries = [c["query"] for c in session.calls]
-        assert any("UNWIND" in q for q in queries), "Expected UNWIND batch writes"
 
 
 # ---------------------------------------------------------------------------

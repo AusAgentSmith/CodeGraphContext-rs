@@ -17,7 +17,6 @@ from .indexing.pipeline import run_tree_sitter_index_async
 from .indexing.pre_scan import pre_scan_for_imports
 from .indexing.resolution.calls import build_function_call_groups, resolve_function_call
 from .indexing.resolution.inheritance import build_inheritance
-from .indexing.sanitize import MAX_STR_LEN, sanitize_props
 from .indexing.schema import create_graph_schema
 from .tree_sitter_parser import TreeSitterParser
 
@@ -65,12 +64,6 @@ class GraphBuilder:
 
     def create_schema(self) -> None:
         create_graph_schema(self.driver, self.db_manager)
-
-    _MAX_STR_LEN = MAX_STR_LEN
-
-    @staticmethod
-    def _sanitize_props(props: Dict) -> Dict:
-        return sanitize_props(props)
 
     def _resolve_function_call(
         self,
