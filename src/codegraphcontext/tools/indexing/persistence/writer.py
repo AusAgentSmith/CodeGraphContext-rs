@@ -653,7 +653,11 @@ class GraphWriter:
                         batch=nested_fn_batch[i:i + batch_size],
                     )
 
-            # 8. Imports
+            # 8. Imports — Rust path owns this when available.
+            if self._rust is not None:
+                self._rust.write_imports(all_file_data)
+                imports_batch = []
+
             if imports_batch:
                 for i in range(0, len(imports_batch), batch_size):
                     session.run(

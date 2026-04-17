@@ -17,7 +17,8 @@ use pyo3::types::{PyDict, PyList};
 use tokio::runtime::{Builder, Runtime};
 
 use cgc_core::writer::{
-    ClassFnRow, FileRow, GraphWriter, NestedFnRow, ParamRow, SymbolBatch, SYMBOL_LABELS,
+    ClassFnRow, FileRow, GraphWriter, ImportRow, NestedFnRow, ParamRow, SymbolBatch,
+    SYMBOL_LABELS,
 };
 
 use crate::pyany_bolt::py_any_to_bolt;
@@ -294,6 +295,63 @@ impl PyGraphWriter {
                         .await
                 })
             });
+        result.map_err(to_py_err)
+    }
+
+    /// Write `File -[:IMPORTS]-> Module` edges for every parsed file.
+    fn write_imports(
+        &self,
+        py: Python<'_>,
+        all_file_data: &Bound<'_, PyList>,
+    ) -> PyResult<()> {
+        let mut imports: Vec<ImportRow> = Vec::new();
+        for file in all_file_data.iter() {
+            let fd: &Bound<'_, PyDict> = file.downcast()?;
+            let file_path: String = fd
+                .get_item("path")?
+                .ok_or_else(|| PyRuntimeError::new_err("file_data missing 'path'"))?
+                .extract()?;
+            let Some(imports_val) = fd.get_item("imports")? else {
+                continue;
+            };
+            let imports_list: &Bound<'_, PyList> = match imports_val.downcast() {
+                Ok(l) => l,
+                Err(_) => continue,
+            };
+            for item in imports_list.iter() {
+                let imp: &Bound<'_, PyDict> = match item.downcast() {
+                    Ok(d) => d,
+                    Err(_) => continue,
+                };
+                let name: String = imp
+                    .get_item("name")?
+                    .and_then(|v| v.extract().ok())
+                    .unwrap_or_default();
+                let alias: Option<String> = imp
+                    .get_item("alias")?
+                    .and_then(|v| if v.is_none() { None } else { v.extract().ok() });
+                let full_import_name: String = imp
+                    .get_item("full_import_name")?
+                    .and_then(|v| v.extract().ok())
+                    .unwrap_or_else(|| name.clone());
+                let line_number: i64 = imp
+                    .get_item("line_number")?
+                    .and_then(|v| v.extract().ok())
+                    .unwrap_or(0);
+                imports.push(ImportRow {
+                    name,
+                    alias,
+                    full_import_name,
+                    line_number,
+                    file_path: file_path.clone(),
+                });
+            }
+        }
+
+        let inner = self.inner.clone();
+        let rt = runtime();
+        let result: std::result::Result<(), cgc_core::writer::WriterError> = py
+            .allow_threads(|| rt.block_on(async move { inner.write_imports(&imports).await }));
         result.map_err(to_py_err)
     }
 
