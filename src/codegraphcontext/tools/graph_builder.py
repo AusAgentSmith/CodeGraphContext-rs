@@ -19,8 +19,17 @@ from .indexing.resolution.calls import build_function_call_groups, resolve_funct
 from .indexing.resolution.inheritance import build_inheritance_and_csharp_files
 from .indexing.sanitize import MAX_STR_LEN, sanitize_props
 from .indexing.schema import create_graph_schema
-from .indexing.scip_pipeline import name_from_symbol, run_scip_index_async
 from .tree_sitter_parser import TreeSitterParser
+
+
+def name_from_symbol(symbol: str) -> str:
+    import re
+
+    s = symbol.rstrip(".#")
+    s = re.sub(r"\(\)\.?$", "", s)
+    parts = re.split(r"[/#]", s)
+    last = parts[-1] if parts else symbol
+    return last or symbol
 
 
 class GraphBuilder:
@@ -257,23 +266,6 @@ class GraphBuilder:
             error_logger(f"Could not estimate processing time for {path}: {e}")
             return None
 
-    async def _build_graph_from_scip(
-        self, path: Path, is_dependency: bool, job_id: Optional[str], lang: str
-    ):
-        from . import scip_indexer
-
-        await run_scip_index_async(
-            path,
-            is_dependency,
-            job_id,
-            lang,
-            self._writer,
-            self.job_manager,
-            self.parsers.keys(),
-            self.get_parser,
-            scip_indexer,
-        )
-
     def _name_from_symbol(self, symbol: str) -> str:
         return name_from_symbol(symbol)
 
@@ -281,29 +273,6 @@ class GraphBuilder:
         self, path: Path, is_dependency: bool = False, job_id: str = None, cgcignore_path: str = None
     ):
         try:
-            scip_enabled = (get_config_value("SCIP_INDEXER") or "false").lower() == "true"
-            if scip_enabled:
-                from .scip_indexer import detect_project_lang, is_scip_available
-
-                scip_langs_str = get_config_value("SCIP_LANGUAGES") or "python,typescript,go,rust,java"
-                scip_languages = [l.strip() for l in scip_langs_str.split(",") if l.strip()]
-                detected_lang = detect_project_lang(path, scip_languages)
-
-                if detected_lang and is_scip_available(detected_lang):
-                    info_logger(f"SCIP_INDEXER=true — using SCIP for language: {detected_lang}")
-                    await self._build_graph_from_scip(path, is_dependency, job_id, detected_lang)
-                    return
-                if detected_lang:
-                    warning_logger(
-                        f"SCIP_INDEXER=true but scip-{detected_lang} binary not found. "
-                        f"Falling back to Tree-sitter. Install it first."
-                    )
-                else:
-                    info_logger(
-                        "SCIP_INDEXER=true but no SCIP-supported language detected. "
-                        "Falling back to Tree-sitter."
-                    )
-
             await run_tree_sitter_index_async(
                 path,
                 is_dependency,

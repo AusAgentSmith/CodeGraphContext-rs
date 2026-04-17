@@ -41,9 +41,6 @@ DEFAULT_CONFIG = {
     "CACHE_ENABLED": "true",
     "IGNORE_DIRS": "node_modules,venv,.venv,env,.env,dist,build,target,out,.git,.idea,.vscode,__pycache__",
     "INDEX_SOURCE": "true",
-    # SCIP indexer feature flag (default off — existing Tree-sitter behaviour unchanged)
-    "SCIP_INDEXER": "false",
-    "SCIP_LANGUAGES": "python,typescript,go,rust,java",
     "SKIP_EXTERNAL_RESOLUTION": "false",
 }
 
@@ -67,8 +64,6 @@ CONFIG_DESCRIPTIONS = {
     "CACHE_ENABLED": "Enable caching for faster re-indexing",
     "IGNORE_DIRS": "Comma-separated list of directory names to ignore during indexing",
     "INDEX_SOURCE": "Store full source code in graph database (for faster indexing use false, for better performance use true)",
-    "SCIP_INDEXER": "Use SCIP-based indexing for higher accuracy call/inheritance resolution (requires scip-<lang> tools installed)",
-    "SCIP_LANGUAGES": "Comma-separated languages to index via SCIP when SCIP_INDEXER=true (python,typescript,go,rust,java)",
     "SKIP_EXTERNAL_RESOLUTION": "Skip resolution attempts for external library method calls (recommended for enterprise large Java/Spring codebases)",
 }
 
@@ -85,7 +80,6 @@ CONFIG_VALIDATORS = {
     "ENABLE_AUTO_WATCH": ["true", "false"],
     "CACHE_ENABLED": ["true", "false"],
     "INDEX_SOURCE": ["true", "false"],
-    "SCIP_INDEXER": ["true", "false"],
     "SKIP_EXTERNAL_RESOLUTION": ["true", "false"],
 }
 DEFAULT_CGCIGNORE_PATTERNS = """\
