@@ -74,7 +74,7 @@ TOOLS = {
             "type": "object",
             "properties": {
                 "package_name": {"type": "string", "description": "Name of the package to add (e.g., 'requests', 'express', 'moment', 'lodash')."},
-                "language": {"type": "string", "description": "The programming language of the package.", "enum": ["python", "javascript", "typescript", "java", "c", "go", "ruby", "php","cpp"]},
+                "language": {"type": "string", "description": "The programming language of the package.", "enum": ["python", "rust"]},
                 "is_dependency": {"type": "boolean", "description": "Mark as a dependency.", "default": True}
             },
             "required": ["package_name", "language"]
@@ -132,17 +132,6 @@ TOOLS = {
                 "repo_path": {"type": "string", "description": "The path of the repository to delete."} 
             },
             "required": ["repo_path"]
-        }
-    },
-    "visualize_graph_query": {
-        "name": "visualize_graph_query",
-        "description": "Generates a URL to visualize the results of a Cypher query in the Neo4j Browser. The user can open this URL in their web browser to see the graph visualization.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "cypher_query": {"type": "string", "description": "The Cypher query to visualize."}
-            },
-            "required": ["cypher_query"]
         }
     },
     "list_watched_paths": {

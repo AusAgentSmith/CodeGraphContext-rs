@@ -161,9 +161,6 @@ class MCPServer:
 
     def execute_cypher_query_tool(self, **args) -> Dict[str, Any]:
         return query_handlers.execute_cypher_query(self.db_manager, **args)
-    
-    def visualize_graph_query_tool(self, **args) -> Dict[str, Any]:
-        return query_handlers.visualize_graph_query(self.db_manager, **args)
 
     def find_dead_code_tool(self, **args) -> Dict[str, Any]:
         return analysis_handlers.find_dead_code(self.code_finder, **args)
@@ -315,7 +312,6 @@ class MCPServer:
             "find_most_complex_functions": self.find_most_complex_functions_tool,
             "list_indexed_repositories": self.list_indexed_repositories_tool,
             "delete_repository": self.delete_repository_tool,
-            "visualize_graph_query": self.visualize_graph_query_tool,
             "list_watched_paths": self.list_watched_paths_tool,
             "unwatch_directory": self.unwatch_directory_tool,
             "load_bundle": self.load_bundle_tool,

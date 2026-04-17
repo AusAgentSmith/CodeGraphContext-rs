@@ -82,7 +82,7 @@ def _generate_mcp_json(creds):
                         "find_dead_code", "execute_cypher_query",
                         "calculate_cyclomatic_complexity", "find_most_complex_functions",
                         "list_indexed_repositories", "delete_repository", "list_watched_paths", 
-                        "unwatch_directory", "visualize_graph_query"
+                        "unwatch_directory"
                     ],
                     "disabled": False
                 },
@@ -449,7 +449,7 @@ def configure_mcp_client():
                         "find_dead_code", "execute_cypher_query",
                         "calculate_cyclomatic_complexity", "find_most_complex_functions",
                         "list_indexed_repositories", "delete_repository", "list_watched_paths", 
-                        "unwatch_directory", "visualize_graph_query"
+                        "unwatch_directory"
                     ],
                     "disabled": False
                 },
