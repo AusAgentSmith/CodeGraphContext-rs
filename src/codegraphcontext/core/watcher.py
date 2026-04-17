@@ -1,13 +1,23 @@
 # src/codegraphcontext/core/watcher.py
 """
-This module implements the live file-watching functionality using the `watchdog` library.
-It observes directories for changes and triggers updates to the code graph.
+Live file-watching for the code graph.
+
+The event source is the Rust `_cgc_rust.FileWatcher` (notify-backed).
+A tiny poll-loop thread per watched directory drains events from Rust
+and dispatches them into the existing `RepositoryEventHandler`, which
+owns debouncing + incremental re-indexing — that logic is unchanged
+from the watchdog-based implementation it replaces.
+
+Shape of the events delivered to handler methods mirrors the old
+watchdog `FileSystemEvent` contract (`is_directory`, `src_path`) so
+the handler doesn't care which backend produced them.
 """
 import threading
+from dataclasses import dataclass
 from pathlib import Path
 import typing
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
+
+from codegraphcontext._cgc_rust import FileWatcher as _RustFileWatcher
 
 if typing.TYPE_CHECKING:
     from codegraphcontext.tools.graph_builder import GraphBuilder
@@ -15,53 +25,72 @@ if typing.TYPE_CHECKING:
 
 from codegraphcontext.utils.debug_log import debug_log, info_logger, error_logger, warning_logger
 
-class RepositoryEventHandler(FileSystemEventHandler):
+
+# Rust event kinds we actually care about. "other" is inotify metadata
+# churn (atime / attrib etc.) and is skipped — it would only feed the
+# debouncer noise. "renamed" arrives twice per rename (once for each
+# side); we treat both as modifications, and the handler's existence
+# check collapses the deleted-path side correctly.
+_DISPATCH = {
+    "created": "on_created",
+    "modified": "on_modified",
+    "removed": "on_deleted",
+    "renamed": "on_modified",
+}
+
+
+@dataclass
+class _FakeEvent:
+    """Minimal shape matching watchdog's `FileSystemEvent` so handler
+    code can stay generic across backends."""
+    src_path: str
+    is_directory: bool = False
+
+
+class RepositoryEventHandler:
     """
     A dedicated event handler for a single repository being watched.
-    
-    This handler is stateful. It performs an initial scan of the repository
-    to build a baseline and then uses this cached state to perform efficient
-    updates when files are changed, created, or deleted.
+
+    Stateful: performs an initial scan of the repository to build a
+    baseline, then uses that cached state to perform efficient
+    incremental updates when files change, are created, or deleted.
     """
     def __init__(self, graph_builder: "GraphBuilder", repo_path: Path, debounce_interval=2.0, perform_initial_scan: bool = True):
         """
-        Initializes the event handler.
-
         Args:
-            graph_builder: An instance of the GraphBuilder to perform graph operations.
-            repo_path: The absolute path to the repository directory to watch.
-            debounce_interval: The time in seconds to wait for more changes before processing an event.
-            perform_initial_scan: Whether to perform an initial scan of the repository.
+            graph_builder: GraphBuilder instance used for all graph mutations.
+            repo_path: Absolute path to the repository directory being watched.
+            debounce_interval: Seconds to wait for a quiet period before re-indexing.
+            perform_initial_scan: Skip the initial scan for tests / manual bootstrap.
         """
         super().__init__()
         self.graph_builder = graph_builder
         self.repo_path = repo_path
         self.debounce_interval = debounce_interval
-        self.timers = {} # A dictionary to manage debounce timers for file paths.
-        
+        self.timers = {}
+
         # Caches for the repository's state.
         self.all_file_data = []
         self.imports_map = {}
-        
-        # Perform the initial scan and linking when the watcher is created.
+
         if perform_initial_scan:
             self._initial_scan()
 
     def _initial_scan(self):
-        """Scans the entire repository, parses all files, and builds the initial graph."""
+        """Parse every file in the repo once and populate the initial graph."""
         info_logger(f"Performing initial scan for watcher: {self.repo_path}")
         supported_extensions = self.graph_builder.parsers.keys()
         all_files = [f for f in self.repo_path.rglob("*") if f.is_file() and f.suffix in supported_extensions]
-        
+
         # 1. Pre-scan all files to get a global map of where every symbol is defined.
         self.imports_map = self.graph_builder.pre_scan_imports(all_files)
-        
+
         # 2. Parse all files in detail and cache the parsed data.
         for f in all_files:
             parsed_data = self.graph_builder.parse_file(self.repo_path, f)
             if "error" not in parsed_data:
                 self.all_file_data.append(parsed_data)
-        
+
         # 3. After all files are parsed, create the relationships (e.g., function calls) between them.
         self.graph_builder.link_function_calls(self.all_file_data, self.imports_map)
         self.graph_builder.link_inheritance(self.all_file_data, self.imports_map)
@@ -71,14 +100,12 @@ class RepositoryEventHandler(FileSystemEventHandler):
 
     def _debounce(self, event_path, action):
         """
-        Schedules an action to run after a debounce interval.
-        This prevents the handler from firing on every single file save event in rapid
-        succession, which is common in IDEs. It waits for a quiet period before processing.
+        Schedule `action` to run after `debounce_interval` seconds of quiet.
+        Subsequent events for the same path cancel the pending timer —
+        IDEs tend to fire many saves in a burst, this collapses them.
         """
-        # If a timer already exists for this path, cancel it.
         if event_path in self.timers:
             self.timers[event_path].cancel()
-        # Create and start a new timer.
         timer = threading.Timer(self.debounce_interval, action)
         timer.start()
         self.timers[event_path] = timer
@@ -175,7 +202,8 @@ class RepositoryEventHandler(FileSystemEventHandler):
         self.graph_builder.link_inheritance(subset_file_data, self.imports_map)
         info_logger(f"[INCREMENTAL] Done. Graph refresh for {event_path_str} complete! ✅")
 
-    # The following methods are called by the watchdog observer when a file event occurs.
+    # Event methods — called by _RustObserver's poll thread with
+    # _FakeEvent instances shaped like watchdog events.
     def on_created(self, event):
         if not event.is_directory and Path(event.src_path).suffix in self.graph_builder.parsers:
             self._debounce(event.src_path, lambda: self._handle_modification(event.src_path))
@@ -188,45 +216,143 @@ class RepositoryEventHandler(FileSystemEventHandler):
         if not event.is_directory and Path(event.src_path).suffix in self.graph_builder.parsers:
             self._debounce(event.src_path, lambda: self._handle_modification(event.src_path))
 
-    def on_moved(self, event):
-        if not event.is_directory:
-            if Path(event.src_path).suffix in self.graph_builder.parsers:
-                self._debounce(event.src_path, lambda: self._handle_modification(event.src_path))
-            if Path(event.dest_path).suffix in self.graph_builder.parsers:
-                self._debounce(event.dest_path, lambda: self._handle_modification(event.dest_path))
+
+class _RustWatch:
+    """One observed directory: a `FileWatcher`, its poll thread, and a
+    stop signal. Returned by `_RustObserver.schedule` and handed back
+    into `unschedule`."""
+    __slots__ = ("path", "watcher", "thread", "stop_event")
+
+    def __init__(self, path: str, watcher, thread: threading.Thread, stop_event: threading.Event):
+        self.path = path
+        self.watcher = watcher
+        self.thread = thread
+        self.stop_event = stop_event
+
+
+class _RustObserver:
+    """
+    watchdog.Observer-compatible wrapper around `_cgc_rust.FileWatcher`.
+
+    One daemon thread per watch polls the Rust queue and dispatches
+    events to the handler. Thread stays alive until `unschedule` (or
+    `stop`) sets its stop event; poll timeout is short so shutdown is
+    responsive.
+    """
+    _POLL_TIMEOUT_MS = 500
+
+    def __init__(self):
+        self._watches = {}  # path_str -> _RustWatch
+        self._lock = threading.Lock()
+
+    def schedule(self, event_handler, path: str, recursive: bool = True):
+        # The Rust watcher is always recursive. `recursive=False` would
+        # require filtering sub-paths in the dispatcher — not something
+        # any caller uses today, so we don't bother.
+        _ = recursive
+        watcher = _RustFileWatcher(path)
+        stop_event = threading.Event()
+        thread = threading.Thread(
+            target=self._poll_loop,
+            args=(event_handler, watcher, stop_event),
+            name=f"cgc-watcher-{Path(path).name}",
+            daemon=True,
+        )
+        thread.start()
+        watch = _RustWatch(path=path, watcher=watcher, thread=thread, stop_event=stop_event)
+        with self._lock:
+            self._watches[path] = watch
+        return watch
+
+    def unschedule(self, watch: "_RustWatch"):
+        watch.stop_event.set()
+        # We don't join() here to stay symmetric with watchdog — the
+        # daemon thread will exit on its next poll timeout.
+        with self._lock:
+            self._watches.pop(watch.path, None)
+
+    def _poll_loop(self, handler, watcher, stop_event: threading.Event):
+        """Background loop: drain events, dispatch to handler.
+
+        Exceptions in user handler code are logged and swallowed — we
+        don't want a bad event to kill the whole watcher.
+        """
+        while not stop_event.is_set():
+            try:
+                events = watcher.poll(self._POLL_TIMEOUT_MS)
+            except Exception as e:
+                error_logger(f"FileWatcher.poll failed: {e}")
+                stop_event.set()
+                return
+            for kind, path in events:
+                method_name = _DISPATCH.get(kind)
+                if method_name is None:
+                    continue  # "other" etc. — skip
+                method = getattr(handler, method_name, None)
+                if method is None:
+                    continue
+                event = _FakeEvent(src_path=path, is_directory=False)
+                try:
+                    method(event)
+                except Exception as e:
+                    error_logger(f"watcher handler {method_name} raised: {e}")
+
+    # watchdog.Observer API compatibility --------------------------------
+
+    def start(self):
+        # Threads are started in schedule() so this is a no-op. We keep
+        # it here because CodeWatcher.start() calls observer.start().
+        pass
+
+    def stop(self):
+        with self._lock:
+            watches = list(self._watches.values())
+            self._watches.clear()
+        for w in watches:
+            w.stop_event.set()
+
+    def is_alive(self) -> bool:
+        with self._lock:
+            return any(not w.stop_event.is_set() for w in self._watches.values())
+
+    def join(self, timeout=None):
+        with self._lock:
+            threads = [w.thread for w in self._watches.values()]
+        for t in threads:
+            t.join(timeout)
 
 
 class CodeWatcher:
     """
-    Manages the file system observer thread. It can watch multiple directories,
-    assigning a separate `RepositoryEventHandler` to each one.
+    Top-level watcher. Owns one `_RustObserver` and registers a
+    `RepositoryEventHandler` per directory under `watch_directory`.
     """
     def __init__(self, graph_builder: "GraphBuilder", job_manager= "JobManager"):
         self.graph_builder = graph_builder
-        self.observer = Observer()
-        self.watched_paths = set() # Keep track of paths already being watched.
-        self.watches = {} # Store watch objects to allow unscheduling
+        self.observer = _RustObserver()
+        self.watched_paths = set()
+        self.watches = {}
 
     def watch_directory(self, path: str, perform_initial_scan: bool = True):
-        """Schedules a directory to be watched for changes."""
+        """Schedule a directory to be watched for changes."""
         path_obj = Path(path).resolve()
         path_str = str(path_obj)
 
         if path_str in self.watched_paths:
             info_logger(f"Path already being watched: {path_str}")
             return {"message": f"Path already being watched: {path_str}"}
-        
-        # Create a new, dedicated event handler for this specific repository path.
+
         event_handler = RepositoryEventHandler(self.graph_builder, path_obj, perform_initial_scan=perform_initial_scan)
-        
+
         watch = self.observer.schedule(event_handler, path_str, recursive=True)
         self.watches[path_str] = watch
         self.watched_paths.add(path_str)
         info_logger(f"Started watching for code changes in: {path_str}")
-        
+
         return {"message": f"Started watching {path_str}."}
+
     def unwatch_directory(self, path: str):
-        """Stops watching a directory for changes."""
+        """Stop watching a directory for changes."""
         path_obj = Path(path).resolve()
         path_str = str(path_obj)
 
@@ -237,7 +363,7 @@ class CodeWatcher:
         watch = self.watches.pop(path_str, None)
         if watch:
             self.observer.unschedule(watch)
-        
+
         self.watched_paths.discard(path_str)
         info_logger(f"Stopped watching for code changes in: {path_str}")
         return {"message": f"Stopped watching {path_str}."}
@@ -247,14 +373,14 @@ class CodeWatcher:
         return list(self.watched_paths)
 
     def start(self):
-        """Starts the observer thread."""
+        """Start the observer thread."""
         if not self.observer.is_alive():
             self.observer.start()
             info_logger("Code watcher observer thread started.")
 
     def stop(self):
-        """Stops the observer thread gracefully."""
+        """Stop the observer thread gracefully."""
         if self.observer.is_alive():
             self.observer.stop()
-            self.observer.join() # Wait for the thread to terminate.
+            self.observer.join()
             info_logger("Code watcher observer thread stopped.")

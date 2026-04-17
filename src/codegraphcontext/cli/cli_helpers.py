@@ -631,14 +631,8 @@ def stats_helper(path: str = None, context: Optional[str] = None):
 
 def watch_helper(path: str, context: Optional[str] = None):
     """Watch a directory for changes and auto-update the graph (blocking mode)."""
-    import logging
     from ..core.watcher import CodeWatcher
-    
-    # Suppress verbose watchdog DEBUG logs
-    logging.getLogger('watchdog').setLevel(logging.WARNING)
-    logging.getLogger('watchdog.observers').setLevel(logging.WARNING)
-    logging.getLogger('watchdog.observers.inotify_buffer').setLevel(logging.WARNING)
-    
+
     services = _initialize_services(context)
     if not all(services[:3]):
         return
