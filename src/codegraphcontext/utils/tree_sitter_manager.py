@@ -20,51 +20,14 @@ from tree_sitter_language_pack import get_language
 
 # Language name aliases for compatibility
 LANGUAGE_ALIASES = {
-    # Common aliases
     "py": "python",
-    "js": "javascript",
-    "ts": "typescript",
-    "c++": "cpp",
-    "c#": "c_sharp",
-    "csharp": "c_sharp",
-    "cs": "c_sharp",
-    "rb": "ruby",
     "rs": "rust",
-    "go": "go",
-    "php": "php",
-    ".php": "php",
-    
-    # Canonical names (map to themselves for consistency)
     "python": "python",
-    "javascript": "javascript",
-    "typescript": "typescript",
-    "tsx": "tsx",
-    "cpp": "cpp",
-    "c_sharp": "c_sharp",
-    "c": "c",
-    "java": "java",
-    "haskell": "haskell",
-    "ruby": "ruby",
     "rust": "rust",
-    "kt": "kotlin",
-    "kotlin": "kotlin",
-    "scala": "scala",
-    ".scala": "scala",
-    "swift": "swift",
-    ".swift": "swift",
-    "dart": "dart",
-    "perl": "perl",
-    "pl": "perl",
-    "pm": "perl",
-    "elixir": "elixir",
-    "ex": "elixir",
-    "exs": "elixir",
 }
 
 # Canonical names that differ from tree-sitter-language-pack names
-LANGUAGE_PACK_NAMES = {
-    "c_sharp": "csharp",
-}
+LANGUAGE_PACK_NAMES: Dict[str, str] = {}
 
 
 class TreeSitterManager:
