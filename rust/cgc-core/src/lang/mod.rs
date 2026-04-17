@@ -39,6 +39,13 @@ pub trait LanguageExtractor: Send + Sync {
     /// Extract variable assignments from the AST.
     fn find_variables(&self, root: &Node, source: &[u8]) -> Vec<VariableData>;
 
+    /// Extract `impl Trait for Type` blocks. Only Rust populates these;
+    /// the default returns an empty vec so other languages don't need to
+    /// care.
+    fn find_impls(&self, _root: &Node, _source: &[u8]) -> Vec<ImplData> {
+        Vec::new()
+    }
+
     /// Pre-scan: extract top-level definition names for imports_map.
     fn pre_scan_definitions(&self, root: &Node, source: &[u8]) -> Vec<String> {
         let mut names = Vec::new();

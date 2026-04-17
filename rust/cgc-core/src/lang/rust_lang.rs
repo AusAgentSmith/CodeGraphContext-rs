@@ -76,6 +76,16 @@ const QUERY_PRE_SCAN: &str = r#"
     (trait_item name: (type_identifier) @name)
 "#;
 
+/// `impl Trait for Type`. We only care about trait impls; inherent
+/// impls (`impl Foo { ... }`) are captured via their methods'
+/// class_context and don't need a separate edge.
+const QUERY_IMPLS: &str = r#"
+    (impl_item
+        trait: (_) @trait_name
+        type: (_) @type_name
+    ) @impl_node
+"#;
+
 pub struct RustExtractor;
 
 impl RustExtractor {
@@ -568,12 +578,46 @@ impl LanguageExtractor for RustExtractor {
         variables
     }
 
+    fn find_impls(&self, root: &Node, source: &[u8]) -> Vec<ImplData> {
+        // Anchor on the `@impl_node` capture and pull the type/trait via
+        // child_by_field_name so we never have to correlate captures
+        // across matches. execute_query flattens captures across matches
+        // which broke the earlier buffer-based approach.
+        let mut impls = Vec::new();
+        for (node, capture_name) in self.execute_query(QUERY_IMPLS, root, source) {
+            if capture_name != "impl_node" {
+                continue;
+            }
+            let Some(trait_node) = node.child_by_field_name("trait") else {
+                continue; // inherent impl — no trait edge to emit
+            };
+            let Some(type_node) = node.child_by_field_name("type") else {
+                continue;
+            };
+            impls.push(ImplData {
+                type_name: simplify_generics(get_node_text(&type_node, source)),
+                trait_name: simplify_generics(get_node_text(&trait_node, source)),
+                line_number: node.start_position().row + 1,
+            });
+        }
+        impls
+    }
+
     fn pre_scan_definitions(&self, root: &Node, source: &[u8]) -> Vec<String> {
         let mut names = Vec::new();
         for (node, _) in self.execute_query(QUERY_PRE_SCAN, root, source) {
             names.push(get_node_text(&node, source).to_string());
         }
         names
+    }
+}
+
+/// `Display<T>` → `Display`. Strips generic parameters and whitespace.
+fn simplify_generics(s: &str) -> String {
+    let trimmed = s.trim();
+    match trimmed.find('<') {
+        Some(i) => trimmed[..i].trim().to_string(),
+        None => trimmed.to_string(),
     }
 }
 

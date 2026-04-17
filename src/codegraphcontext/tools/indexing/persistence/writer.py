@@ -115,6 +115,7 @@ class GraphWriter:
             on_progress(total * 3 // 4, total, "Writing relationships...")
         self._rust.write_function_edges(all_file_data)
         self._rust.write_imports(all_file_data)
+        self._rust.write_impls(all_file_data)
         if on_progress:
             on_progress(total, total, "Graph write complete")
         return total

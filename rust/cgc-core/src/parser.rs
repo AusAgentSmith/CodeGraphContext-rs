@@ -56,6 +56,7 @@ pub fn parse_file(
     let imports = extractor.find_imports(&root, &source);
     let function_calls = extractor.find_calls(&root, &source);
     let variables = extractor.find_variables(&root, &source);
+    let impls = extractor.find_impls(&root, &source);
 
     ParseResult::Ok(FileData {
         path: path.to_string(),
@@ -64,6 +65,7 @@ pub fn parse_file(
         variables,
         imports,
         function_calls,
+        impls,
         is_dependency,
         lang: lang.to_string(),
     })

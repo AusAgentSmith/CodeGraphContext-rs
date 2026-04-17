@@ -17,8 +17,8 @@ use pyo3::types::{PyDict, PyList};
 use tokio::runtime::{Builder, Runtime};
 
 use cgc_core::writer::{
-    CallRow, ClassFnRow, FileRow, GraphWriter, ImportRow, InheritanceLinkRow, NestedFnRow,
-    ParamRow, SymbolBatch, SYMBOL_LABELS,
+    CallRow, ClassFnRow, FileRow, GraphWriter, ImplRow, ImportRow, InheritanceLinkRow,
+    NestedFnRow, ParamRow, SymbolBatch, SYMBOL_LABELS,
 };
 
 use crate::pyany_bolt::py_any_to_bolt;
@@ -489,6 +489,62 @@ impl PyGraphWriter {
                         .await
                 })
             });
+        result.map_err(to_py_err)
+    }
+
+    /// Write IMPLEMENTS edges for Rust `impl Trait for Type` blocks.
+    /// Reads the per-file 'impls' key populated by the Rust parser.
+    fn write_impls(
+        &self,
+        py: Python<'_>,
+        all_file_data: &Bound<'_, PyList>,
+    ) -> PyResult<()> {
+        let mut rows: Vec<ImplRow> = Vec::new();
+        for file in all_file_data.iter() {
+            let fd: &Bound<'_, PyDict> = file.downcast()?;
+            let file_path: String = fd
+                .get_item("path")?
+                .ok_or_else(|| PyRuntimeError::new_err("file_data missing 'path'"))?
+                .extract()?;
+            let Some(impls_val) = fd.get_item("impls")? else {
+                continue;
+            };
+            let impls_list: &Bound<'_, PyList> = match impls_val.downcast() {
+                Ok(l) => l,
+                Err(_) => continue,
+            };
+            for item in impls_list.iter() {
+                let d: &Bound<'_, PyDict> = match item.downcast() {
+                    Ok(d) => d,
+                    Err(_) => continue,
+                };
+                let type_name: String = d
+                    .get_item("type_name")?
+                    .and_then(|v| v.extract().ok())
+                    .unwrap_or_default();
+                let trait_name: String = d
+                    .get_item("trait_name")?
+                    .and_then(|v| v.extract().ok())
+                    .unwrap_or_default();
+                let line_number: i64 = d
+                    .get_item("line_number")?
+                    .and_then(|v| v.extract().ok())
+                    .unwrap_or(0);
+                if type_name.is_empty() || trait_name.is_empty() {
+                    continue;
+                }
+                rows.push(ImplRow {
+                    type_name,
+                    trait_name,
+                    file_path: file_path.clone(),
+                    line_number,
+                });
+            }
+        }
+        let inner = self.inner.clone();
+        let rt = runtime();
+        let result: std::result::Result<(), cgc_core::writer::WriterError> = py
+            .allow_threads(|| rt.block_on(async move { inner.write_impls(&rows).await }));
         result.map_err(to_py_err)
     }
 

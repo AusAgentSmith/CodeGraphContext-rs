@@ -70,6 +70,21 @@ fn file_data_to_py(py: Python<'_>, data: &FileData) -> PyResult<PyObject> {
         .collect::<PyResult<_>>()?;
     dict.set_item("function_calls", calls)?;
 
+    let impls: Vec<PyObject> = data
+        .impls
+        .iter()
+        .map(|i| impl_to_py(py, i))
+        .collect::<PyResult<_>>()?;
+    dict.set_item("impls", impls)?;
+
+    Ok(dict.into_any().unbind())
+}
+
+fn impl_to_py(py: Python<'_>, i: &ImplData) -> PyResult<PyObject> {
+    let dict = PyDict::new(py);
+    dict.set_item("type_name", &i.type_name)?;
+    dict.set_item("trait_name", &i.trait_name)?;
+    dict.set_item("line_number", i.line_number)?;
     Ok(dict.into_any().unbind())
 }
 

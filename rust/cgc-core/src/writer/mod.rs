@@ -15,6 +15,7 @@ mod calls;
 mod files;
 mod function_edges;
 mod imports;
+mod impls;
 mod inheritance;
 mod repository;
 mod symbols;
@@ -23,6 +24,7 @@ pub use calls::{CallGroup, CallRow};
 pub use files::FileRow;
 pub use function_edges::{ClassFnRow, NestedFnRow, ParamRow};
 pub use imports::ImportRow;
+pub use impls::ImplRow;
 pub use inheritance::InheritanceLinkRow;
 pub use symbols::{SymbolBatch, SYMBOL_LABELS};
 

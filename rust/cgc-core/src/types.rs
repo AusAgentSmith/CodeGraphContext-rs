@@ -9,8 +9,25 @@ pub struct FileData {
     pub variables: Vec<VariableData>,
     pub imports: Vec<ImportData>,
     pub function_calls: Vec<CallData>,
+    /// Rust-specific `impl Trait for Type` blocks. Python + other langs
+    /// leave this empty.
+    pub impls: Vec<ImplData>,
     pub is_dependency: bool,
     pub lang: String,
+}
+
+/// A Rust `impl Trait for Type` block. We only care about the type/trait
+/// names — methods inside an impl are already captured as FunctionData
+/// with their class_context set to the target type.
+///
+/// Inherent impls (`impl Foo { ... }`, no trait) are not emitted since
+/// their only useful fact — "Foo has these methods" — is already
+/// encoded via class_context + Class CONTAINS Function.
+#[derive(Debug, Clone)]
+pub struct ImplData {
+    pub type_name: String,
+    pub trait_name: String,
+    pub line_number: usize,
 }
 
 #[derive(Debug, Clone)]
