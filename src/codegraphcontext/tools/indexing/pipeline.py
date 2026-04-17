@@ -88,11 +88,15 @@ async def run_tree_sitter_index_async(
             info_logger(f"Rust parse+prescan done in {time.time() - t_parse:.1f}s "
                         f"({len(imports_map)} symbols)")
 
+            valid_rust_results = []
             for file_data in rust_results:
                 if "error" not in file_data:
                     file_data["repo_path"] = str(repo_path_resolved)
-                    writer.add_file_to_graph(file_data, repo_name, imports_map, repo_path_str=resolved_repo_path_str)
-                    all_file_data.append(file_data)
+                    valid_rust_results.append(file_data)
+
+            if valid_rust_results:
+                writer.add_files_batch_to_graph(valid_rust_results, repo_name, imports_map, repo_path_str=resolved_repo_path_str)
+                all_file_data.extend(valid_rust_results)
 
             if job_id:
                 job_manager.update_job(job_id, processed_files=len(rust_files))

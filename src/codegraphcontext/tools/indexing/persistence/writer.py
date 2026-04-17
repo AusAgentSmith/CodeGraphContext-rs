@@ -872,10 +872,9 @@ class GraphWriter:
 
                     if is_interface or (base_index > 0 and type_label == "Class"):
                         session.run(
-                            """
-                            MATCH (child {name: $child_name, path: $path})
-                            WHERE child:Class OR child:Struct OR child:Record
-                            MATCH (iface:Interface {name: $interface_name})
+                            f"""
+                            MATCH (child:{type_label} {{name: $child_name, path: $path}})
+                            MATCH (iface:Interface {{name: $interface_name}})
                             MERGE (child)-[:IMPLEMENTS]->(iface)
                         """,
                             child_name=type_item["name"],
@@ -884,11 +883,9 @@ class GraphWriter:
                         )
                     else:
                         session.run(
-                            """
-                            MATCH (child {name: $child_name, path: $path})
-                            WHERE child:Class OR child:Record OR child:Interface
-                            MATCH (parent {name: $parent_name})
-                            WHERE parent:Class OR parent:Record OR parent:Interface
+                            f"""
+                            MATCH (child:{type_label} {{name: $child_name, path: $path}})
+                            MATCH (parent:{type_label} {{name: $parent_name}})
                             MERGE (child)-[:INHERITS]->(parent)
                         """,
                             child_name=type_item["name"],
