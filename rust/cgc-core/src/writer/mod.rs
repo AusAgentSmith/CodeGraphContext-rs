@@ -11,6 +11,8 @@
 //! Transactions are per-method, not per-file. Each writer method opens one
 //! transaction, batches its writes, and commits.
 
+mod repository;
+
 use std::sync::Arc;
 
 use neo4rs::{ConfigBuilder, Graph};

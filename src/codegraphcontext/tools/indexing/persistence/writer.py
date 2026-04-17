@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import time
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -9,16 +10,54 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 from ....utils.debug_log import info_logger, warning_logger
 from ..sanitize import sanitize_props
 
+try:
+    from codegraphcontext._cgc_rust import GraphWriter as _RustGraphWriter
+except ImportError:
+    _RustGraphWriter = None
+
+
+def _init_rust_writer() -> Optional[Any]:
+    """Construct a Rust-backed writer from env vars, or None if unavailable.
+
+    Returns None (with a warning) if the extension isn't built, env vars
+    are missing, or the ping fails. Every caller must handle this by
+    falling back to the Python driver path.
+    """
+    if _RustGraphWriter is None:
+        return None
+    uri = os.getenv("NEO4J_URI")
+    user = os.getenv("NEO4J_USERNAME", "neo4j")
+    password = os.getenv("NEO4J_PASSWORD")
+    database = os.getenv("NEO4J_DATABASE")
+    if not uri or not password:
+        return None
+    try:
+        return _RustGraphWriter(uri, user, password, database)
+    except Exception as e:
+        warning_logger(f"Rust writer init failed, falling back to Python driver: {e}")
+        return None
+
 
 class GraphWriter:
-    """Persists repository/file/symbol nodes and relationships via the Neo4j-like driver API."""
+    """Persists repository/file/symbol nodes and relationships via the Neo4j-like driver API.
+
+    Holds two connections during the Rust-writer migration:
+      * ``driver``  — Python neo4j driver. Still used for read queries and
+        for any write method not yet ported to Rust.
+      * ``_rust``   — ``_cgc_rust.GraphWriter`` backed by neo4rs. Used for
+        ported methods; ``None`` when unavailable (tests, missing env).
+    """
 
     def __init__(self, driver: Any):
         self.driver = driver
+        self._rust = _init_rust_writer()
 
     def add_repository_to_graph(self, repo_path: Path, is_dependency: bool = False) -> None:
         repo_name = repo_path.name
         repo_path_str = str(repo_path.resolve())
+        if self._rust is not None:
+            self._rust.add_repository(repo_path_str, repo_name, is_dependency)
+            return
         with self.driver.session() as session:
             session.run(
                 """

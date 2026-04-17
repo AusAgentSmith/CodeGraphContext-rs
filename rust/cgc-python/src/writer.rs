@@ -71,4 +71,25 @@ impl PyGraphWriter {
             py.allow_threads(|| rt.block_on(async move { inner.ping().await }));
         result.map_err(to_py_err)
     }
+
+    /// MERGE a Repository node. Idempotent.
+    fn add_repository(
+        &self,
+        py: Python<'_>,
+        path: &str,
+        name: &str,
+        is_dependency: bool,
+    ) -> PyResult<()> {
+        let rt = runtime();
+        let inner = self.inner.clone();
+        let path = path.to_owned();
+        let name = name.to_owned();
+        let result: std::result::Result<(), cgc_core::writer::WriterError> = py
+            .allow_threads(|| {
+                rt.block_on(async move {
+                    inner.add_repository(&path, &name, is_dependency).await
+                })
+            });
+        result.map_err(to_py_err)
+    }
 }
