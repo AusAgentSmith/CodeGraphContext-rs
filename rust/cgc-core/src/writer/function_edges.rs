@@ -6,9 +6,9 @@
 //! All three require the Function and Class nodes to already exist, so
 //! these run after write_symbols.
 
-use neo4rs::{query, BoltList, BoltMap, BoltString, BoltType};
+use neo4rs::{BoltMap, BoltString, BoltType};
 
-use super::{GraphWriter, Result};
+use super::{GraphWriter, Result, DEFAULT_BATCH_SIZE};
 
 /// (function_name, line_number, arg_name, file_path)
 pub struct ParamRow {
@@ -34,8 +34,6 @@ pub struct NestedFnRow {
     pub file_path: String,
 }
 
-const BATCH_SIZE: usize = 500;
-
 impl GraphWriter {
     pub async fn write_function_edges(
         &self,
@@ -55,12 +53,13 @@ impl GraphWriter {
                     BoltType::Map(m)
                 })
                 .collect();
-            self.run_chunks(
+            self.run_parallel_chunks(
                 "UNWIND $batch AS row \
                  MATCH (fn:Function {name: row.func_name, path: row.file_path, line_number: row.line_number}) \
                  MERGE (p:Parameter {name: row.arg_name, path: row.file_path, function_line_number: row.line_number}) \
                  MERGE (fn)-[:HAS_PARAMETER]->(p)",
                 rows,
+                DEFAULT_BATCH_SIZE,
             )
             .await?;
         }
@@ -77,12 +76,13 @@ impl GraphWriter {
                     BoltType::Map(m)
                 })
                 .collect();
-            self.run_chunks(
+            self.run_parallel_chunks(
                 "UNWIND $batch AS row \
                  MATCH (c:Class {name: row.class_name, path: row.file_path}) \
                  MATCH (fn:Function {name: row.func_name, path: row.file_path, line_number: row.func_line}) \
                  MERGE (c)-[:CONTAINS]->(fn)",
                 rows,
+                DEFAULT_BATCH_SIZE,
             )
             .await?;
         }
@@ -99,28 +99,17 @@ impl GraphWriter {
                     BoltType::Map(m)
                 })
                 .collect();
-            self.run_chunks(
+            self.run_parallel_chunks(
                 "UNWIND $batch AS row \
                  MATCH (outer:Function {name: row.outer, path: row.file_path}) \
                  MATCH (inner:Function {name: row.inner_name, path: row.file_path, line_number: row.inner_line}) \
                  MERGE (outer)-[:CONTAINS]->(inner)",
                 rows,
+                DEFAULT_BATCH_SIZE,
             )
             .await?;
         }
 
-        Ok(())
-    }
-
-    async fn run_chunks(&self, cypher: &str, rows: Vec<BoltType>) -> Result<()> {
-        for chunk in rows.chunks(BATCH_SIZE) {
-            let list = BoltList {
-                value: chunk.to_vec(),
-            };
-            self.graph()
-                .run(query(cypher).param("batch", BoltType::List(list)))
-                .await?;
-        }
         Ok(())
     }
 }

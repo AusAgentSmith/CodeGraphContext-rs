@@ -16,9 +16,9 @@
 
 use std::collections::{HashMap, HashSet};
 
-use neo4rs::{query, BoltList, BoltMap, BoltNull, BoltString, BoltType};
+use neo4rs::{BoltList, BoltMap, BoltNull, BoltString, BoltType};
 
-use super::{validate_label, GraphWriter, Result};
+use super::{validate_label, GraphWriter, Result, DEFAULT_BATCH_SIZE};
 
 /// Labels this writer knows how to emit, in priority order. The string
 /// keys match the parser's per-file dict keys.
@@ -35,8 +35,6 @@ pub const SYMBOL_LABELS: &[(&str, &str)] = &[
     ("records", "Record"),
     ("properties", "Property"),
 ];
-
-const BATCH_SIZE: usize = 500;
 
 /// Rows for a single label's MERGE batch. Each entry is (row, file_path).
 /// `file_path` travels outside the map so we can dedupe on it.
@@ -70,6 +68,13 @@ impl DominantType {
 
 impl GraphWriter {
     /// Write all symbol batches (MERGE per label + File CONTAINS).
+    ///
+    /// Two-phase per label so the CONTAINS MATCH can't race the node
+    /// MERGE: first fan out N parallel MERGE batches, await them all,
+    /// then fan out N parallel CONTAINS batches. Within each phase
+    /// chunks don't conflict (different nodes). Across phases we need
+    /// the barrier because a CONTAINS chunk could target nodes a MERGE
+    /// chunk in the same phase is still writing.
     pub async fn write_symbols(&self, batches: Vec<SymbolBatch>) -> Result<()> {
         for batch in batches {
             if batch.rows.is_empty() {
@@ -90,17 +95,11 @@ impl GraphWriter {
                  MERGE (f)-[:CONTAINS]->(n)"
             );
 
-            for chunk in normalized.chunks(BATCH_SIZE) {
-                let list = BoltList {
-                    value: chunk.iter().cloned().map(BoltType::Map).collect(),
-                };
-                self.graph()
-                    .run(query(&merge_q).param("batch", BoltType::List(list.clone())))
-                    .await?;
-                self.graph()
-                    .run(query(&contains_q).param("batch", BoltType::List(list)))
-                    .await?;
-            }
+            let payload: Vec<BoltType> = normalized.into_iter().map(BoltType::Map).collect();
+            self.run_parallel_chunks(&merge_q, payload.clone(), DEFAULT_BATCH_SIZE)
+                .await?;
+            self.run_parallel_chunks(&contains_q, payload, DEFAULT_BATCH_SIZE)
+                .await?;
         }
         Ok(())
     }

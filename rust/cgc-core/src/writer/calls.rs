@@ -6,7 +6,7 @@
 //! in the MATCH because a File has no line. The edge payload
 //! (line_number / args / full_call_name) is identical in every case.
 
-use neo4rs::{query, BoltList, BoltMap, BoltString, BoltType};
+use neo4rs::{BoltList, BoltMap, BoltString, BoltType};
 
 use super::{GraphWriter, Result};
 
@@ -96,15 +96,7 @@ impl GraphWriter {
             return Ok(());
         }
         let payload: Vec<BoltType> = rows.iter().map(row_to_bolt).collect();
-        for chunk in payload.chunks(BATCH_SIZE) {
-            let list = BoltList {
-                value: chunk.to_vec(),
-            };
-            self.graph()
-                .run(query(group.cypher()).param("batch", BoltType::List(list)))
-                .await?;
-        }
-        Ok(())
+        self.run_parallel_chunks(group.cypher(), payload, BATCH_SIZE).await
     }
 
     pub async fn write_call_groups(

@@ -5,9 +5,9 @@
 //! behaviour. `alias` and `full_import_name` are coalesced so later
 //! writes never blank out earlier values.
 
-use neo4rs::{query, BoltList, BoltMap, BoltString, BoltType};
+use neo4rs::{BoltMap, BoltString, BoltType};
 
-use super::{GraphWriter, Result};
+use super::{GraphWriter, Result, DEFAULT_BATCH_SIZE};
 
 pub struct ImportRow {
     pub name: String,
@@ -16,8 +16,6 @@ pub struct ImportRow {
     pub line_number: i64,
     pub file_path: String,
 }
-
-const BATCH_SIZE: usize = 500;
 
 impl GraphWriter {
     pub async fn write_imports(&self, imports: &[ImportRow]) -> Result<()> {
@@ -49,25 +47,20 @@ impl GraphWriter {
                 BoltType::Map(m)
             })
             .collect();
-        for chunk in rows.chunks(BATCH_SIZE) {
-            let list = BoltList {
-                value: chunk.to_vec(),
-            };
-            self.graph()
-                .run(
-                    query(
-                        "UNWIND $batch AS row \
-                         MATCH (f:File {path: row.file_path}) \
-                         MERGE (m:Module {name: row.name}) \
-                         SET m.alias = row.alias, \
-                             m.full_import_name = coalesce(row.full_import_name, m.full_import_name) \
-                         MERGE (f)-[r:IMPORTS]->(m) \
-                         SET r.line_number = row.line_number, r.alias = row.alias",
-                    )
-                    .param("batch", BoltType::List(list)),
-                )
-                .await?;
-        }
-        Ok(())
+        // Note: Module MERGE is by name only. Concurrent batches writing
+        // the same module name serialise on the module_name unique
+        // constraint — still faster than round-trip-serialised calls.
+        self.run_parallel_chunks(
+            "UNWIND $batch AS row \
+             MATCH (f:File {path: row.file_path}) \
+             MERGE (m:Module {name: row.name}) \
+             SET m.alias = row.alias, \
+                 m.full_import_name = coalesce(row.full_import_name, m.full_import_name) \
+             MERGE (f)-[r:IMPORTS]->(m) \
+             SET r.line_number = row.line_number, r.alias = row.alias",
+            rows,
+            DEFAULT_BATCH_SIZE,
+        )
+        .await
     }
 }

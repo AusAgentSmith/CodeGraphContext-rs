@@ -16,3 +16,4 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync"] }
 thiserror = "2"
 notify = "7"
 crossbeam-channel = "0.5"
+futures = "0.3"

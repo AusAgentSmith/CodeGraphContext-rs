@@ -84,6 +84,7 @@ name = "cgc-core"
 version = "0.1.0"
 dependencies = [
  "crossbeam-channel",
+ "futures",
  "neo4rs",
  "notify",
  "rayon",

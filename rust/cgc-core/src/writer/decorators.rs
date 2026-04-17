@@ -13,9 +13,9 @@
 //! "app.route"}` node; the full raw expression and line number live on
 //! the edge.
 
-use neo4rs::{query, BoltList, BoltMap, BoltString, BoltType};
+use neo4rs::{BoltMap, BoltString, BoltType};
 
-use super::{GraphWriter, Result};
+use super::{GraphWriter, Result, DEFAULT_BATCH_SIZE};
 
 /// One `(decorated_symbol)-[:DECORATED_BY]->(Decorator)` edge.
 ///
@@ -30,8 +30,6 @@ pub struct DecoratorRow {
     pub decorator_raw: String,
     pub line_number: i64,
 }
-
-const BATCH_SIZE: usize = 500;
 
 impl GraphWriter {
     pub async fn write_decorators(&self, rows: &[DecoratorRow]) -> Result<()> {
@@ -89,14 +87,8 @@ impl GraphWriter {
                  MERGE (s)-[r:DECORATED_BY]->(d) \
                  SET r.line_number = row.line_number, r.raw = row.decorator_raw"
             );
-            for chunk in batch.chunks(BATCH_SIZE) {
-                let list = BoltList {
-                    value: chunk.to_vec(),
-                };
-                self.graph()
-                    .run(query(&cypher).param("batch", BoltType::List(list)))
-                    .await?;
-            }
+            self.run_parallel_chunks(&cypher, batch, DEFAULT_BATCH_SIZE)
+                .await?;
         }
         Ok(())
     }

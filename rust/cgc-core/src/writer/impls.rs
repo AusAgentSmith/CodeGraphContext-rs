@@ -11,9 +11,9 @@
 //! a dependency we haven't scanned), no edge is emitted. This matches
 //! the existing behaviour of INHERITS resolution.
 
-use neo4rs::{query, BoltList, BoltMap, BoltString, BoltType};
+use neo4rs::{BoltMap, BoltString, BoltType};
 
-use super::{GraphWriter, Result};
+use super::{GraphWriter, Result, DEFAULT_BATCH_SIZE};
 
 pub struct ImplRow {
     pub type_name: String,
@@ -21,8 +21,6 @@ pub struct ImplRow {
     pub file_path: String,
     pub line_number: i64,
 }
-
-const BATCH_SIZE: usize = 500;
 
 impl GraphWriter {
     pub async fn write_impls(&self, impls: &[ImplRow]) -> Result<()> {
@@ -52,26 +50,18 @@ impl GraphWriter {
                 BoltType::Map(m)
             })
             .collect();
-        for chunk in rows.chunks(BATCH_SIZE) {
-            let list = BoltList {
-                value: chunk.to_vec(),
-            };
-            self.graph()
-                .run(
-                    query(
-                        "UNWIND $batch AS row \
-                         MATCH (t) \
-                         WHERE (t:Struct OR t:Enum OR t:Class) \
-                           AND t.name = row.type_name \
-                           AND t.path = row.file_path \
-                         MATCH (tr:Trait {name: row.trait_name}) \
-                         MERGE (t)-[r:IMPLEMENTS]->(tr) \
-                         SET r.line_number = row.line_number",
-                    )
-                    .param("batch", BoltType::List(list)),
-                )
-                .await?;
-        }
-        Ok(())
+        self.run_parallel_chunks(
+            "UNWIND $batch AS row \
+             MATCH (t) \
+             WHERE (t:Struct OR t:Enum OR t:Class) \
+               AND t.name = row.type_name \
+               AND t.path = row.file_path \
+             MATCH (tr:Trait {name: row.trait_name}) \
+             MERGE (t)-[r:IMPLEMENTS]->(tr) \
+             SET r.line_number = row.line_number",
+            rows,
+            DEFAULT_BATCH_SIZE,
+        )
+        .await
     }
 }

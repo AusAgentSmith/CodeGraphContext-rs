@@ -4,9 +4,9 @@
 //! of child→parent links each keyed by child name+path and resolved
 //! parent name+path. This writer is a thin MERGE over that list.
 
-use neo4rs::{query, BoltList, BoltMap, BoltString, BoltType};
+use neo4rs::{BoltMap, BoltString, BoltType};
 
-use super::{GraphWriter, Result};
+use super::{GraphWriter, Result, DEFAULT_BATCH_SIZE};
 
 pub struct InheritanceLinkRow {
     pub child_name: String,
@@ -14,8 +14,6 @@ pub struct InheritanceLinkRow {
     pub parent_name: String,
     pub resolved_parent_file_path: String,
 }
-
-const BATCH_SIZE: usize = 500;
 
 impl GraphWriter {
     pub async fn write_inheritance(&self, links: &[InheritanceLinkRow]) -> Result<()> {
@@ -42,22 +40,14 @@ impl GraphWriter {
                 BoltType::Map(m)
             })
             .collect();
-        for chunk in rows.chunks(BATCH_SIZE) {
-            let list = BoltList {
-                value: chunk.to_vec(),
-            };
-            self.graph()
-                .run(
-                    query(
-                        "UNWIND $batch AS row \
-                         MATCH (child:Class {name: row.child_name, path: row.path}) \
-                         MATCH (parent:Class {name: row.parent_name, path: row.resolved_parent_file_path}) \
-                         MERGE (child)-[:INHERITS]->(parent)",
-                    )
-                    .param("batch", BoltType::List(list)),
-                )
-                .await?;
-        }
-        Ok(())
+        self.run_parallel_chunks(
+            "UNWIND $batch AS row \
+             MATCH (child:Class {name: row.child_name, path: row.path}) \
+             MATCH (parent:Class {name: row.parent_name, path: row.resolved_parent_file_path}) \
+             MERGE (child)-[:INHERITS]->(parent)",
+            rows,
+            DEFAULT_BATCH_SIZE,
+        )
+        .await
     }
 }
