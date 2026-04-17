@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import os
+import sys
 import time
 from datetime import datetime
 from pathlib import Path
@@ -15,6 +17,24 @@ from .persistence.writer import GraphWriter
 from .pre_scan import pre_scan_for_imports
 from .resolution.calls import build_function_call_groups
 from .resolution.inheritance import build_inheritance
+
+
+# Phase-marker output is always on except when CGC is running as an
+# MCP server (stdout is JSON-RPC; stderr is available but noisy for
+# the client). The MCP entry sets `CGC_QUIET_PROGRESS=1`.
+_QUIET = os.environ.get("CGC_QUIET_PROGRESS") == "1"
+
+
+def _phase(start: float, msg: str) -> None:
+    """Print a progress marker to stderr, prefixed with elapsed-seconds-since-start.
+
+    Stderr because stdout is reserved for MCP's JSON-RPC when cgc runs
+    as a server; this output only shows up on the CLI.
+    """
+    if _QUIET:
+        return
+    elapsed = time.time() - start
+    print(f"  [{elapsed:6.1f}s] {msg}", file=sys.stderr, flush=True)
 
 # Try to load Rust engine for accelerated parsing
 try:
@@ -52,10 +72,14 @@ async def run_tree_sitter_index_async(
     if job_id:
         job_manager.update_job(job_id, status=JobStatus.RUNNING)
 
+    t_start = time.time()
+    _phase(t_start, f"discovering files in {path}")
+
     writer.add_repository_to_graph(path, is_dependency)
     repo_name = path.name
 
     files, _ignore_root = discover_files_to_index(path, cgcignore_path)
+    _phase(t_start, f"discovered {len(files)} files")
 
     if job_id:
         job_manager.update_job(job_id, total_files=len(files))
@@ -66,14 +90,21 @@ async def run_tree_sitter_index_async(
 
     # --- Combined pre-scan + parsing phase ---
     if RUST_AVAILABLE:
-        # Split files into Rust-supported and fallback
+        # Split files into Rust-supported and fallback. Unsupported
+        # extensions (YAML, TypeScript, TOML, ...) are dropped entirely:
+        # we used to fall through to add_minimal_file_node for them,
+        # which issues 3-5 synchronous Cypher queries *per file* and
+        # turned a 3k-Rust-file repo into a 16-minute indexing job
+        # because the repo also contained ~10k asset files.
         rust_files = []
         fallback_files = []
         for file in files:
             if not file.is_file():
                 continue
             lang = parsers.get(file.suffix)
-            if lang and lang in _RUST_SUPPORTED_LANGS and file.suffix != ".ipynb":
+            if lang is None:
+                continue
+            if lang in _RUST_SUPPORTED_LANGS and file.suffix != ".ipynb":
                 rust_files.append((file, lang))
             else:
                 fallback_files.append(file)
@@ -81,12 +112,12 @@ async def run_tree_sitter_index_async(
         # Combined parse + pre-scan in one parallel pass (saves ~12% time)
         imports_map = {}
         if rust_files:
-            info_logger(f"Rust combined parse+prescan for {len(rust_files)} files...")
+            _phase(t_start, f"parsing {len(rust_files)} files (Rust)")
             t_parse = time.time()
             specs = [(str(f), lang, is_dependency) for f, lang in rust_files]
             rust_results, imports_map = _rust_parse_and_prescan(specs)
-            info_logger(f"Rust parse+prescan done in {time.time() - t_parse:.1f}s "
-                        f"({len(imports_map)} symbols)")
+            _phase(t_start,
+                   f"parsed in {time.time() - t_parse:.1f}s ({len(imports_map)} symbols)")
 
             valid_rust_results = []
             for file_data in rust_results:
@@ -95,7 +126,12 @@ async def run_tree_sitter_index_async(
                     valid_rust_results.append(file_data)
 
             if valid_rust_results:
-                writer.add_files_batch_to_graph(valid_rust_results, repo_name, imports_map, repo_path_str=resolved_repo_path_str)
+                _phase(t_start, f"writing {len(valid_rust_results)} files to graph")
+                writer.add_files_batch_to_graph(
+                    valid_rust_results, repo_name, imports_map,
+                    repo_path_str=resolved_repo_path_str,
+                    on_progress=lambda _done, _total, msg: _phase(t_start, f"  {msg}"),
+                )
                 all_file_data.extend(valid_rust_results)
 
             if job_id:
@@ -127,6 +163,8 @@ async def run_tree_sitter_index_async(
         for file in files:
             if not file.is_file():
                 continue
+            if file.suffix not in parsers:
+                continue
             if job_id:
                 job_manager.update_job(job_id, current_file=str(file))
             repo_path = path.resolve() if path.is_dir() else file.parent.resolve()
@@ -143,33 +181,28 @@ async def run_tree_sitter_index_async(
             if processed_count % 50 == 0:
                 await asyncio.sleep(0)
 
-    info_logger(
-        f"File processing complete. {len(all_file_data)} files parsed. "
-        f"Starting post-processing phase (inheritance + function calls)..."
-    )
+    _phase(t_start, f"file writes complete ({len(all_file_data)} files parsed)")
 
     # --- Post-processing phase ---
-    t0 = time.time()
-
+    _phase(t_start, "resolving inheritance links")
     if RUST_AVAILABLE:
-        info_logger(f"[INHERITS] Rust-accelerated inheritance resolution ({len(all_file_data)} files)...")
         inheritance_batch = _rust_resolve_inheritance(all_file_data, imports_map)
     else:
-        info_logger(f"[INHERITS] Resolving inheritance links across {len(all_file_data)} files...")
         inheritance_batch = build_inheritance(all_file_data, imports_map)
+    _phase(t_start, f"writing {len(inheritance_batch)} INHERITS edges")
     writer.write_inheritance_links(inheritance_batch)
-    t1 = time.time()
-    info_logger(f"Inheritance links created in {t1 - t0:.1f}s. Starting function calls...")
 
+    _phase(t_start, "resolving function calls")
     if RUST_AVAILABLE:
         from ...cli.config_manager import get_config_value
         skip_external = (get_config_value("SKIP_EXTERNAL_RESOLUTION") or "false").lower() == "true"
         groups = _rust_resolve_calls(all_file_data, imports_map, skip_external)
     else:
         groups = build_function_call_groups(all_file_data, imports_map, None)
+    total_calls = sum(len(g) for g in groups)
+    _phase(t_start, f"writing {total_calls} CALLS edges")
     writer.write_function_call_groups(*groups)
-    t2 = time.time()
-    info_logger(f"Function calls created in {t2 - t1:.1f}s. Total post-processing: {t2 - t0:.1f}s")
+    _phase(t_start, "indexing complete")
 
     if job_id:
         job_manager.update_job(job_id, status=JobStatus.COMPLETED, end_time=datetime.now())

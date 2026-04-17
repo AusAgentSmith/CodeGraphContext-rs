@@ -122,10 +122,15 @@ def mcp_setup():
 def mcp_start():
     """
     Start the CodeGraphContext MCP server.
-    
+
     Starts the server which listens for JSON-RPC requests from stdin.
     This is used by IDE integrations (VS Code, Cursor, etc.).
     """
+    # MCP mode: silence the pipeline's stderr phase markers so they
+    # don't clutter the client's log stream. The CLI `cgc index` path
+    # leaves this unset and gets the full progress output.
+    import os as _os
+    _os.environ.setdefault("CGC_QUIET_PROGRESS", "1")
     console.print("[bold green]Starting CodeGraphContext Server...[/bold green]")
     _load_credentials()
 
