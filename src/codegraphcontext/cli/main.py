@@ -112,7 +112,7 @@ def mcp_setup():
     - Cline, RooCode, Amazon Q Developer
     - OpenCode (prints stdio config + link to vendor docs)
     
-    Works with FalkorDB by default (no database setup needed).
+    Requires Neo4j (see `cgc neo4j setup`).
     """
     console.print("\n[bold cyan]MCP Client Setup[/bold cyan]")
     console.print("Configure your IDE or CLI tool to use CodeGraphContext.\n")
@@ -138,7 +138,7 @@ def mcp_start():
     except ValueError as e:
         # This typically happens if credentials are still not found after all checks.
         console.print(f"[bold red]Configuration Error:[/bold red] {e}")
-        console.print("Please run `cgc neo4j setup` or use FalkorDB (default).")
+        console.print("Please run `cgc neo4j setup`.")
     except KeyboardInterrupt:
         # Handle graceful shutdown on Ctrl+C.
         console.print("\n[bold yellow]Server stopped by user.[/bold yellow]")
@@ -199,7 +199,6 @@ def neo4j_setup():
     - Hosted (Neo4j AuraDB or remote instance)
     - Connect to existing Neo4j instance
     
-    Note: This is optional. CodeGraphContext works with FalkorDB by default.
     """
     console.print("\n[bold cyan]Neo4j Database Setup[/bold cyan]")
     console.print("Configure Neo4j database connection for CodeGraphContext.\n")
@@ -249,13 +248,10 @@ def context_list():
 @context_app.command("create")
 def context_create(
     name: str = typer.Argument(..., help="Name of the new context"),
-    database: str = typer.Option(None, "--database", "-d", help="Database backend (falkordb, kuzudb, neo4j). Defaults to DEFAULT_DATABASE from config."),
     db_path: str = typer.Option(None, "--db-path", help="Explicit path for the DB (defaults to ~/.codegraphcontext/contexts/<name>/db)"),
 ):
     """Create a new logical context."""
-    if database is None:
-        database = config_manager.get_config_value("DEFAULT_DATABASE") or "falkordb"
-    config_manager.create_context(name, database, db_path)
+    config_manager.create_context(name, "neo4j", db_path)
 
 @context_app.command("delete")
 def context_delete(
@@ -348,17 +344,10 @@ def _load_credentials():
         merged_config.update(config)
     
     # Apply merged config to environment.
-    # IMPORTANT: DB-selection keys set in the shell must win over .env defaults.
-    # E.g. `DEFAULT_DATABASE=falkordb cgc index …` must not be overridden by
-    # DEFAULT_DATABASE=neo4j sitting in ~/.codegraphcontext/.env
-    DB_OVERRIDE_KEYS = {"CGC_RUNTIME_DB_TYPE", "DEFAULT_DATABASE"}
     for key, value in merged_config.items():
         if value is not None:  # Only set non-None values
-            # Never let .env clobber a DB-type key that the user already set in the shell
-            if key in DB_OVERRIDE_KEYS and key in os.environ:
-                continue
             os.environ[key] = str(value)
-    
+
     # Report what was loaded
     if config_source_names:
         if len(config_source_names) == 1:
@@ -367,55 +356,20 @@ def _load_credentials():
             console.print(f"[dim]Loaded configuration from: {', '.join(config_source_names)} (highest priority: {config_source_names[-1]})[/dim]")
     else:
         console.print("[yellow]No configuration file found. Using defaults.[/yellow]")
-    
-    
-    # Show which database is actually being used.
-    # When CGC_RUNTIME_DB_TYPE or DEFAULT_DATABASE is set, trust it. Otherwise
-    # call get_database_manager() so the banner matches factory fallbacks.
-    runtime_db = os.environ.get("CGC_RUNTIME_DB_TYPE")
-    explicit_db = runtime_db or os.environ.get("DEFAULT_DATABASE")
 
-    if explicit_db:
-        default_db = explicit_db.lower()
-    else:
-        # No explicit choice — ask the factory which backend it will use
-        try:
-            from codegraphcontext.core import get_database_manager
-            _mgr = get_database_manager()
-            default_db = _mgr.get_backend_type()   # e.g. 'falkordb' / 'kuzudb'
-        except Exception:
-            # Factory failed entirely — still show a best-guess
-            from codegraphcontext.core import _is_falkordb_available
-            default_db = "falkordb" if _is_falkordb_available() else "kuzudb"
-
-    if default_db == "neo4j":
-        has_neo4j_creds = all([
-            os.environ.get("NEO4J_URI"),
-            os.environ.get("NEO4J_USERNAME"),
-            os.environ.get("NEO4J_PASSWORD")
-        ])
-        if has_neo4j_creds:
-            neo4j_db = os.environ.get("NEO4J_DATABASE")
-            if neo4j_db:
-                console.print(f"[cyan]Using database: Neo4j (database: {neo4j_db})[/cyan]")
-            else:
-                console.print("[cyan]Using database: Neo4j[/cyan]")
+    has_neo4j_creds = all([
+        os.environ.get("NEO4J_URI"),
+        os.environ.get("NEO4J_USERNAME"),
+        os.environ.get("NEO4J_PASSWORD")
+    ])
+    if has_neo4j_creds:
+        neo4j_db = os.environ.get("NEO4J_DATABASE")
+        if neo4j_db:
+            console.print(f"[cyan]Using database: Neo4j (database: {neo4j_db})[/cyan]")
         else:
-            console.print("[yellow]⚠ DEFAULT_DATABASE=neo4j but credentials not found. Falling back to default.[/yellow]")
-    elif default_db == "falkordb":
-        console.print("[cyan]Using database: FalkorDB Lite[/cyan]")
-    elif default_db == "kuzudb":
-        console.print("[cyan]Using database: KùzuDB[/cyan]")
-    elif default_db == "falkordb-remote":
-        host = os.environ.get("FALKORDB_HOST")
-        if host:
-            console.print(f"[cyan]Using database: FalkorDB Remote ({host})[/cyan]")
-        else:
-            console.print(
-                "[yellow]⚠ DEFAULT_DATABASE=falkordb-remote but FALKORDB_HOST not set.[/yellow]"
-            )
+            console.print("[cyan]Using database: Neo4j[/cyan]")
     else:
-        console.print(f"[cyan]Using database: {default_db}[/cyan]")
+        console.print("[yellow]⚠ Neo4j credentials not found. Run `cgc neo4j setup`.[/yellow]")
 
 
 
@@ -464,31 +418,6 @@ def config_reset():
         config_manager.reset_config()
     else:
         console.print("[yellow]Reset cancelled[/yellow]")
-
-@config_app.command("db")
-def config_db(backend: str = typer.Argument(..., help="Database backend: 'neo4j', 'falkordb', 'falkordb-remote', or 'kuzudb'")):
-    """
-    Quickly switch the default database backend.
-    
-    Shortcut for 'cgc config set DEFAULT_DATABASE <backend>'.
-    
-    Examples:
-        cgc config db neo4j
-        cgc config db falkordb
-        cgc config db kuzudb
-    """
-    backend = backend.lower()
-    if backend not in ['falkordb', 'falkordb-remote', 'neo4j', 'kuzudb']:
-        console.print(f"[bold red]Invalid backend: {backend}[/bold red]")
-        console.print("Must be 'falkordb', 'falkordb-remote', 'neo4j', or 'kuzudb'")
-        raise typer.Exit(code=1)
-    
-    updated = config_manager.set_config_value("DEFAULT_DATABASE", backend)
-    if not updated:
-        console.print(f"[bold red]Failed to switch default database to {backend}[/bold red]")
-        raise typer.Exit(code=1)
-
-    console.print(f"[green]✔ Default database switched to {backend}[/green]")
 
 # ============================================================================
 # BUNDLE COMMAND GROUP - Pre-indexed Graph Snapshots
@@ -833,41 +762,21 @@ def doctor():
     console.print("\n[bold]2. Checking Database Connection...[/bold]")
     try:
         _load_credentials()
-        default_db = config.get("DEFAULT_DATABASE", "falkordb")
-        console.print(f"   Default database: {default_db}")
-        
-        if default_db == "neo4j":
-            uri = os.environ.get("NEO4J_URI")
-            username = os.environ.get("NEO4J_USERNAME")
-            password = os.environ.get("NEO4J_PASSWORD")
-            
-            if uri and username and password:
-                console.print(f"   [cyan]Testing Neo4j connection to {uri}...[/cyan]")
-                is_connected, error_msg = DatabaseManager.test_connection(uri, username, password, database=os.environ.get("NEO4J_DATABASE"))
-                if is_connected:
-                    console.print(f"   [green]✓[/green] Neo4j connection successful")
-                else:
-                    console.print(f"[red]✗[/red] Neo4j connection failed: {error_msg}")
-                    all_checks_passed = False
-            else:
-                console.print(f"   [yellow]⚠[/yellow] Neo4j credentials not set. Run 'cgc neo4j setup'")
-        elif default_db == "kuzudb":
-            from importlib.util import find_spec
+        uri = os.environ.get("NEO4J_URI")
+        username = os.environ.get("NEO4J_USERNAME")
+        password = os.environ.get("NEO4J_PASSWORD")
 
-            if find_spec("kuzu") is not None:
-                console.print(f"   [green]✓[/green] KuzuDB is installed")
+        if uri and username and password:
+            console.print(f"   [cyan]Testing Neo4j connection to {uri}...[/cyan]")
+            is_connected, error_msg = DatabaseManager.test_connection(uri, username, password, database=os.environ.get("NEO4J_DATABASE"))
+            if is_connected:
+                console.print(f"   [green]✓[/green] Neo4j connection successful")
             else:
-                console.print(f"   [red]✗[/red] KuzuDB is not installed")
-                console.print(f"       Run: pip install kuzu")
+                console.print(f"[red]✗[/red] Neo4j connection failed: {error_msg}")
                 all_checks_passed = False
         else:
-            # FalkorDB
-            try:
-                import falkordb
-                console.print(f"   [green]✓[/green] FalkorDB Lite is installed")
-            except ImportError:
-                console.print(f"   [yellow]⚠[/yellow] FalkorDB Lite not installed (Python 3.12+ only)")
-                console.print(f"       Run: pip install falkordblite")
+            console.print(f"   [yellow]⚠[/yellow] Neo4j credentials not set. Run 'cgc neo4j setup'")
+            all_checks_passed = False
     except Exception as e:
         console.print(f"   [red]✗[/red] Database check error: {e}")
         all_checks_passed = False
@@ -1329,8 +1238,6 @@ def find_by_pattern(
     try:
         with db_manager.get_driver().session() as session:
             # Search Functions, Classes, and Modules
-            # Note: FalkorDB Lite might not support regex, using CONTAINS
-            
             if not case_sensitive:
                 query = """
                     MATCH (n)
@@ -1521,22 +1428,7 @@ def find_by_content_search(
     db_manager, graph_builder, code_finder = services[:3]
     
     try:
-        try:
-            results = code_finder.find_by_content(query)
-        except Exception as e:
-            error_msg = str(e).lower()
-            if ('fulltext' in error_msg or 'db.index.fulltext' in error_msg) and "Falkor" in db_manager.__class__.__name__:
-                console.print("\n[bold red]❌ Full-text search is not supported on FalkorDB[/bold red]\n")
-                console.print("[yellow]💡 You have two options:[/yellow]\n")
-                console.print("  1. [cyan]Switch to Neo4j:[/cyan]")
-                console.print(f"     [dim]cgc --database neo4j find content \"{query}\"[/dim]\n")
-                console.print("  2. [cyan]Use pattern search instead:[/cyan]")
-                console.print(f"     [dim]cgc find pattern \"{query}\"[/dim]")
-                console.print("     [dim](searches in names only, not source code)[/dim]\n")
-                return
-            else:
-                # Re-raise if it's a different error
-                raise
+        results = code_finder.find_by_content(query)
         
         if not results:
             console.print(f"[yellow]No content matches found for '{query}'[/yellow]")
@@ -2318,12 +2210,6 @@ def version_cmd():
 @app.callback(invoke_without_command=True)
 def main(
     ctx: typer.Context,
-    database: Optional[str] = typer.Option(
-        None, 
-        "--database", 
-        "-db", 
-        help="[Global] Temporarily override database backend (falkordb, falkordb-remote, neo4j, or kuzudb) for any command"
-    ),
     visual: bool = typer.Option(
         False,
         "--visual",
@@ -2352,9 +2238,6 @@ def main(
     """
     # Initialize context object for sharing state with subcommands
     ctx.ensure_object(dict)
-    
-    if database:
-        os.environ["CGC_RUNTIME_DB_TYPE"] = database
 
     # Store visual flag in context for subcommands to access
     if visual:
@@ -2373,8 +2256,8 @@ def main(
         console.print("🛠️  [bold]For CLI Toolkit Mode (direct usage):[/bold]")
         console.print("   • [cyan]cgc index .[/cyan] - Index your current directory")
         console.print("   • [cyan]cgc list[/cyan] - List indexed repositories\n")
-        console.print("📊 [bold]Using Neo4j instead of FalkorDB?[/bold]")
-        console.print("     Run [cyan]cgc neo4j setup[/cyan] (or [cyan]cgc n[/cyan]) to configure Neo4j\n")
+        console.print("📊 [bold]Configure Neo4j connection:[/bold]")
+        console.print("     Run [cyan]cgc neo4j setup[/cyan] (or [cyan]cgc n[/cyan])\n")
         console.print("📈 [bold]Want visual graph output?[/bold]")
         console.print("     Add [cyan]-V[/cyan] or [cyan]--visual[/cyan] to any analyze/find command\n")
         console.print("👉 Run [cyan]cgc help[/cyan] to see all available commands")

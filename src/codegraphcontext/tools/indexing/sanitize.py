@@ -1,4 +1,4 @@
-"""Property coercion for graph backends (shared helpers for dialects / writers)."""
+"""Property coercion for Neo4j writes."""
 
 from typing import Any, Dict
 
@@ -8,11 +8,11 @@ MAX_STR_LEN = 4096
 
 
 def sanitize_props(props: Dict[str, Any]) -> Dict[str, Any]:
-    """Return a copy of *props* with values coerced to database-safe types.
+    """Return a copy of *props* with values coerced to Neo4j-safe types.
 
-    FalkorDB and KùzuDB only accept node properties that are primitives
-    (str, int, float, bool, None) or flat lists of primitives. Complex
-    values are serialized to JSON. Strings are truncated to MAX_STR_LEN.
+    Values are kept as primitives (str, int, float, bool, None) or flat lists of
+    primitives where possible. Complex values are serialized to JSON. Strings are
+    truncated to MAX_STR_LEN.
     """
     import json
 

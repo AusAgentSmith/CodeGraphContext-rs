@@ -4,7 +4,6 @@ import uuid
 import urllib.parse
 from pathlib import Path
 import time
-import os
 from typing import Optional, List, Dict, Any
 from rich.console import Console
 from rich.table import Table
@@ -50,11 +49,6 @@ def _initialize_services(cli_context_flag: Optional[str] = None) -> tuple[Any, A
 
     console.print("[dim]Initializing services and database connection...[/dim]")
     try:
-        # Override the database backend with the context's specific choice
-        if ctx.database:
-            os.environ['CGC_RUNTIME_DB_TYPE'] = ctx.database
-        
-        # Pass the exact DB path resolved from the context
         db_manager = get_database_manager(db_path=ctx.db_path)
     except ValueError as e:
         console.print(f"[bold red]Database Configuration Error:[/bold red] {e}")
@@ -63,31 +57,9 @@ def _initialize_services(cli_context_flag: Optional[str] = None) -> tuple[Any, A
     try:
         db_manager.get_driver()
     except Exception as e:
-        # Check if this is a FalkorDB failure that should trigger a KùzuDB fallback
-        from ..core.database_falkordb import FalkorDBUnavailableError
-        if isinstance(e, FalkorDBUnavailableError):
-            console.print(f"[yellow]⚠ FalkorDB Lite is not functional in this environment: {e}[/yellow]")
-            console.print("[cyan]Falling back to KùzuDB for a reliable experience...[/cyan]")
-            
-            # Close the broken driver/socket
-            try:
-                db_manager.close_driver()
-            except Exception:
-                pass
-            
-            # Re-initialize explicitly with KùzuDB
-            from ..core.database_kuzu import KuzuDBManager
-            db_manager = KuzuDBManager()
-            try:
-                db_manager.get_driver()
-                console.print("[green]✓[/green] Successfully switched to KùzuDB fallback")
-            except Exception as kuzu_e:
-                console.print(f"[bold red]Critical Error:[/bold red] Both FalkorDB and KùzuDB failed: {kuzu_e}")
-                return None, None, None, ctx
-        else:
-            console.print(f"[bold red]Database Connection Error:[/bold red] {e}")
-            console.print("Please ensure your database is configured correctly or run 'cgc doctor'.")
-            return None, None, None, ctx
+        console.print(f"[bold red]Database Connection Error:[/bold red] {e}")
+        console.print("Please ensure Neo4j is reachable and configured correctly, or run 'cgc doctor'.")
+        return None, None, None, ctx
     
     # The GraphBuilder requires an event loop, even for synchronous-style execution
     try:

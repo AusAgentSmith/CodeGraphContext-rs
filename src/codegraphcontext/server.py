@@ -6,7 +6,6 @@ import importlib
 import stdlibs
 import sys
 import traceback
-import os
 import re
 from datetime import datetime
 from pathlib import Path
@@ -81,7 +80,7 @@ class MCPServer:
     The main MCP Server class.
     
     This class orchestrates all the major components of the application, including:
-    - Database connection management (`DatabaseManager` or `FalkorDBManager`)
+    - Database connection management (`DatabaseManager` — Neo4j driver)
     - Background job tracking (`JobManager`)
     - File system watching for live updates (`CodeWatcher`)
     - Tool handlers for graph building, code searching, etc.
@@ -104,9 +103,6 @@ class MCPServer:
         try:
             ctx = resolve_context(cwd=self.cwd)
             self.resolved_context = ctx
-
-            if ctx.database:
-                os.environ['CGC_RUNTIME_DB_TYPE'] = ctx.database
 
             self.db_manager = get_database_manager(db_path=ctx.db_path)
             self.db_manager.get_driver()
@@ -274,44 +270,17 @@ class MCPServer:
         if not cgc_dir.exists() or not cgc_dir.is_dir():
             return {"error": f"No .codegraphcontext directory found at {cgc_dir}."}
 
-        local_db = "falkordb"
-        local_yaml = cgc_dir / "config.yaml"
-        if local_yaml.exists():
-            try:
-                import yaml
-                with open(local_yaml) as f:
-                    raw = yaml.safe_load(f) or {}
-                local_db = raw.get("database", "falkordb")
-            except Exception:
-                pass
-
-        new_db_path = str(cgc_dir / "db" / local_db)
-
+        # Neo4j is a single shared server, so switching context no longer swaps
+        # the DB connection — it only re-scopes ignore paths and workspace mapping.
         try:
-            # Tear down old connection
-            try:
-                self.db_manager.close_driver()
-            except Exception:
-                pass
-
-            os.environ['CGC_RUNTIME_DB_TYPE'] = local_db
-            new_manager = get_database_manager(db_path=new_db_path)
-            new_manager.get_driver()
-
-            self.db_manager = new_manager
             self.resolved_context = type(self.resolved_context)(
                 mode="per-repo",
                 context_name="",
-                database=local_db,
-                db_path=new_db_path,
+                database="neo4j",
+                db_path=None,
                 cgcignore_path=str(cgc_dir / ".cgcignore"),
                 is_local=True,
             )
-
-            # Rebuild dependent components with the new DB manager
-            self.graph_builder = GraphBuilder(self.db_manager, self.job_manager, self.loop)
-            self.code_finder = CodeFinder(self.db_manager)
-            self.code_watcher = CodeWatcher(self.graph_builder, self.job_manager)
 
             if should_save:
                 save_workspace_mapping(self.cwd, cgc_dir)
@@ -321,8 +290,7 @@ class MCPServer:
             return {
                 "status": "ok",
                 "message": f"Switched to context at {cgc_dir}.",
-                "database": local_db,
-                "db_path": new_db_path,
+                "database": "neo4j",
                 "saved": should_save,
             }
         except Exception as e:

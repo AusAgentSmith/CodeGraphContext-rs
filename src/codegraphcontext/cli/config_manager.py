@@ -23,9 +23,7 @@ DATABASE_CREDENTIAL_KEYS = {"NEO4J_URI", "NEO4J_USERNAME", "NEO4J_PASSWORD", "NE
 
 # Default configuration values
 DEFAULT_CONFIG = {
-    "DEFAULT_DATABASE": "falkordb",
-    "FALKORDB_PATH": str(CONFIG_DIR / "global" / "db" / "falkordb"),
-    "FALKORDB_SOCKET_PATH": str(CONFIG_DIR / "global" / "db" / "falkordb.sock"),
+    "DEFAULT_DATABASE": "neo4j",
     "INDEX_VARIABLES": "true",
     "ALLOW_DB_DELETION": "false",
     "DEBUG_LOGS": "false",
@@ -51,9 +49,7 @@ DEFAULT_CONFIG = {
 
 # Configuration key descriptions
 CONFIG_DESCRIPTIONS = {
-    "DEFAULT_DATABASE": "Default database backend (neo4j|falkordb|kuzudb)",
-    "FALKORDB_PATH": "Path to FalkorDB database file",
-    "FALKORDB_SOCKET_PATH": "Path to FalkorDB Unix socket",
+    "DEFAULT_DATABASE": "Default database backend (neo4j)",
     "INDEX_VARIABLES": "Index variable nodes in the graph (lighter graph if false)",
     "ALLOW_DB_DELETION": "Allow full database deletion commands",
     "DEBUG_LOGS": "Enable debug logging (for development/troubleshooting)",
@@ -78,7 +74,7 @@ CONFIG_DESCRIPTIONS = {
 
 # Valid values for each config key
 CONFIG_VALIDATORS = {
-    "DEFAULT_DATABASE": ["neo4j", "falkordb", "falkordb-remote", "kuzudb"],
+    "DEFAULT_DATABASE": ["neo4j"],
     "INDEX_VARIABLES": ["true", "false"],
     "ALLOW_DB_DELETION": ["true", "false"],
     "DEBUG_LOGS": ["true", "false"],
@@ -360,18 +356,6 @@ def validate_config_value(key: str, value: str) -> tuple[bool, Optional[str]]:
         except Exception as e:
             return False, f"Cannot create log directory: {e}"
     
-    if key in ("FALKORDB_PATH", "FALKORDB_SOCKET_PATH"):
-        # Validate path is writable
-        db_path = Path(value)
-        try:
-            db_path.parent.mkdir(parents=True, exist_ok=True)
-        except Exception as e:
-            return False, f"Cannot create directory for {key}: {e}"
-        
-        # Check if parent directory is writable
-        if not os.access(db_path.parent, os.W_OK):
-            return False, f"Directory {db_path.parent} is not writable"
-    
     return True, None
 
 
@@ -538,7 +522,7 @@ VALID_MODES = ["global", "per-repo", "named"]
 class ContextInfo:
     """Metadata for a single named context."""
     name: str
-    database: str = "falkordb"          # neo4j | falkordb | kuzudb
+    database: str = "neo4j"
     db_path: str = ""                    # resolved at init if empty
     repos: List[str] = field(default_factory=list)
     cgcignore_path: str = ""            # resolved at init if empty
@@ -558,17 +542,11 @@ def _default_db_path(context_name: str, database: str) -> str:
     return str(CONFIG_DIR / "contexts" / context_name / "db" / database)
 
 
-_LEGACY_FALKORDB_PATH = CONFIG_DIR / "global" / "falkordb.db"
-
-
 def _default_global_db_path(database: str) -> str:
     """Return the canonical DB path for the global context.
 
-    New layout: ``~/.codegraphcontext/global/db/<backend>/``
-    For backward-compat, if the legacy flat path exists we keep using it.
-    """
-    if database == "falkordb" and _LEGACY_FALKORDB_PATH.exists():
-        return str(_LEGACY_FALKORDB_PATH)
+    Neo4j is a remote service so this path is purely advisory / used for
+    per-context directory scoping."""
     return str(CONFIG_DIR / "global" / "db" / database)
 
 
@@ -599,7 +577,7 @@ def load_context_config() -> ContextConfig:
         contexts: Dict[str, ContextInfo] = {}
         for name, meta in raw.get("contexts", {}).items():
             meta = meta or {}
-            db = meta.get("database", "falkordb")
+            db = meta.get("database", "neo4j")
             ctx = ContextInfo(
                 name=name,
                 database=db,
@@ -658,7 +636,7 @@ class ResolvedContext:
     """Result of resolve_context() — everything needed to instantiate the DB."""
     mode: str             # global | per-repo | named
     context_name: str     # empty for global / per-repo
-    database: str         # neo4j | falkordb | kuzudb
+    database: str         # neo4j
     db_path: str          # absolute path to the DB directory
     cgcignore_path: str   # path to the applicable .cgcignore
     is_local: bool = False  # True when a local .codegraphcontext/ was found
@@ -698,7 +676,7 @@ def resolve_context(
     # --- 1. Explicit CLI flag ---
     if cli_context:
         ctx = cfg.contexts.get(cli_context)
-        db = ctx.database if ctx else "falkordb"
+        db = ctx.database if ctx else "neo4j"
         db_path = ctx.db_path if ctx else _default_db_path(cli_context, db)
         cgcignore = (
             ctx.cgcignore_path
@@ -732,12 +710,12 @@ def resolve_context(
     if local_cgc is not None:
         # Read local config.yaml if present
         local_yaml = local_cgc / "config.yaml"
-        local_db = "falkordb"
+        local_db = "neo4j"
         if local_yaml.exists():
             try:
                 with open(local_yaml) as f:
                     local_raw = yaml.safe_load(f) or {}
-                local_db = local_raw.get("database", "falkordb")
+                local_db = local_raw.get("database", "neo4j")
             except Exception:
                 pass
         db_path = str(local_cgc / "db" / local_db)
@@ -756,7 +734,7 @@ def resolve_context(
     if mapping:
         mapped_ctx_path = Path(mapping["context_path"])
         if mapped_ctx_path.exists() and mapped_ctx_path.is_dir():
-            mapped_db = mapping.get("database", "falkordb")
+            mapped_db = mapping.get("database", "neo4j")
             return ResolvedContext(
                 mode="per-repo",
                 context_name="",
@@ -770,7 +748,7 @@ def resolve_context(
     if cfg.mode == "named":
         ctx_name = cfg.default_context
         ctx = cfg.contexts.get(ctx_name) if ctx_name else None
-        db = ctx.database if ctx else "falkordb"
+        db = ctx.database if ctx else "neo4j"
         db_path = ctx.db_path if ctx else _default_db_path(ctx_name, db) if ctx_name else ""
         if not db_path:
             # No default context set — fall through to global
@@ -790,7 +768,7 @@ def resolve_context(
             )
 
     # --- 4. Global fallback ---
-    db = load_config().get("DEFAULT_DATABASE", "falkordb")
+    db = load_config().get("DEFAULT_DATABASE", "neo4j")
     return ResolvedContext(
         mode="global",
         context_name="",
@@ -806,7 +784,7 @@ def resolve_context(
 
 def create_context(
     name: str,
-    database: str = "falkordb",
+    database: str = "neo4j",
     db_path: Optional[str] = None,
 ) -> bool:
     """Create a new named context. Returns True on success."""
@@ -946,13 +924,13 @@ def discover_child_contexts(
                 continue
             candidate = entry / ".codegraphcontext"
             if candidate.exists() and candidate.is_dir() and candidate.resolve() != global_dir:
-                local_db = "falkordb"
+                local_db = "neo4j"
                 local_yaml = candidate / "config.yaml"
                 if local_yaml.exists():
                     try:
                         with open(local_yaml) as f:
                             raw = yaml.safe_load(f) or {}
-                        local_db = raw.get("database", "falkordb")
+                        local_db = raw.get("database", "neo4j")
                     except Exception:
                         pass
                 results.append(DiscoveredContext(
@@ -1017,13 +995,13 @@ def get_workspace_mapping(cwd: Path) -> Optional[Dict[str, str]]:
 def save_workspace_mapping(cwd: Path, context_path: Path) -> None:
     """Persist an association from *cwd* to a ``.codegraphcontext`` directory."""
     context_path = context_path.resolve()
-    local_db = "falkordb"
+    local_db = "neo4j"
     local_yaml = context_path / "config.yaml"
     if local_yaml.exists():
         try:
             with open(local_yaml) as f:
                 raw = yaml.safe_load(f) or {}
-            local_db = raw.get("database", "falkordb")
+            local_db = raw.get("database", "neo4j")
         except Exception:
             pass
 

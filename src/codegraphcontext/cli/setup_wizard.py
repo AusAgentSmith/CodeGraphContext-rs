@@ -381,7 +381,7 @@ def configure_mcp_client():
     """
     console.print("[bold cyan]MCP Client Configuration[/bold cyan]\n")
     console.print("This will configure CodeGraphContext integration with your IDE or CLI tool.")
-    console.print("CodeGraphContext works with FalkorDB by default (no database setup needed).\n")
+    console.print("CodeGraphContext uses Neo4j as its graph database backend.\n")
     
     # Load current configuration (includes project-local .env if present)
     try:
