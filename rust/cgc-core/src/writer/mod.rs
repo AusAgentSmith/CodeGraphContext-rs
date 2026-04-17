@@ -14,12 +14,14 @@
 mod files;
 mod function_edges;
 mod imports;
+mod inheritance;
 mod repository;
 mod symbols;
 
 pub use files::FileRow;
 pub use function_edges::{ClassFnRow, NestedFnRow, ParamRow};
 pub use imports::ImportRow;
+pub use inheritance::InheritanceLinkRow;
 pub use symbols::{SymbolBatch, SYMBOL_LABELS};
 
 use std::sync::Arc;

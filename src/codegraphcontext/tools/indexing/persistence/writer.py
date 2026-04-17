@@ -822,6 +822,12 @@ class GraphWriter:
         info_logger(
             f"[INHERITS] Resolved {len(inheritance_batch)} inheritance links. Writing to Neo4j..."
         )
+        if self._rust is not None:
+            self._rust.write_inheritance(inheritance_batch)
+            info_logger(
+                f"[INHERITS] Complete: {len(inheritance_batch)} inheritance links processed."
+            )
+            return
         batch_size = 500
         with self.driver.session() as session:
             for i in range(0, len(inheritance_batch), batch_size):

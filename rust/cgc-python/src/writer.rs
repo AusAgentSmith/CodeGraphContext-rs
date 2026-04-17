@@ -17,8 +17,8 @@ use pyo3::types::{PyDict, PyList};
 use tokio::runtime::{Builder, Runtime};
 
 use cgc_core::writer::{
-    ClassFnRow, FileRow, GraphWriter, ImportRow, NestedFnRow, ParamRow, SymbolBatch,
-    SYMBOL_LABELS,
+    ClassFnRow, FileRow, GraphWriter, ImportRow, InheritanceLinkRow, NestedFnRow, ParamRow,
+    SymbolBatch, SYMBOL_LABELS,
 };
 
 use crate::pyany_bolt::py_any_to_bolt;
@@ -352,6 +352,46 @@ impl PyGraphWriter {
         let rt = runtime();
         let result: std::result::Result<(), cgc_core::writer::WriterError> = py
             .allow_threads(|| rt.block_on(async move { inner.write_imports(&imports).await }));
+        result.map_err(to_py_err)
+    }
+
+    /// Write `Class -[:INHERITS]-> Class` edges from the resolver output.
+    fn write_inheritance(
+        &self,
+        py: Python<'_>,
+        inheritance_batch: &Bound<'_, PyList>,
+    ) -> PyResult<()> {
+        let mut links: Vec<InheritanceLinkRow> = Vec::with_capacity(inheritance_batch.len());
+        for item in inheritance_batch.iter() {
+            let d: &Bound<'_, PyDict> = item.downcast()?;
+            let child_name: String = d
+                .get_item("child_name")?
+                .and_then(|v| v.extract().ok())
+                .unwrap_or_default();
+            let path: String = d
+                .get_item("path")?
+                .and_then(|v| v.extract().ok())
+                .unwrap_or_default();
+            let parent_name: String = d
+                .get_item("parent_name")?
+                .and_then(|v| v.extract().ok())
+                .unwrap_or_default();
+            let resolved_parent_file_path: String = d
+                .get_item("resolved_parent_file_path")?
+                .and_then(|v| v.extract().ok())
+                .unwrap_or_default();
+            links.push(InheritanceLinkRow {
+                child_name,
+                path,
+                parent_name,
+                resolved_parent_file_path,
+            });
+        }
+
+        let inner = self.inner.clone();
+        let rt = runtime();
+        let result: std::result::Result<(), cgc_core::writer::WriterError> = py
+            .allow_threads(|| rt.block_on(async move { inner.write_inheritance(&links).await }));
         result.map_err(to_py_err)
     }
 
