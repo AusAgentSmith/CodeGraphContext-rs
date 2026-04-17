@@ -462,45 +462,51 @@ class GraphWriter:
         batch_size = 500
 
         with self.driver.session() as session:
-            # 1. Files
-            for i in range(0, len(file_batch), batch_size):
-                session.run(
-                    "UNWIND $batch AS row "
-                    "MERGE (f:File {path: row.path}) "
-                    "SET f.name = row.name, f.relative_path = row.relative_path, "
-                    "    f.is_dependency = row.is_dependency",
-                    batch=file_batch[i:i + batch_size],
-                )
-
-            if on_progress:
-                on_progress(total // 4, total, "Writing directories...")
-
-            # 2. Directories (grouped by parent_label to avoid dynamic labels)
-            for plabel in ("Repository", "Directory"):
-                subset = [d for d in dir_batch if d["parent_label"] == plabel]
-                for i in range(0, len(subset), batch_size):
-                    chunk = [{k: v for k, v in d.items() if k != "parent_label"} for d in subset[i:i + batch_size]]
+            # 1-3. File nodes, directory chain, and File CONTAINS edges.
+            # Rust path handles all three in one call when available; the
+            # Python fallback below runs them as three separate batch steps.
+            if self._rust is not None:
+                self._rust.write_file_tree(all_file_data, repo_path_str)
+            else:
+                # 1. Files
+                for i in range(0, len(file_batch), batch_size):
                     session.run(
-                        f"UNWIND $batch AS row "
-                        f"MATCH (p:{plabel} {{path: row.parent_path}}) "
-                        f"MERGE (d:Directory {{path: row.dir_path}}) "
-                        f"SET d.name = row.dir_name "
-                        f"MERGE (p)-[:CONTAINS]->(d)",
-                        batch=chunk,
+                        "UNWIND $batch AS row "
+                        "MERGE (f:File {path: row.path}) "
+                        "SET f.name = row.name, f.relative_path = row.relative_path, "
+                        "    f.is_dependency = row.is_dependency",
+                        batch=file_batch[i:i + batch_size],
                     )
 
-            # 3. File-parent CONTAINS
-            for plabel in ("Repository", "Directory"):
-                subset = [d for d in file_parent_batch if d["parent_label"] == plabel]
-                for i in range(0, len(subset), batch_size):
-                    chunk = [{k: v for k, v in d.items() if k != "parent_label"} for d in subset[i:i + batch_size]]
-                    session.run(
-                        f"UNWIND $batch AS row "
-                        f"MATCH (p:{plabel} {{path: row.parent_path}}) "
-                        f"MATCH (f:File {{path: row.file_path}}) "
-                        f"MERGE (p)-[:CONTAINS]->(f)",
-                        batch=chunk,
-                    )
+                if on_progress:
+                    on_progress(total // 4, total, "Writing directories...")
+
+                # 2. Directories (grouped by parent_label to avoid dynamic labels)
+                for plabel in ("Repository", "Directory"):
+                    subset = [d for d in dir_batch if d["parent_label"] == plabel]
+                    for i in range(0, len(subset), batch_size):
+                        chunk = [{k: v for k, v in d.items() if k != "parent_label"} for d in subset[i:i + batch_size]]
+                        session.run(
+                            f"UNWIND $batch AS row "
+                            f"MATCH (p:{plabel} {{path: row.parent_path}}) "
+                            f"MERGE (d:Directory {{path: row.dir_path}}) "
+                            f"SET d.name = row.dir_name "
+                            f"MERGE (p)-[:CONTAINS]->(d)",
+                            batch=chunk,
+                        )
+
+                # 3. File-parent CONTAINS
+                for plabel in ("Repository", "Directory"):
+                    subset = [d for d in file_parent_batch if d["parent_label"] == plabel]
+                    for i in range(0, len(subset), batch_size):
+                        chunk = [{k: v for k, v in d.items() if k != "parent_label"} for d in subset[i:i + batch_size]]
+                        session.run(
+                            f"UNWIND $batch AS row "
+                            f"MATCH (p:{plabel} {{path: row.parent_path}}) "
+                            f"MATCH (f:File {{path: row.file_path}}) "
+                            f"MERGE (p)-[:CONTAINS]->(f)",
+                            batch=chunk,
+                        )
 
             if on_progress:
                 on_progress(total // 2, total, "Writing symbols...")

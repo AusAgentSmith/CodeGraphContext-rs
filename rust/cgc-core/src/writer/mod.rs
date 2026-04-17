@@ -11,7 +11,10 @@
 //! Transactions are per-method, not per-file. Each writer method opens one
 //! transaction, batches its writes, and commits.
 
+mod files;
 mod repository;
+
+pub use files::FileRow;
 
 use std::sync::Arc;
 

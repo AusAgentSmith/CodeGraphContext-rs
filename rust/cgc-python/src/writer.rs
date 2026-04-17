@@ -10,9 +10,10 @@
 use once_cell::sync::OnceCell;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
+use pyo3::types::{PyDict, PyList};
 use tokio::runtime::{Builder, Runtime};
 
-use cgc_core::writer::GraphWriter;
+use cgc_core::writer::{FileRow, GraphWriter};
 
 fn runtime() -> &'static Runtime {
     static RT: OnceCell<Runtime> = OnceCell::new();
@@ -69,6 +70,46 @@ impl PyGraphWriter {
         let inner = self.inner.clone();
         let result: std::result::Result<(), cgc_core::writer::WriterError> =
             py.allow_threads(|| rt.block_on(async move { inner.ping().await }));
+        result.map_err(to_py_err)
+    }
+
+    /// Write File nodes, directory chain, and CONTAINS edges for a batch
+    /// of parsed files.
+    ///
+    /// `all_file_data` is the list of per-file dicts produced by the
+    /// parser (same shape the Python writer receives). Only `path` and
+    /// `is_dependency` are read here — symbol writes live in separate
+    /// methods.
+    fn write_file_tree(
+        &self,
+        py: Python<'_>,
+        all_file_data: &Bound<'_, PyList>,
+        repo_path: &str,
+    ) -> PyResult<usize> {
+        // Extract into Rust-owned values under the GIL, then release.
+        let mut files: Vec<FileRow> = Vec::with_capacity(all_file_data.len());
+        for item in all_file_data.iter() {
+            let d: &Bound<'_, PyDict> = item.downcast()?;
+            let path: String = d
+                .get_item("path")?
+                .ok_or_else(|| PyRuntimeError::new_err("file_data missing 'path'"))?
+                .extract()?;
+            let is_dependency: bool = match d.get_item("is_dependency")? {
+                Some(v) => v.extract().unwrap_or(false),
+                None => false,
+            };
+            files.push(FileRow {
+                path,
+                is_dependency,
+            });
+        }
+        let repo_path = repo_path.to_owned();
+        let inner = self.inner.clone();
+        let rt = runtime();
+        let result: std::result::Result<usize, cgc_core::writer::WriterError> = py
+            .allow_threads(|| {
+                rt.block_on(async move { inner.write_file_tree(&files, &repo_path).await })
+            });
         result.map_err(to_py_err)
     }
 
