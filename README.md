@@ -2,6 +2,10 @@
 
 **Turn code repositories into a queryable graph for AI agents.**
 
+> **⚠️ Fork notice (`codegraphcontext-rust`)** — this fork diverges from upstream [CodeGraphContext](https://github.com/CodeGraphContext/CodeGraphContext) in two ways:
+> - **Neo4j-only.** Drop-in embedded backends (KùzuDB, FalkorDB Lite, remote FalkorDB) are removed. KùzuDB's exclusive file lock prevents multi-client use (multiple IDE / Claude Code instances), and its translation layer has known incompatibilities ([#769](https://github.com/CodeGraphContext/CodeGraphContext/issues/769)). Neo4j handles concurrent Bolt connections natively.
+> - **Rust-accelerated indexing.** Bundles the Rust indexing engine ([#827](https://github.com/CodeGraphContext/CodeGraphContext/pull/827)) — tree-sitter + rayon via PyO3, 5–18× faster parsing across 19 languages.
+
 🌐 **Languages:**
 - 🇬🇧 [English](README.md)
 - 🇨🇳 [中文](README.zh-CN.md)
