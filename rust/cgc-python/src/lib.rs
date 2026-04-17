@@ -5,6 +5,7 @@ use std::collections::{HashMap, HashSet};
 
 mod conversions;
 mod pyany_bolt;
+mod watcher;
 mod writer;
 
 use cgc_core::parser;
@@ -428,5 +429,6 @@ fn _cgc_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(resolve_call_groups, m)?)?;
     m.add_function(wrap_pyfunction!(resolve_inheritance, m)?)?;
     m.add_class::<writer::PyGraphWriter>()?;
+    m.add_class::<watcher::PyFileWatcher>()?;
     Ok(())
 }
