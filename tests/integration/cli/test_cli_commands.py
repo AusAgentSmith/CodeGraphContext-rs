@@ -209,10 +209,12 @@ class _FakeCodeFinder:
 
 
 @pytest.fixture
-def kuzudb_env():
+def neo4j_env():
     env = {
-        "DEFAULT_DATABASE": "kuzudb",
-        "CGC_RUNTIME_DB_TYPE": "kuzudb",
+        "DEFAULT_DATABASE": "neo4j",
+        "NEO4J_URI": "bolt://localhost:7687",
+        "NEO4J_USERNAME": "neo4j",
+        "NEO4J_PASSWORD": "test",
     }
     with patch.dict(os.environ, env, clear=False):
         yield
@@ -308,7 +310,7 @@ def test_cli_inventory_grouped_from_source():
     assert {"root", "mcp", "neo4j", "config", "bundle", "registry", "find", "analyze"}.issubset(set(inventory.keys()))
     assert inventory["mcp"] == {"setup", "start", "tools"}
     assert inventory["neo4j"] == {"setup"}
-    assert inventory["config"] == {"show", "set", "reset", "db"}
+    assert inventory["config"] == {"show", "set", "reset"}
     assert inventory["bundle"] == {"export", "import", "load"}
     assert inventory["registry"] == {"list", "search", "download", "request"}
     assert inventory["find"] == {"name", "pattern", "type", "variable", "content", "decorator", "argument"}
@@ -317,7 +319,7 @@ def test_cli_inventory_grouped_from_source():
         assert inventory["context"] == {"list", "create", "delete", "mode", "default"}
 
 
-def test_all_canonical_cli_commands_run_with_kuzudb(kuzudb_env, cli_test_stubs):
+def test_all_canonical_cli_commands_run(neo4j_env, cli_test_stubs):
     bundle_file = str(cli_test_stubs["bundle_file"])
     bundle_export = str(cli_test_stubs["bundle_export"])
 
@@ -329,7 +331,6 @@ def test_all_canonical_cli_commands_run_with_kuzudb(kuzudb_env, cli_test_stubs):
         ["config", "show"],
         ["config", "set", "MAX_FILE_SIZE_MB", "11"],
         ["config", "reset"],
-        ["config", "db", "kuzudb"],
         ["bundle", "export", bundle_export],
         ["bundle", "import", bundle_file],
         ["bundle", "load", bundle_file],
@@ -397,18 +398,10 @@ def test_all_canonical_cli_commands_run_with_kuzudb(kuzudb_env, cli_test_stubs):
     assert _matrix_command_set(command_matrix) == expected_set
 
     for args in command_matrix:
-        result = runner.invoke(app, ["--database", "kuzudb", *args])
+        result = runner.invoke(app, args)
         assert result.exit_code == 0, f"command failed: {' '.join(args)}\n{result.output}"
         assert result.exception is None, f"exception raised for {' '.join(args)}"
         assert "Traceback" not in result.output
-
-
-def test_config_db_rejects_invalid_backend_with_clear_error(kuzudb_env):
-    result = runner.invoke(app, ["config", "db", "invalid-backend"])
-
-    assert result.exit_code == 1
-    assert "Invalid backend" in result.output
-    assert "kuzudb" in result.output
 
 
 def test_config_show_with_empty_config_does_not_crash(monkeypatch, tmp_path):
@@ -419,29 +412,6 @@ def test_config_show_with_empty_config_does_not_crash(monkeypatch, tmp_path):
 
     assert result.exit_code == 0
     assert "Configuration Settings" in result.output
-
-
-def test_find_content_falkordb_known_limitation_message(monkeypatch):
-    class _FakeFalkorDBManager:
-        def close_driver(self):
-            return None
-
-    class _FailingFinder:
-        def find_by_content(self, _query):
-            raise Exception("CALL db.index.fulltext.queryNodes is unsupported")
-
-    monkeypatch.setattr(cli_main, "_load_credentials", lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(
-        cli_main,
-        "_initialize_services",
-        lambda *_args, **_kwargs: (_FakeFalkorDBManager(), _FakeGraphBuilder(), _FailingFinder()),
-    )
-
-    result = runner.invoke(app, ["--database", "falkordb", "find", "content", "foo"])
-
-    assert result.exit_code == 0
-    assert "Full-text search is not supported on FalkorDB" in result.output
-    assert "cgc find pattern" in result.output
 
 
 class TestNeo4jDatabaseNameCLI:
@@ -538,27 +508,4 @@ class TestNeo4jDatabaseNameCLI:
             assert "Using database: Neo4j" in printed
             assert "(database:" not in printed
 
-
-def test_load_credentials_displays_kuzudb_backend(monkeypatch, tmp_path):
-    monkeypatch.setattr(cli_main.config_manager, "ensure_config_dir", lambda *_args, **_kwargs: None)
-
-    monkeypatch.chdir(tmp_path)
-    clean_env = {
-        k: v for k, v in os.environ.items()
-        if k not in {
-            "DEFAULT_DATABASE",
-            "CGC_RUNTIME_DB_TYPE",
-            "NEO4J_URI",
-            "NEO4J_USERNAME",
-            "NEO4J_PASSWORD",
-            "NEO4J_DATABASE",
-        }
-    }
-    clean_env["DEFAULT_DATABASE"] = "kuzudb"
-    with patch.dict(os.environ, clean_env, clear=True):
-        output = StringIO()
-        with patch("codegraphcontext.cli.main.console", Console(file=output, force_terminal=False)):
-            _load_credentials()
-
-        assert "Using database: KùzuDB" in output.getvalue()
 
