@@ -128,41 +128,29 @@ def main() -> int:
     for i, path in enumerate(candidates, start=1):
         rel = path.relative_to(root)
         label = f"[{i}/{len(candidates)}] {rel}"
-        print(f"{label}  indexing...", flush=True)
+        print(f"\n=== {label} ===", flush=True)
         t0 = time.time()
         cmd = [args.cgc, "index", str(path)]
         if args.force:
             cmd.append("--force")
+        # No capture — cgc's output streams straight to this terminal
+        # so you see its progress banners as they happen, rather than
+        # a multi-minute silence followed by a dump at the end. The
+        # script still knows success/failure via returncode, which is
+        # all we need for the post-run summary.
         try:
-            proc = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
+            rc = subprocess.call(cmd)
         except FileNotFoundError:
             print(f"  ✗ {args.cgc} not on PATH", file=sys.stderr)
             return 127
 
         elapsed = time.time() - t0
-        if proc.returncode == 0:
+        if rc == 0:
             status = "ok"
-            # Pull out the stats block cgc prints on success, if any.
-            last_stats = [
-                line for line in proc.stdout.splitlines()
-                if "Functions" in line or "Classes" in line
-                or "Indexed" in line or "files" in line.lower()
-            ][-5:]
-            print(f"  ✓ done in {elapsed:.1f}s")
-            for s in last_stats:
-                print(f"    {s.strip()}")
+            print(f"  ✓ done in {elapsed:.1f}s", flush=True)
         else:
             status = "fail"
-            # Last few lines of stderr almost always contain the reason.
-            tail = (proc.stderr or proc.stdout).splitlines()
-            msg = "\n    ".join(tail[-8:]) if tail else "(no output)"
-            print(f"  ✗ failed in {elapsed:.1f}s  exit={proc.returncode}")
-            print(f"    {msg}")
+            print(f"  ✗ failed in {elapsed:.1f}s  exit={rc}", flush=True)
 
         results.append((path, status, elapsed))
 
