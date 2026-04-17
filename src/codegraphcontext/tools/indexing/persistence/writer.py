@@ -612,6 +612,14 @@ class GraphWriter:
             if on_progress:
                 on_progress(total * 3 // 4, total, "Writing relationships...")
 
+            # 5-7. Parameters + class/nested CONTAINS — Rust path handles
+            # all three in one call when available.
+            if self._rust is not None:
+                self._rust.write_function_edges(all_file_data)
+                params_batch = []
+                class_fn_batch = []
+                nested_fn_batch = []
+
             # 5. Parameters
             if params_batch:
                 for i in range(0, len(params_batch), batch_size):

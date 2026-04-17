@@ -12,10 +12,12 @@
 //! transaction, batches its writes, and commits.
 
 mod files;
+mod function_edges;
 mod repository;
 mod symbols;
 
 pub use files::FileRow;
+pub use function_edges::{ClassFnRow, NestedFnRow, ParamRow};
 pub use symbols::{SymbolBatch, SYMBOL_LABELS};
 
 use std::sync::Arc;

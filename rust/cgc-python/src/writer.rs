@@ -16,7 +16,9 @@ use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 use tokio::runtime::{Builder, Runtime};
 
-use cgc_core::writer::{FileRow, GraphWriter, SymbolBatch, SYMBOL_LABELS};
+use cgc_core::writer::{
+    ClassFnRow, FileRow, GraphWriter, NestedFnRow, ParamRow, SymbolBatch, SYMBOL_LABELS,
+};
 
 use crate::pyany_bolt::py_any_to_bolt;
 
@@ -181,6 +183,117 @@ impl PyGraphWriter {
         let rt = runtime();
         let result: std::result::Result<(), cgc_core::writer::WriterError> = py
             .allow_threads(|| rt.block_on(async move { inner.write_symbols(batches).await }));
+        result.map_err(to_py_err)
+    }
+
+    /// Write HAS_PARAMETER, Class CONTAINS Function, and nested-function
+    /// CONTAINS edges.
+    ///
+    /// Relies on Function and Class nodes already existing (i.e.
+    /// write_symbols must have run). Extracts the batches from the same
+    /// parser dicts used by write_symbols.
+    fn write_function_edges(
+        &self,
+        py: Python<'_>,
+        all_file_data: &Bound<'_, PyList>,
+    ) -> PyResult<()> {
+        let mut params: Vec<ParamRow> = Vec::new();
+        let mut class_fns: Vec<ClassFnRow> = Vec::new();
+        let mut nested_fns: Vec<NestedFnRow> = Vec::new();
+
+        for file in all_file_data.iter() {
+            let fd: &Bound<'_, PyDict> = file.downcast()?;
+            let file_path: String = fd
+                .get_item("path")?
+                .ok_or_else(|| PyRuntimeError::new_err("file_data missing 'path'"))?
+                .extract()?;
+            let Some(fns_val) = fd.get_item("functions")? else {
+                continue;
+            };
+            let fns_list: &Bound<'_, PyList> = match fns_val.downcast() {
+                Ok(l) => l,
+                Err(_) => continue,
+            };
+
+            for item in fns_list.iter() {
+                let fn_dict: &Bound<'_, PyDict> = match item.downcast() {
+                    Ok(d) => d,
+                    Err(_) => continue,
+                };
+                let func_name: String = fn_dict
+                    .get_item("name")?
+                    .and_then(|v| v.extract().ok())
+                    .unwrap_or_default();
+                let line_number: i64 = fn_dict
+                    .get_item("line_number")?
+                    .and_then(|v| v.extract().ok())
+                    .unwrap_or(0);
+
+                // HAS_PARAMETER edges from args
+                if let Some(args_val) = fn_dict.get_item("args")? {
+                    if let Ok(args) = args_val.downcast::<PyList>() {
+                        for arg in args.iter() {
+                            let arg_name: String = match arg.extract() {
+                                Ok(s) => s,
+                                Err(_) => continue,
+                            };
+                            params.push(ParamRow {
+                                func_name: func_name.clone(),
+                                line_number,
+                                arg_name,
+                                file_path: file_path.clone(),
+                            });
+                        }
+                    }
+                }
+
+                // Class CONTAINS Function
+                if let Some(cls_val) = fn_dict.get_item("class_context")? {
+                    if !cls_val.is_none() {
+                        if let Ok(cls_name) = cls_val.extract::<String>() {
+                            if !cls_name.is_empty() {
+                                class_fns.push(ClassFnRow {
+                                    class_name: cls_name,
+                                    func_name: func_name.clone(),
+                                    func_line: line_number,
+                                    file_path: file_path.clone(),
+                                });
+                            }
+                        }
+                    }
+                }
+
+                // Nested function CONTAINS
+                let ctx_type: Option<String> = fn_dict
+                    .get_item("context_type")?
+                    .and_then(|v| v.extract().ok());
+                if ctx_type.as_deref() == Some("function_definition") {
+                    if let Some(outer_val) = fn_dict.get_item("context")? {
+                        if let Ok(outer) = outer_val.extract::<String>() {
+                            if !outer.is_empty() {
+                                nested_fns.push(NestedFnRow {
+                                    outer,
+                                    inner_name: func_name.clone(),
+                                    inner_line: line_number,
+                                    file_path: file_path.clone(),
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let inner = self.inner.clone();
+        let rt = runtime();
+        let result: std::result::Result<(), cgc_core::writer::WriterError> = py
+            .allow_threads(|| {
+                rt.block_on(async move {
+                    inner
+                        .write_function_edges(&params, &class_fns, &nested_fns)
+                        .await
+                })
+            });
         result.map_err(to_py_err)
     }
 
