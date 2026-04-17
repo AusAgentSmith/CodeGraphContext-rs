@@ -101,9 +101,5 @@ def sanitize_props(props):
     return _rust_sanitize_props(props)
 
 
-# All 19 languages supported by the Rust engine
-_RUST_SUPPORTED_LANGS = {
-    "python", "javascript", "typescript", "tsx", "go", "java", "cpp",
-    "c", "rust", "ruby", "c_sharp", "php", "kotlin", "perl",
-    "scala", "swift", "haskell", "dart", "elixir",
-}
+# Languages supported by the Rust engine
+_RUST_SUPPORTED_LANGS = {"python", "rust"}

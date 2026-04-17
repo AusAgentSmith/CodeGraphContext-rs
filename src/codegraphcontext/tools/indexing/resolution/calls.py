@@ -156,24 +156,8 @@ def build_function_call_groups(
         if caller_lang not in _lang_imports_cache:
             # Map language name to typical file extensions
             _LANG_EXTS: Dict[str, set] = {
-                "java":       {".java"},
-                "python":     {".py", ".ipynb"},
-                "javascript": {".js", ".jsx", ".mjs", ".cjs"},
-                "typescript": {".ts", ".tsx"},
-                "go":         {".go"},
-                "rust":       {".rs"},
-                "cpp":        {".cpp", ".h", ".hpp", ".hh"},
-                "c":          {".c"},
-                "c_sharp":    {".cs"},
-                "kotlin":     {".kt"},
-                "scala":      {".scala", ".sc"},
-                "ruby":       {".rb"},
-                "swift":      {".swift"},
-                "php":        {".php"},
-                "dart":       {".dart"},
-                "perl":       {".pl", ".pm"},
-                "haskell":    {".hs"},
-                "elixir":     {".ex", ".exs"},
+                "python": {".py", ".ipynb"},
+                "rust":   {".rs"},
             }
             exts = _LANG_EXTS.get(caller_lang)
             if not exts:
