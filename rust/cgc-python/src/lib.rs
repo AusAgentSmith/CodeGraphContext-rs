@@ -4,6 +4,7 @@ use pyo3::types::{PyDict, PyList, PyTuple};
 use std::collections::{HashMap, HashSet};
 
 mod conversions;
+mod writer;
 
 use cgc_core::parser;
 use cgc_core::resolution::calls::{
@@ -461,5 +462,6 @@ fn _cgc_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(resolve_call_groups, m)?)?;
     m.add_function(wrap_pyfunction!(resolve_inheritance, m)?)?;
     m.add_function(wrap_pyfunction!(sanitize_props, m)?)?;
+    m.add_class::<writer::PyGraphWriter>()?;
     Ok(())
 }
