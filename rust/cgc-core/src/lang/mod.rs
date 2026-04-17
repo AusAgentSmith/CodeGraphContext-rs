@@ -1,22 +1,5 @@
 pub mod python;
-pub mod javascript;
-pub mod typescript;
-pub mod tsx;
-pub mod go;
-pub mod java;
-pub mod cpp;
-pub mod c_lang;
 pub mod rust_lang;
-pub mod ruby;
-pub mod csharp;
-pub mod php;
-pub mod kotlin;
-pub mod scala;
-pub mod swift;
-pub mod haskell;
-pub mod dart;
-pub mod perl;
-pub mod elixir;
 
 use tree_sitter::{Language, Node};
 
@@ -28,7 +11,7 @@ pub trait LanguageExtractor: Send + Sync {
     /// The tree-sitter Language for this extractor.
     fn language(&self) -> Language;
 
-    /// Language name string (e.g., "python", "go").
+    /// Language name string (e.g., "python", "rust").
     fn lang_name(&self) -> &str;
 
     /// Extract function/method definitions from the AST.
@@ -131,24 +114,7 @@ pub fn get_parent_context(
 pub fn get_extractor(lang_name: &str) -> Option<Box<dyn LanguageExtractor>> {
     match lang_name {
         "python" => Some(Box::new(python::PythonExtractor)),
-        "javascript" => Some(Box::new(javascript::JavaScriptExtractor)),
-        "typescript" => Some(Box::new(typescript::TypeScriptExtractor)),
-        "tsx" => Some(Box::new(tsx::TsxExtractor)),
-        "go" => Some(Box::new(go::GoExtractor)),
-        "java" => Some(Box::new(java::JavaExtractor)),
-        "cpp" => Some(Box::new(cpp::CppExtractor)),
-        "c" => Some(Box::new(c_lang::CExtractor)),
         "rust" => Some(Box::new(rust_lang::RustExtractor)),
-        "ruby" => Some(Box::new(ruby::RubyExtractor)),
-        "c_sharp" => Some(Box::new(csharp::CSharpExtractor)),
-        "php" => Some(Box::new(php::PhpExtractor)),
-        "kotlin" => Some(Box::new(kotlin::KotlinExtractor)),
-        "scala" => Some(Box::new(scala::ScalaExtractor)),
-        "swift" => Some(Box::new(swift::SwiftExtractor)),
-        "haskell" => Some(Box::new(haskell::HaskellExtractor)),
-        "dart" => Some(Box::new(dart::DartExtractor)),
-        "perl" => Some(Box::new(perl::PerlExtractor)),
-        "elixir" => Some(Box::new(elixir::ElixirExtractor)),
         _ => None,
     }
 }
@@ -157,24 +123,7 @@ pub fn get_extractor(lang_name: &str) -> Option<Box<dyn LanguageExtractor>> {
 pub fn get_extractor_by_ext(ext: &str) -> Option<Box<dyn LanguageExtractor>> {
     let lang = match ext {
         ".py" | ".ipynb" => "python",
-        ".js" | ".jsx" | ".mjs" | ".cjs" => "javascript",
-        ".ts" => "typescript",
-        ".tsx" => "tsx",
-        ".go" => "go",
-        ".java" => "java",
-        ".cpp" | ".cc" | ".cxx" | ".hpp" | ".hh" => "cpp",
-        ".c" | ".h" => "c",
         ".rs" => "rust",
-        ".rb" => "ruby",
-        ".cs" => "c_sharp",
-        ".php" => "php",
-        ".kt" => "kotlin",
-        ".scala" | ".sc" => "scala",
-        ".swift" => "swift",
-        ".hs" => "haskell",
-        ".dart" => "dart",
-        ".pl" | ".pm" => "perl",
-        ".ex" | ".exs" => "elixir",
         _ => return None,
     };
     get_extractor(lang)

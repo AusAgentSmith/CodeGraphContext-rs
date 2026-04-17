@@ -219,23 +219,7 @@ pub fn resolve_function_call(
 fn lang_extensions(lang: &str) -> Option<&[&str]> {
     match lang {
         "python" => Some(&[".py", ".ipynb"]),
-        "javascript" => Some(&[".js", ".jsx", ".mjs", ".cjs"]),
-        "typescript" => Some(&[".ts", ".tsx"]),
-        "go" => Some(&[".go"]),
-        "java" => Some(&[".java"]),
-        "cpp" => Some(&[".cpp", ".h", ".hpp", ".hh"]),
-        "c" => Some(&[".c"]),
-        "c_sharp" => Some(&[".cs"]),
         "rust" => Some(&[".rs"]),
-        "kotlin" => Some(&[".kt"]),
-        "scala" => Some(&[".scala", ".sc"]),
-        "ruby" => Some(&[".rb"]),
-        "swift" => Some(&[".swift"]),
-        "php" => Some(&[".php"]),
-        "dart" => Some(&[".dart"]),
-        "perl" => Some(&[".pl", ".pm"]),
-        "haskell" => Some(&[".hs"]),
-        "elixir" => Some(&[".ex", ".exs"]),
         _ => None,
     }
 }
