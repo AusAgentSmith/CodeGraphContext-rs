@@ -35,6 +35,13 @@ def create_graph_schema(driver: Any, db_manager: Any) -> None:
                 "CREATE CONSTRAINT variable_unique IF NOT EXISTS FOR (v:Variable) REQUIRE (v.name, v.path, v.line_number) IS UNIQUE"
             )
             session.run("CREATE CONSTRAINT module_name IF NOT EXISTS FOR (m:Module) REQUIRE m.name IS UNIQUE")
+            # Decorators dedupe globally by normalised name (step 4c) —
+            # `@app.route('/users')` and `@app.route('/items')` resolve to
+            # one Decorator node. find_functions_by_decorator also starts
+            # from this node, so a name index is on the hot read path.
+            session.run(
+                "CREATE CONSTRAINT decorator_name IF NOT EXISTS FOR (d:Decorator) REQUIRE d.name IS UNIQUE"
+            )
             session.run(
                 "CREATE CONSTRAINT struct_cpp IF NOT EXISTS FOR (cstruct: Struct) REQUIRE (cstruct.name, cstruct.path, cstruct.line_number) IS UNIQUE"
             )
