@@ -752,6 +752,16 @@ class GraphWriter:
         file_to_fn: List[Dict],
         file_to_cls: List[Dict],
     ) -> None:
+        if self._rust is not None:
+            total_all = (
+                len(fn_to_fn) + len(fn_to_cls) + len(cls_to_fn)
+                + len(cls_to_cls) + len(file_to_fn) + len(file_to_cls)
+            )
+            self._rust.write_call_groups(
+                fn_to_fn, fn_to_cls, cls_to_fn, cls_to_cls, file_to_fn, file_to_cls
+            )
+            info_logger(f"[CALLS] All complete: {total_all} CALLS relationships processed.")
+            return
         batch_size = 1000
         q_fn_to_fn = """
             UNWIND $batch AS row

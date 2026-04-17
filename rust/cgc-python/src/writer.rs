@@ -17,8 +17,8 @@ use pyo3::types::{PyDict, PyList};
 use tokio::runtime::{Builder, Runtime};
 
 use cgc_core::writer::{
-    ClassFnRow, FileRow, GraphWriter, ImportRow, InheritanceLinkRow, NestedFnRow, ParamRow,
-    SymbolBatch, SYMBOL_LABELS,
+    CallRow, ClassFnRow, FileRow, GraphWriter, ImportRow, InheritanceLinkRow, NestedFnRow,
+    ParamRow, SymbolBatch, SYMBOL_LABELS,
 };
 
 use crate::pyany_bolt::py_any_to_bolt;
@@ -37,6 +37,62 @@ fn runtime() -> &'static Runtime {
 /// Map any writer error to a PyRuntimeError with a readable message.
 fn to_py_err<E: std::fmt::Display>(e: E) -> PyErr {
     PyRuntimeError::new_err(format!("{e}"))
+}
+
+fn extract_call_rows(list: &Bound<'_, PyList>) -> PyResult<Vec<CallRow>> {
+    let mut out = Vec::with_capacity(list.len());
+    for item in list.iter() {
+        let d: &Bound<'_, PyDict> = item.downcast()?;
+        let caller_name: String = d
+            .get_item("caller_name")?
+            .and_then(|v| v.extract().ok())
+            .unwrap_or_default();
+        let caller_file_path: String = d
+            .get_item("caller_file_path")?
+            .and_then(|v| v.extract().ok())
+            .unwrap_or_default();
+        let caller_line_number: i64 = d
+            .get_item("caller_line_number")?
+            .and_then(|v| v.extract().ok())
+            .unwrap_or(0);
+        let called_name: String = d
+            .get_item("called_name")?
+            .and_then(|v| v.extract().ok())
+            .unwrap_or_default();
+        let called_file_path: String = d
+            .get_item("called_file_path")?
+            .and_then(|v| v.extract().ok())
+            .unwrap_or_default();
+        let line_number: i64 = d
+            .get_item("line_number")?
+            .and_then(|v| v.extract().ok())
+            .unwrap_or(0);
+        let full_call_name: String = d
+            .get_item("full_call_name")?
+            .and_then(|v| v.extract().ok())
+            .unwrap_or_default();
+        let args: Vec<String> = match d.get_item("args")? {
+            Some(v) => match v.downcast::<PyList>() {
+                Ok(l) => l
+                    .iter()
+                    .filter_map(|x| x.extract::<String>().ok())
+                    .collect(),
+                Err(_) => Vec::new(),
+            },
+            None => Vec::new(),
+        };
+        out.push(CallRow {
+            caller_name,
+            caller_file_path,
+            caller_line_number,
+            called_name,
+            called_file_path,
+            line_number,
+            args,
+            full_call_name,
+        });
+    }
+    Ok(out)
 }
 
 /// Handle to a Rust-side Neo4j connection pool, exposed to Python.
@@ -392,6 +448,47 @@ impl PyGraphWriter {
         let rt = runtime();
         let result: std::result::Result<(), cgc_core::writer::WriterError> = py
             .allow_threads(|| rt.block_on(async move { inner.write_inheritance(&links).await }));
+        result.map_err(to_py_err)
+    }
+
+    /// Write all six CALLS variants from the resolver output.
+    ///
+    /// Expected order matches `resolve_call_groups`:
+    /// (fn_to_fn, fn_to_cls, cls_to_fn, cls_to_cls, file_to_fn, file_to_cls).
+    fn write_call_groups(
+        &self,
+        py: Python<'_>,
+        fn_to_fn: &Bound<'_, PyList>,
+        fn_to_cls: &Bound<'_, PyList>,
+        cls_to_fn: &Bound<'_, PyList>,
+        cls_to_cls: &Bound<'_, PyList>,
+        file_to_fn: &Bound<'_, PyList>,
+        file_to_cls: &Bound<'_, PyList>,
+    ) -> PyResult<()> {
+        let fn_to_fn = extract_call_rows(fn_to_fn)?;
+        let fn_to_cls = extract_call_rows(fn_to_cls)?;
+        let cls_to_fn = extract_call_rows(cls_to_fn)?;
+        let cls_to_cls = extract_call_rows(cls_to_cls)?;
+        let file_to_fn = extract_call_rows(file_to_fn)?;
+        let file_to_cls = extract_call_rows(file_to_cls)?;
+
+        let inner = self.inner.clone();
+        let rt = runtime();
+        let result: std::result::Result<(), cgc_core::writer::WriterError> = py
+            .allow_threads(|| {
+                rt.block_on(async move {
+                    inner
+                        .write_call_groups(
+                            &fn_to_fn,
+                            &fn_to_cls,
+                            &cls_to_fn,
+                            &cls_to_cls,
+                            &file_to_fn,
+                            &file_to_cls,
+                        )
+                        .await
+                })
+            });
         result.map_err(to_py_err)
     }
 

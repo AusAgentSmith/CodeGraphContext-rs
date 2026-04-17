@@ -11,6 +11,7 @@
 //! Transactions are per-method, not per-file. Each writer method opens one
 //! transaction, batches its writes, and commits.
 
+mod calls;
 mod files;
 mod function_edges;
 mod imports;
@@ -18,6 +19,7 @@ mod inheritance;
 mod repository;
 mod symbols;
 
+pub use calls::{CallGroup, CallRow};
 pub use files::FileRow;
 pub use function_edges::{ClassFnRow, NestedFnRow, ParamRow};
 pub use imports::ImportRow;
