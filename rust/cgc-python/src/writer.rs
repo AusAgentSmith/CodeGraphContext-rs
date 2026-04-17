@@ -17,8 +17,8 @@ use pyo3::types::{PyDict, PyList};
 use tokio::runtime::{Builder, Runtime};
 
 use cgc_core::writer::{
-    CallRow, ClassFnRow, FileRow, GraphWriter, ImplRow, ImportRow, InheritanceLinkRow,
-    NestedFnRow, ParamRow, SymbolBatch, SYMBOL_LABELS,
+    normalise_decorator_name, CallRow, ClassFnRow, DecoratorRow, FileRow, GraphWriter, ImplRow,
+    ImportRow, InheritanceLinkRow, NestedFnRow, ParamRow, SymbolBatch, SYMBOL_LABELS,
 };
 
 use crate::pyany_bolt::py_any_to_bolt;
@@ -545,6 +545,79 @@ impl PyGraphWriter {
         let rt = runtime();
         let result: std::result::Result<(), cgc_core::writer::WriterError> = py
             .allow_threads(|| rt.block_on(async move { inner.write_impls(&rows).await }));
+        result.map_err(to_py_err)
+    }
+
+    /// Write `:DECORATED_BY` edges from Functions and Classes to
+    /// `:Decorator` nodes.
+    fn write_decorators(
+        &self,
+        py: Python<'_>,
+        all_file_data: &Bound<'_, PyList>,
+    ) -> PyResult<()> {
+        let mut rows: Vec<DecoratorRow> = Vec::new();
+        for file in all_file_data.iter() {
+            let fd: &Bound<'_, PyDict> = file.downcast()?;
+            let file_path: String = fd
+                .get_item("path")?
+                .ok_or_else(|| PyRuntimeError::new_err("file_data missing 'path'"))?
+                .extract()?;
+
+            for (py_key, label) in [("functions", "Function"), ("classes", "Class")] {
+                let Some(list_val) = fd.get_item(py_key)? else {
+                    continue;
+                };
+                let list: &Bound<'_, PyList> = match list_val.downcast() {
+                    Ok(l) => l,
+                    Err(_) => continue,
+                };
+                for item in list.iter() {
+                    let d: &Bound<'_, PyDict> = match item.downcast() {
+                        Ok(d) => d,
+                        Err(_) => continue,
+                    };
+                    let name: String = d
+                        .get_item("name")?
+                        .and_then(|v| v.extract().ok())
+                        .unwrap_or_default();
+                    let line: i64 = d
+                        .get_item("line_number")?
+                        .and_then(|v| v.extract().ok())
+                        .unwrap_or(0);
+                    let Some(decorators_val) = d.get_item("decorators")? else {
+                        continue;
+                    };
+                    let decorators_list: &Bound<'_, PyList> =
+                        match decorators_val.downcast() {
+                            Ok(l) => l,
+                            Err(_) => continue,
+                        };
+                    for dec in decorators_list.iter() {
+                        let raw: String = match dec.extract() {
+                            Ok(s) => s,
+                            Err(_) => continue,
+                        };
+                        let norm = normalise_decorator_name(&raw);
+                        if norm.is_empty() {
+                            continue;
+                        }
+                        rows.push(DecoratorRow {
+                            symbol_label: label.to_string(),
+                            symbol_name: name.clone(),
+                            symbol_line: line,
+                            file_path: file_path.clone(),
+                            decorator_name: norm,
+                            decorator_raw: raw,
+                            line_number: line,
+                        });
+                    }
+                }
+            }
+        }
+        let inner = self.inner.clone();
+        let rt = runtime();
+        let result: std::result::Result<(), cgc_core::writer::WriterError> = py
+            .allow_threads(|| rt.block_on(async move { inner.write_decorators(&rows).await }));
         result.map_err(to_py_err)
     }
 

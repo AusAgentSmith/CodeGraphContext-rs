@@ -116,6 +116,7 @@ class GraphWriter:
         self._rust.write_function_edges(all_file_data)
         self._rust.write_imports(all_file_data)
         self._rust.write_impls(all_file_data)
+        self._rust.write_decorators(all_file_data)
         if on_progress:
             on_progress(total, total, "Graph write complete")
         return total

@@ -303,15 +303,12 @@ impl LanguageExtractor for PythonExtractor {
             let params_node = func_node.child_by_field_name("parameters");
             let body_node = func_node.child_by_field_name("body");
 
-            // Decorators
-            let mut decorators = Vec::new();
-            for i in 0..func_node.child_count() {
-                if let Some(child) = func_node.child(i) {
-                    if child.kind() == "decorator" {
-                        decorators.push(get_node_text(&child, source).to_string());
-                    }
-                }
-            }
+            // Decorators — in tree-sitter-python, `@deco\ndef foo` parses
+            // into a `decorated_definition` wrapper whose children are
+            // the decorators followed by the function_definition. The
+            // decorators are siblings of the function_definition, not
+            // children of it.
+            let decorators = collect_decorators_from_parent(&func_node, source);
 
             let (context, context_type, _) = get_parent_context(&func_node, source, fc_types);
             let (class_context, _, _) =
@@ -383,14 +380,7 @@ impl LanguageExtractor for PythonExtractor {
                 }
             }
 
-            let mut decorators = Vec::new();
-            for i in 0..class_node.child_count() {
-                if let Some(child) = class_node.child(i) {
-                    if child.kind() == "decorator" {
-                        decorators.push(get_node_text(&child, source).to_string());
-                    }
-                }
-            }
+            let decorators = collect_decorators_from_parent(&class_node, source);
 
             let (context, _, _) = get_parent_context(
                 &class_node,
@@ -651,6 +641,27 @@ impl LanguageExtractor for PythonExtractor {
         }
         names
     }
+}
+
+/// Collect decorator raw text for a function_definition or class_definition
+/// node. tree-sitter-python wraps a decorated def in `decorated_definition`,
+/// so the decorators are siblings of the def node, not children.
+fn collect_decorators_from_parent(def_node: &Node, source: &[u8]) -> Vec<String> {
+    let mut out = Vec::new();
+    let Some(parent) = def_node.parent() else {
+        return out;
+    };
+    if parent.kind() != "decorated_definition" {
+        return out;
+    }
+    for i in 0..parent.child_count() {
+        if let Some(child) = parent.child(i) {
+            if child.kind() == "decorator" {
+                out.push(get_node_text(&child, source).to_string());
+            }
+        }
+    }
+    out
 }
 
 /// Parse Python function parameters from a parameters node.

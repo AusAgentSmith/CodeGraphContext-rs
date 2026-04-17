@@ -12,6 +12,7 @@
 //! transaction, batches its writes, and commits.
 
 mod calls;
+mod decorators;
 mod files;
 mod function_edges;
 mod imports;
@@ -21,6 +22,7 @@ mod repository;
 mod symbols;
 
 pub use calls::{CallGroup, CallRow};
+pub use decorators::{normalise_decorator_name, DecoratorRow};
 pub use files::FileRow;
 pub use function_edges::{ClassFnRow, NestedFnRow, ParamRow};
 pub use imports::ImportRow;
