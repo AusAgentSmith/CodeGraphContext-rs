@@ -31,6 +31,7 @@ pub use inheritance::InheritanceLinkRow;
 pub use symbols::{SymbolBatch, SYMBOL_LABELS};
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use futures::stream::{self, StreamExt, TryStreamExt};
 use neo4rs::{query, BoltList, BoltType, ConfigBuilder, Graph, Query};
@@ -149,14 +150,16 @@ impl GraphWriter {
 
     /// Chunk `rows` by `batch_size` and submit up to `BATCH_CONCURRENCY`
     /// UNWINDs concurrently. Each chunk becomes one Neo4j transaction on
-    /// its own worker thread. Fails fast on the first batch error.
+    /// its own worker thread. Transient errors (deadlocks, lock timeouts
+    /// — Neo4j's `TransientError.*` class) retry with exponential
+    /// backoff; any other error fails the whole fan-out.
     ///
     /// Safe when batches are independent (no row in chunk A depends on
-    /// state written by chunk B). All current writer uses satisfy this —
-    /// MERGE by unique key either hits an existing node or creates one
-    /// atomically; same-key MERGEs across concurrent batches serialise
-    /// via the unique constraint's lock, which is faster than our old
-    /// round-trip-serialised loop.
+    /// state written by chunk B). Same-key MERGEs across concurrent
+    /// batches serialise via the unique-constraint lock inside Neo4j —
+    /// under heavy contention that serialisation can escalate into a
+    /// deadlock, which is why we retry transient errors rather than
+    /// failing fast.
     pub(crate) async fn run_parallel_chunks(
         &self,
         cypher: &str,
@@ -168,12 +171,11 @@ impl GraphWriter {
         }
         let chunks: Vec<Vec<BoltType>> =
             rows.chunks(batch_size).map(|c| c.to_vec()).collect();
-        let graph = self.graph.clone();
         stream::iter(chunks)
             .map(|chunk| {
-                let graph = graph.clone();
-                let q: Query = query(cypher).param("batch", BoltType::List(BoltList { value: chunk }));
-                async move { graph.run(q).await.map_err(WriterError::from) }
+                let graph = self.graph.clone();
+                let cypher = cypher.to_string();
+                async move { run_with_retry(&graph, &cypher, chunk).await }
             })
             .buffer_unordered(BATCH_CONCURRENCY)
             .try_collect::<Vec<_>>()
@@ -190,4 +192,48 @@ impl GraphWriter {
         let _row = result.next().await?;
         Ok(())
     }
+}
+
+/// Retry loop for one UNWIND chunk. neo4rs doesn't expose error-class
+/// tags we can match on; we inspect the error string for Neo4j's
+/// `TransientError.*` codes (DeadlockDetected, LockClientStopped,
+/// LockAcquisitionTimeout). Backoff is exponential with a small jitter
+/// seed from the attempt count so concurrent retries don't collide.
+async fn run_with_retry(
+    graph: &Graph,
+    cypher: &str,
+    chunk: Vec<BoltType>,
+) -> Result<()> {
+    const MAX_RETRIES: u32 = 6;
+    let mut attempt: u32 = 0;
+    loop {
+        let q = query(cypher).param(
+            "batch",
+            BoltType::List(BoltList { value: chunk.clone() }),
+        );
+        match graph.run(q).await {
+            Ok(_) => return Ok(()),
+            Err(e) => {
+                if attempt < MAX_RETRIES && is_transient(&e) {
+                    attempt += 1;
+                    // 50ms, 100ms, 200ms, 400ms, 800ms, 1600ms
+                    let base = 50u64 * (1u64 << (attempt - 1).min(5));
+                    // Jitter: attempt-derived, keeps concurrent retries
+                    // from beating in lockstep.
+                    let jitter = (attempt as u64 * 17) % 40;
+                    tokio::time::sleep(Duration::from_millis(base + jitter)).await;
+                    continue;
+                }
+                return Err(WriterError::from(e));
+            }
+        }
+    }
+}
+
+fn is_transient(e: &neo4rs::Error) -> bool {
+    let s = format!("{e}");
+    s.contains("TransientError")
+        || s.contains("DeadlockDetected")
+        || s.contains("LockAcquisitionTimeout")
+        || s.contains("LockClientStopped")
 }
