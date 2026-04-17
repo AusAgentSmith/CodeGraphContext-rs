@@ -180,6 +180,7 @@ impl PythonExtractor {
                 is_dependency: false,
                 source: None,
                 docstring: None,
+                is_async: false, // lambdas are never async-qualified
             };
 
             if index_source {
@@ -319,6 +320,15 @@ impl LanguageExtractor for PythonExtractor {
 
             let complexity = self.calculate_complexity(&func_node);
 
+            // `async def` parses as a function_definition with an
+            // `async` child token (tree-sitter-python).
+            let is_async = (0..func_node.child_count()).any(|i| {
+                func_node
+                    .child(i)
+                    .map(|c| c.kind() == "async")
+                    .unwrap_or(false)
+            });
+
             let mut func = FunctionData {
                 name,
                 line_number: node.start_position().row + 1,
@@ -333,6 +343,7 @@ impl LanguageExtractor for PythonExtractor {
                 is_dependency: false,
                 source: None,
                 docstring: None,
+                is_async,
             };
 
             if index_source {

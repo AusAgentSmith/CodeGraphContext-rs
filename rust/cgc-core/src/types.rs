@@ -45,6 +45,10 @@ pub struct FunctionData {
     pub is_dependency: bool,
     pub source: Option<String>,
     pub docstring: Option<String>,
+    /// True for `async def` (Python) / `async fn` (Rust). Surfaced as a
+    /// Function node property so `MATCH (f:Function {is_async: true})`
+    /// finds async entry points.
+    pub is_async: bool,
 }
 
 #[derive(Debug, Clone)]

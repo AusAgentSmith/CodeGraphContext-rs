@@ -101,6 +101,7 @@ fn function_to_py(py: Python<'_>, f: &FunctionData) -> PyResult<PyObject> {
     dict.set_item("decorators", &f.decorators)?;
     dict.set_item("lang", &f.lang)?;
     dict.set_item("is_dependency", f.is_dependency)?;
+    dict.set_item("is_async", f.is_async)?;
 
     if let Some(ref source) = f.source {
         dict.set_item("source", source)?;

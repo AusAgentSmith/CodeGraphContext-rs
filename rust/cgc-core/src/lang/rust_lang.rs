@@ -266,6 +266,21 @@ impl LanguageExtractor for RustExtractor {
             let (context, context_type, _) = self.get_parent_context_rust(&func_node, source);
             let class_context = self.get_class_context_rust(&func_node, source);
 
+            // Detect `async fn` — tree-sitter-rust puts the `async`
+            // modifier on a `function_modifiers` child of function_item.
+            let is_async = (0..func_node.child_count()).any(|i| {
+                let Some(child) = func_node.child(i) else { return false };
+                if child.kind() != "function_modifiers" {
+                    return false;
+                }
+                (0..child.child_count()).any(|j| {
+                    child
+                        .child(j)
+                        .map(|c| c.kind() == "async")
+                        .unwrap_or(false)
+                })
+            });
+
             let mut func = FunctionData {
                 name,
                 line_number: node.start_position().row + 1,
@@ -280,6 +295,7 @@ impl LanguageExtractor for RustExtractor {
                 is_dependency: false,
                 source: None,
                 docstring: None,
+                is_async,
             };
 
             if index_source {

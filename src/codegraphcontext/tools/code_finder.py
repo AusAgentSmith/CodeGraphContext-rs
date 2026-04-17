@@ -334,29 +334,47 @@ class CodeFinder:
             return result.data()
 
     def find_functions_by_decorator(self, decorator_name: str, path: Optional[str] = None, repo_path: Optional[str] = None) -> List[Dict]:
-        """Find functions that have a specific decorator applied to them."""
+        """Find functions/classes decorated with a specific decorator.
+
+        Uses the :Decorator node + :DECORATED_BY edge introduced in step 4c.
+        `decorator_name` is matched against the *normalised* name (without
+        leading @ and without call arguments), so passing "app.route" finds
+        every `@app.route('/...')` use regardless of its args.
+        """
         with self.driver.session() as session:
-            repo_filter = "AND f.path STARTS WITH $repo_path" if repo_path else ""
-            if path:
-                query = f"""
-                    MATCH (f:Function)
-                    WHERE f.path = $path AND $decorator_name IN f.decorators {repo_filter}
-                    RETURN f.name AS function_name, f.path AS path, f.line_number AS line_number,
-                           f.docstring AS docstring, f.is_dependency AS is_dependency, f.decorators AS decorators
-                    ORDER BY f.is_dependency ASC, f.path, f.line_number
-                    LIMIT 20
-                """
-                result = session.run(query, decorator_name=decorator_name, path=path, repo_path=repo_path)
-            else:
-                query = f"""
-                    MATCH (f:Function)
-                    WHERE $decorator_name IN f.decorators {repo_filter}
-                    RETURN f.name AS function_name, f.path AS path, f.line_number AS line_number,
-                           f.docstring AS docstring, f.is_dependency AS is_dependency, f.decorators AS decorators
-                    ORDER BY f.is_dependency ASC, f.path, f.line_number
-                    LIMIT 20
-                """
-                result = session.run(query, decorator_name=decorator_name, repo_path=repo_path)
+            normalised = decorator_name.lstrip("@").split("(", 1)[0].strip()
+            repo_filter = "AND s.path STARTS WITH $repo_path" if repo_path else ""
+            path_filter = "AND s.path = $path" if path else ""
+            query = f"""
+                MATCH (s)-[r:DECORATED_BY]->(d:Decorator {{name: $decorator_name}})
+                WHERE (s:Function OR s:Class) {path_filter} {repo_filter}
+                RETURN labels(s)[0] AS symbol_type, s.name AS function_name, s.path AS path,
+                       s.line_number AS line_number, s.docstring AS docstring,
+                       s.is_dependency AS is_dependency, r.raw AS decorator_raw
+                ORDER BY s.is_dependency ASC, s.path, s.line_number
+                LIMIT 20
+            """
+            result = session.run(query, decorator_name=normalised, path=path, repo_path=repo_path)
+            return result.data()
+
+    def find_trait_implementors(self, trait_name: str, repo_path: Optional[str] = None) -> List[Dict]:
+        """Find every type that `impl Trait for Type` targets.
+
+        Uses the :IMPLEMENTS edge from step 4b. `trait_name` matches the
+        Trait node by name (generic parameters already stripped at parse
+        time, so "Display" finds `Display<Self>` impls).
+        """
+        with self.driver.session() as session:
+            repo_filter = "AND t.path STARTS WITH $repo_path" if repo_path else ""
+            query = f"""
+                MATCH (t)-[r:IMPLEMENTS]->(tr:Trait {{name: $trait_name}})
+                WHERE (t:Struct OR t:Enum OR t:Class) {repo_filter}
+                RETURN labels(t)[0] AS type_kind, t.name AS type_name, t.path AS path,
+                       t.line_number AS type_line, r.line_number AS impl_line
+                ORDER BY t.path, r.line_number
+                LIMIT 50
+            """
+            result = session.run(query, trait_name=trait_name, repo_path=repo_path)
             return result.data()
     
     def who_calls_function(self, function_name: str, path: Optional[str] = None, repo_path: Optional[str] = None) -> List[Dict]:
@@ -998,6 +1016,13 @@ class CodeFinder:
                 return {
                     "query_type": "find_functions_by_decorator", "target": target, "context": context, "results": results,
                     "summary": f"Found {len(results)} functions decorated with '{target}'"
+                }
+
+            elif query_type in ("find_trait_implementors", "find_trait_impls", "trait_impls"):
+                results = self.find_trait_implementors(target, repo_path=repo_path)
+                return {
+                    "query_type": "find_trait_implementors", "target": target, "results": results,
+                    "summary": f"Found {len(results)} types that implement trait '{target}'"
                 }
                 
             elif query_type in ["who_modifies", "modifies", "mutations", "changes", "variable_usage"]:
