@@ -42,6 +42,33 @@ pub struct ClassData {
     pub is_dependency: bool,
     pub source: Option<String>,
     pub docstring: Option<String>,
+    /// Discriminator for the graph label the writer should emit.
+    /// The parser sets this; the conversion layer partitions classes
+    /// by kind into separate per-kind lists keyed to match SYMBOL_LABELS.
+    pub kind: ClassKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ClassKind {
+    #[default]
+    Class,
+    Struct,
+    Enum,
+    Trait,
+    Interface,
+}
+
+impl ClassKind {
+    /// Python-side dict key for lists of this kind — matches SYMBOL_LABELS.
+    pub fn py_key(self) -> &'static str {
+        match self {
+            Self::Class => "classes",
+            Self::Struct => "structs",
+            Self::Enum => "enums",
+            Self::Trait => "traits",
+            Self::Interface => "interfaces",
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

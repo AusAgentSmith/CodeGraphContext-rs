@@ -409,6 +409,7 @@ impl LanguageExtractor for PythonExtractor {
                 is_dependency: false,
                 source: None,
                 docstring: None,
+                kind: ClassKind::Class,
             };
 
             if index_source {

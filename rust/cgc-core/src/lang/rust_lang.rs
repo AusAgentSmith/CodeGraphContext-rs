@@ -313,6 +313,7 @@ impl LanguageExtractor for RustExtractor {
                 is_dependency: false,
                 source: None,
                 docstring: None,
+                kind: ClassKind::Struct,
             };
 
             if index_source {
@@ -344,6 +345,7 @@ impl LanguageExtractor for RustExtractor {
                 is_dependency: false,
                 source: None,
                 docstring: None,
+                kind: ClassKind::Enum,
             };
 
             if index_source {
@@ -375,6 +377,7 @@ impl LanguageExtractor for RustExtractor {
                 is_dependency: false,
                 source: None,
                 docstring: None,
+                kind: ClassKind::Trait,
             };
 
             if index_source {

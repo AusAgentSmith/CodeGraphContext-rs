@@ -29,12 +29,25 @@ fn file_data_to_py(py: Python<'_>, data: &FileData) -> PyResult<PyObject> {
         .collect::<PyResult<_>>()?;
     dict.set_item("functions", functions)?;
 
-    let classes: Vec<PyObject> = data
-        .classes
-        .iter()
-        .map(|c| class_to_py(py, c))
-        .collect::<PyResult<_>>()?;
-    dict.set_item("classes", classes)?;
+    // Partition classes by kind so the writer sees separate lists under
+    // the keys SYMBOL_LABELS expects (classes / structs / enums / traits
+    // / interfaces). Empty kinds still get an empty list so downstream
+    // consumers can .get() without KeyError.
+    use std::collections::HashMap;
+    let mut by_kind: HashMap<&'static str, Vec<PyObject>> = HashMap::new();
+    for key in ["classes", "structs", "enums", "traits", "interfaces"] {
+        by_kind.insert(key, Vec::new());
+    }
+    for c in &data.classes {
+        let py_obj = class_to_py(py, c)?;
+        by_kind
+            .get_mut(c.kind.py_key())
+            .expect("class kind has a SYMBOL_LABELS key")
+            .push(py_obj);
+    }
+    for (key, list) in by_kind {
+        dict.set_item(key, list)?;
+    }
 
     let variables: Vec<PyObject> = data
         .variables
@@ -97,6 +110,7 @@ fn class_to_py(py: Python<'_>, c: &ClassData) -> PyResult<PyObject> {
     dict.set_item("decorators", &c.decorators)?;
     dict.set_item("lang", &c.lang)?;
     dict.set_item("is_dependency", c.is_dependency)?;
+    dict.set_item("kind", c.kind.py_key())?;
 
     if let Some(ref source) = c.source {
         dict.set_item("source", source)?;
