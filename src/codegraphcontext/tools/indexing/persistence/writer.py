@@ -511,7 +511,13 @@ class GraphWriter:
             if on_progress:
                 on_progress(total // 2, total, "Writing symbols...")
 
-            # 4. Symbols (per label)
+            # 4. Symbols (per label) — delegated to Rust when available.
+            if self._rust is not None:
+                self._rust.write_symbols(all_file_data)
+                symbol_batches = {}  # noqa: F841  Prevent the Python loop
+                # below from re-running; we've already written symbols via
+                # the Rust writer.
+
             for label, batch in symbol_batches.items():
                 # Normalize types across batch
                 all_keys = set()

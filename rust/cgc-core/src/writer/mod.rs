@@ -13,8 +13,10 @@
 
 mod files;
 mod repository;
+mod symbols;
 
 pub use files::FileRow;
+pub use symbols::{SymbolBatch, SYMBOL_LABELS};
 
 use std::sync::Arc;
 

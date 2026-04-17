@@ -7,13 +7,18 @@
 //! multiple Python callers land on distinct workers, so writes run in
 //! parallel even though the Python caller is synchronous.
 
+use std::collections::HashMap;
+
+use neo4rs::{BoltMap, BoltString, BoltType};
 use once_cell::sync::OnceCell;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 use tokio::runtime::{Builder, Runtime};
 
-use cgc_core::writer::{FileRow, GraphWriter};
+use cgc_core::writer::{FileRow, GraphWriter, SymbolBatch, SYMBOL_LABELS};
+
+use crate::pyany_bolt::py_any_to_bolt;
 
 fn runtime() -> &'static Runtime {
     static RT: OnceCell<Runtime> = OnceCell::new();
@@ -110,6 +115,72 @@ impl PyGraphWriter {
             .allow_threads(|| {
                 rt.block_on(async move { inner.write_file_tree(&files, &repo_path).await })
             });
+        result.map_err(to_py_err)
+    }
+
+    /// Write symbol nodes (Function/Class/Trait/…) and their File CONTAINS
+    /// edges for every parsed file.
+    ///
+    /// Only the label lists in `SYMBOL_LABELS` are processed — extra keys
+    /// in the file dict are ignored.
+    fn write_symbols(
+        &self,
+        py: Python<'_>,
+        all_file_data: &Bound<'_, PyList>,
+    ) -> PyResult<()> {
+        let mut by_label: HashMap<&'static str, Vec<(BoltMap, String)>> = HashMap::new();
+
+        for file in all_file_data.iter() {
+            let file_dict: &Bound<'_, PyDict> = file.downcast()?;
+            let file_path: String = file_dict
+                .get_item("path")?
+                .ok_or_else(|| PyRuntimeError::new_err("file_data missing 'path'"))?
+                .extract()?;
+
+            for (py_key, label) in SYMBOL_LABELS.iter() {
+                let Some(list_val) = file_dict.get_item(py_key)? else {
+                    continue;
+                };
+                let list: &Bound<'_, PyList> = match list_val.downcast() {
+                    Ok(l) => l,
+                    Err(_) => continue,
+                };
+                for item in list.iter() {
+                    let item_dict: &Bound<'_, PyDict> = match item.downcast() {
+                        Ok(d) => d,
+                        Err(_) => continue,
+                    };
+                    let mut map = BoltMap::new();
+                    for (k, v) in item_dict.iter() {
+                        let key: String = k.extract()?;
+                        map.put(BoltString::from(key.as_str()), py_any_to_bolt(&v)?);
+                    }
+                    if *label == "Function" {
+                        let cc = BoltString::from("cyclomatic_complexity");
+                        if !map.value.contains_key(&cc) {
+                            map.put(cc, BoltType::from(1i64));
+                        }
+                    }
+                    by_label
+                        .entry(label)
+                        .or_default()
+                        .push((map, file_path.clone()));
+                }
+            }
+        }
+
+        let batches: Vec<SymbolBatch> = by_label
+            .into_iter()
+            .map(|(label, rows)| SymbolBatch {
+                label: label.to_string(),
+                rows,
+            })
+            .collect();
+
+        let inner = self.inner.clone();
+        let rt = runtime();
+        let result: std::result::Result<(), cgc_core::writer::WriterError> = py
+            .allow_threads(|| rt.block_on(async move { inner.write_symbols(batches).await }));
         result.map_err(to_py_err)
     }
 

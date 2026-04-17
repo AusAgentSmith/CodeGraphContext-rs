@@ -4,6 +4,7 @@ use pyo3::types::{PyDict, PyList, PyTuple};
 use std::collections::{HashMap, HashSet};
 
 mod conversions;
+mod pyany_bolt;
 mod writer;
 
 use cgc_core::parser;

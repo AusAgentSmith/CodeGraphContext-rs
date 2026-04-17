@@ -94,6 +94,7 @@ name = "cgc-python"
 version = "0.1.0"
 dependencies = [
  "cgc-core",
+ "neo4rs",
  "once_cell",
  "pyo3",
  "tokio",

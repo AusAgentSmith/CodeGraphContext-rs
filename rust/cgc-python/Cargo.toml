@@ -12,3 +12,4 @@ cgc-core = { path = "../cgc-core" }
 pyo3 = { version = "0.24", features = ["extension-module"] }
 tokio = { version = "1", features = ["rt-multi-thread"] }
 once_cell = "1"
+neo4rs = "0.8"
