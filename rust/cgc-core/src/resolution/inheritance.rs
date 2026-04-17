@@ -83,21 +83,14 @@ pub fn resolve_inheritance_link(
     })
 }
 
-/// Build inheritance batch and separate C# files.
-/// Returns (inheritance_links, csharp_file_indices).
-pub fn build_inheritance_and_csharp_files(
+/// Build inheritance batch for all files.
+pub fn build_inheritance(
     all_files: &[FileInheritanceData],
     imports_map: &HashMap<String, Vec<String>>,
-) -> (Vec<InheritanceLink>, Vec<usize>) {
+) -> Vec<InheritanceLink> {
     let mut inheritance_batch = Vec::new();
-    let mut csharp_indices = Vec::new();
 
-    for (idx, file_data) in all_files.iter().enumerate() {
-        if file_data.lang == "c_sharp" {
-            csharp_indices.push(idx);
-            continue;
-        }
-
+    for file_data in all_files.iter() {
         let local_class_names: HashSet<String> =
             file_data.classes.iter().map(|c| c.name.clone()).collect();
 
@@ -117,7 +110,7 @@ pub fn build_inheritance_and_csharp_files(
         }
     }
 
-    (inheritance_batch, csharp_indices)
+    inheritance_batch
 }
 
 #[cfg(test)]
@@ -190,10 +183,9 @@ mod tests {
             local_imports: HashMap::new(),
         }];
 
-        let (batch, csharp) = build_inheritance_and_csharp_files(&files, &imports_map);
+        let batch = build_inheritance(&files, &imports_map);
         assert_eq!(batch.len(), 1);
         assert_eq!(batch[0].child_name, "Child");
         assert_eq!(batch[0].parent_name, "Base");
-        assert!(csharp.is_empty());
     }
 }

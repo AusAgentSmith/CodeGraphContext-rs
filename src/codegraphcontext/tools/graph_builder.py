@@ -16,7 +16,7 @@ from .indexing.persistence.writer import GraphWriter
 from .indexing.pipeline import run_tree_sitter_index_async
 from .indexing.pre_scan import pre_scan_for_imports
 from .indexing.resolution.calls import build_function_call_groups, resolve_function_call
-from .indexing.resolution.inheritance import build_inheritance_and_csharp_files
+from .indexing.resolution.inheritance import build_inheritance
 from .indexing.sanitize import MAX_STR_LEN, sanitize_props
 from .indexing.schema import create_graph_schema
 from .tree_sitter_parser import TreeSitterParser
@@ -118,8 +118,8 @@ class GraphBuilder:
     def link_inheritance(self, all_file_data: list[Dict], imports_map: dict) -> None:
         """Resolve and persist INHERITS / C# IMPLEMENTS (public API)."""
         info_logger(f"[INHERITS] Resolving inheritance links across {len(all_file_data)} files...")
-        inheritance_batch, csharp_files = build_inheritance_and_csharp_files(all_file_data, imports_map)
-        self._writer.write_inheritance_links(inheritance_batch, csharp_files, imports_map)
+        inheritance_batch = build_inheritance(all_file_data, imports_map)
+        self._writer.write_inheritance_links(inheritance_batch)
 
     def _create_all_inheritance_links(self, all_file_data: list[Dict], imports_map: dict) -> None:
         self.link_inheritance(all_file_data, imports_map)

@@ -10,7 +10,7 @@ use cgc_core::resolution::calls::{
     build_function_call_groups, CallGroups, CallInput, FileCallData, ResolvedCall,
 };
 use cgc_core::resolution::inheritance::{
-    build_inheritance_and_csharp_files, ClassInfo, FileInheritanceData,
+    build_inheritance, ClassInfo, FileInheritanceData,
 };
 
 #[pyfunction]
@@ -137,11 +137,8 @@ fn resolve_inheritance(
         rust_files.push(py_dict_to_file_inheritance_data(fd)?);
     }
 
-    let (batch, csharp_indices) = py.allow_threads(|| {
-        build_inheritance_and_csharp_files(&rust_files, &rust_imports_map)
-    });
+    let batch = py.allow_threads(|| build_inheritance(&rust_files, &rust_imports_map));
 
-    // Build result tuple: (inheritance_batch, csharp_files)
     let inheritance_list = PyList::empty(py);
     for link in &batch {
         let d = PyDict::new(py);
@@ -152,18 +149,7 @@ fn resolve_inheritance(
         inheritance_list.append(d)?;
     }
 
-    // Collect C# file dicts from original list
-    let csharp_list = PyList::empty(py);
-    for &idx in &csharp_indices {
-        let item = all_file_data.get_item(idx)?;
-        csharp_list.append(item)?;
-    }
-
-    let result = PyTuple::new(py, &[
-        inheritance_list.into_any().unbind(),
-        csharp_list.into_any().unbind(),
-    ])?;
-    Ok(result.into_any().unbind())
+    Ok(inheritance_list.into_any().unbind())
 }
 
 /// Sanitize a dict of properties for graph DB storage.

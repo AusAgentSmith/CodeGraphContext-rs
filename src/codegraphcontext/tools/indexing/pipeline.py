@@ -14,7 +14,7 @@ from .discovery import discover_files_to_index
 from .persistence.writer import GraphWriter
 from .pre_scan import pre_scan_for_imports
 from .resolution.calls import build_function_call_groups
-from .resolution.inheritance import build_inheritance_and_csharp_files
+from .resolution.inheritance import build_inheritance
 
 # Try to load Rust engine for accelerated parsing
 try:
@@ -153,11 +153,11 @@ async def run_tree_sitter_index_async(
 
     if RUST_AVAILABLE:
         info_logger(f"[INHERITS] Rust-accelerated inheritance resolution ({len(all_file_data)} files)...")
-        inheritance_batch, csharp_files = _rust_resolve_inheritance(all_file_data, imports_map)
+        inheritance_batch = _rust_resolve_inheritance(all_file_data, imports_map)
     else:
         info_logger(f"[INHERITS] Resolving inheritance links across {len(all_file_data)} files...")
-        inheritance_batch, csharp_files = build_inheritance_and_csharp_files(all_file_data, imports_map)
-    writer.write_inheritance_links(inheritance_batch, csharp_files, imports_map)
+        inheritance_batch = build_inheritance(all_file_data, imports_map)
+    writer.write_inheritance_links(inheritance_batch)
     t1 = time.time()
     info_logger(f"Inheritance links created in {t1 - t0:.1f}s. Starting function calls...")
 

@@ -263,51 +263,8 @@ class GraphWriter:
                     file_path=file_path_str,
                 )
 
-            ruby_modules = file_data.get("modules", [])
-            if ruby_modules:
-                session.run(
-                    """
-                    UNWIND $batch AS row
-                    MERGE (mod:Module {name: row.name})
-                    ON CREATE SET mod.lang = row.lang
-                    ON MATCH  SET mod.lang = coalesce(mod.lang, row.lang)
-                """,
-                    batch=[{"name": m["name"], "lang": lang} for m in ruby_modules],
-                )
-
-            js_imports = []
-            other_imports = []
-            for imp in file_data.get("imports", []):
-                if lang == "javascript":
-                    module_name = imp.get("source")
-                    if module_name:
-                        js_imports.append(
-                            {
-                                "module_name": module_name,
-                                "imported_name": imp.get("name", "*"),
-                                "alias": imp.get("alias"),
-                                "line_number": imp.get("line_number"),
-                            }
-                        )
-                else:
-                    other_imports.append(imp)
-
-            if js_imports:
-                session.run(
-                    """
-                    UNWIND $batch AS row
-                    MATCH (f:File {path: $file_path})
-                    MERGE (m:Module {name: row.module_name})
-                    MERGE (f)-[r:IMPORTS]->(m)
-                    SET r.imported_name = row.imported_name,
-                        r.alias = row.alias,
-                        r.line_number = row.line_number
-                """,
-                    batch=js_imports,
-                    file_path=file_path_str,
-                )
-
-            if other_imports:
+            imports = file_data.get("imports", [])
+            if imports:
                 session.run(
                     """
                     UNWIND $batch AS row
@@ -319,22 +276,7 @@ class GraphWriter:
                     SET r.line_number = row.line_number,
                         r.alias = row.alias
                 """,
-                    batch=other_imports,
-                    file_path=file_path_str,
-                )
-
-            module_inclusions = file_data.get("module_inclusions", [])
-            if module_inclusions:
-                session.run(
-                    """
-                    UNWIND $batch AS row
-                    MATCH (c:Class {name: row.class_name, path: $file_path})
-                    MERGE (m:Module {name: row.module_name})
-                    MERGE (c)-[:INCLUDES]->(m)
-                """,
-                    batch=[
-                        {"class_name": i["class"], "module_name": i["module"]} for i in module_inclusions
-                    ],
+                    batch=imports,
                     file_path=file_path_str,
                 )
 
@@ -369,8 +311,7 @@ class GraphWriter:
         params_batch = []
         class_fn_batch = []
         nested_fn_batch = []
-        js_imports_batch = []
-        other_imports_batch = []
+        imports_batch = []
 
         for idx, file_data in enumerate(all_file_data):
             file_path_str = str(Path(file_data["path"]).resolve())
@@ -467,24 +408,13 @@ class GraphWriter:
 
             # Imports
             for imp in file_data.get("imports", []):
-                if lang == "javascript":
-                    module_name = imp.get("source")
-                    if module_name:
-                        js_imports_batch.append({
-                            "module_name": module_name,
-                            "imported_name": imp.get("name", "*"),
-                            "alias": imp.get("alias"),
-                            "line_number": imp.get("line_number"),
-                            "file_path": file_path_str,
-                        })
-                else:
-                    other_imports_batch.append({
-                        "name": imp.get("name", ""),
-                        "alias": imp.get("alias"),
-                        "full_import_name": imp.get("full_import_name", imp.get("name", "")),
-                        "line_number": imp.get("line_number"),
-                        "file_path": file_path_str,
-                    })
+                imports_batch.append({
+                    "name": imp.get("name", ""),
+                    "alias": imp.get("alias"),
+                    "full_import_name": imp.get("full_import_name", imp.get("name", "")),
+                    "line_number": imp.get("line_number"),
+                    "file_path": file_path_str,
+                })
 
         # ── Execute batched queries ─────────────────────────────────────
         if on_progress:
@@ -664,21 +594,9 @@ class GraphWriter:
                         batch=nested_fn_batch[i:i + batch_size],
                     )
 
-            # 8. JS imports
-            if js_imports_batch:
-                for i in range(0, len(js_imports_batch), batch_size):
-                    session.run(
-                        "UNWIND $batch AS row "
-                        "MATCH (f:File {path: row.file_path}) "
-                        "MERGE (m:Module {name: row.module_name}) "
-                        "MERGE (f)-[r:IMPORTS]->(m) "
-                        "SET r.imported_name = row.imported_name, r.alias = row.alias, r.line_number = row.line_number",
-                        batch=js_imports_batch[i:i + batch_size],
-                    )
-
-            # 9. Other imports
-            if other_imports_batch:
-                for i in range(0, len(other_imports_batch), batch_size):
+            # 8. Imports
+            if imports_batch:
+                for i in range(0, len(imports_batch), batch_size):
                     session.run(
                         "UNWIND $batch AS row "
                         "MATCH (f:File {path: row.file_path}) "
@@ -686,7 +604,7 @@ class GraphWriter:
                         "SET m.alias = row.alias, m.full_import_name = coalesce(row.full_import_name, m.full_import_name) "
                         "MERGE (f)-[r:IMPORTS]->(m) "
                         "SET r.line_number = row.line_number, r.alias = row.alias",
-                        batch=other_imports_batch[i:i + batch_size],
+                        batch=imports_batch[i:i + batch_size],
                     )
 
         if on_progress:
@@ -834,74 +752,12 @@ class GraphWriter:
                 info_logger(f"[CALLS] {label} done: {len(calls)} in {elapsed:.1f}s")
         info_logger(f"[CALLS] All complete: {total_all} CALLS relationships processed.")
 
-    def _create_csharp_inheritance_and_interfaces(
-        self, session: Any, file_data: Dict[str, Any], imports_map: dict
-    ) -> None:
-        if file_data.get("lang") != "c_sharp":
-            return
-
-        caller_file_path = str(Path(file_data["path"]).resolve())
-
-        for type_list_name, type_label in [
-            ("classes", "Class"),
-            ("structs", "Struct"),
-            ("records", "Record"),
-            ("interfaces", "Interface"),
-        ]:
-            for type_item in file_data.get(type_list_name, []):
-                if not type_item.get("bases"):
-                    continue
-
-                for base_str in type_item["bases"]:
-                    base_name = base_str.split("<")[0].strip()
-
-                    is_interface = False
-                    resolved_path = caller_file_path
-
-                    for iface in file_data.get("interfaces", []):
-                        if iface["name"] == base_name:
-                            is_interface = True
-                            break
-
-                    if base_name in imports_map:
-                        possible_paths = imports_map[base_name]
-                        if len(possible_paths) > 0:
-                            resolved_path = possible_paths[0]
-
-                    base_index = type_item["bases"].index(base_str)
-
-                    if is_interface or (base_index > 0 and type_label == "Class"):
-                        session.run(
-                            f"""
-                            MATCH (child:{type_label} {{name: $child_name, path: $path}})
-                            MATCH (iface:Interface {{name: $interface_name}})
-                            MERGE (child)-[:IMPLEMENTS]->(iface)
-                        """,
-                            child_name=type_item["name"],
-                            path=caller_file_path,
-                            interface_name=base_name,
-                        )
-                    else:
-                        session.run(
-                            f"""
-                            MATCH (child:{type_label} {{name: $child_name, path: $path}})
-                            MATCH (parent:{type_label} {{name: $parent_name}})
-                            MERGE (child)-[:INHERITS]->(parent)
-                        """,
-                            child_name=type_item["name"],
-                            path=caller_file_path,
-                            parent_name=base_name,
-                        )
-
     def write_inheritance_links(
         self,
         inheritance_batch: List[Dict[str, Any]],
-        csharp_files: List[Dict[str, Any]],
-        imports_map: dict,
     ) -> None:
         info_logger(
-            f"[INHERITS] Resolved {len(inheritance_batch)} inheritance links, "
-            f"{len(csharp_files)} C# files. Writing to Neo4j..."
+            f"[INHERITS] Resolved {len(inheritance_batch)} inheritance links. Writing to Neo4j..."
         )
         batch_size = 500
         with self.driver.session() as session:
@@ -916,35 +772,7 @@ class GraphWriter:
                 """,
                     batch=batch,
                 )
-
-            for file_data in csharp_files:
-                self._create_csharp_inheritance_and_interfaces(session, file_data, imports_map)
-
         info_logger(f"[INHERITS] Complete: {len(inheritance_batch)} inheritance links processed.")
-
-    def write_scip_call_edges(
-        self, files_data: Dict[str, Any], name_from_symbol: Callable[[str], str]
-    ) -> None:
-        with self.driver.session() as session:
-            for file_data in files_data.values():
-                for edge in file_data.get("function_calls_scip", []):
-                    try:
-                        session.run(
-                            """
-                            MATCH (caller:Function {name: $caller_name, path: $caller_file, line_number: $caller_line})
-                            MATCH (callee:Function {name: $callee_name, path: $callee_file, line_number: $callee_line})
-                            MERGE (caller)-[:CALLS {line_number: $ref_line, source: 'scip'}]->(callee)
-                        """,
-                            caller_name=name_from_symbol(edge["caller_symbol"]),
-                            caller_file=edge["caller_file"],
-                            caller_line=edge["caller_line"],
-                            callee_name=edge["callee_name"],
-                            callee_file=edge["callee_file"],
-                            callee_line=edge["callee_line"],
-                            ref_line=edge["ref_line"],
-                        )
-                    except Exception as e:
-                        warning_logger(f"Failed to write SCIP call edge: {e}")
 
     def delete_file_from_graph(self, path: str) -> None:
         file_path_str = str(Path(path).resolve())

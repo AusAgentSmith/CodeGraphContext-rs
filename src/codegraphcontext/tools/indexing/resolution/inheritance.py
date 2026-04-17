@@ -1,7 +1,7 @@
-"""Resolve class inheritance into INHERITS row payloads (no DB I/O for non-C# batch)."""
+"""Resolve class inheritance into INHERITS row payloads (no DB I/O)."""
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 
 def resolve_inheritance_link(
@@ -54,18 +54,13 @@ def resolve_inheritance_link(
     return None
 
 
-def build_inheritance_and_csharp_files(
+def build_inheritance(
     all_file_data: List[Dict[str, Any]], imports_map: dict
-) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-    """Returns (inheritance_batch_rows, csharp_file_data_list)."""
+) -> List[Dict[str, Any]]:
+    """Return inheritance_batch rows for all files."""
     inheritance_batch: List[Dict[str, Any]] = []
-    csharp_files: List[Dict[str, Any]] = []
 
     for file_data in all_file_data:
-        if file_data.get("lang") == "c_sharp":
-            csharp_files.append(file_data)
-            continue
-
         caller_file_path = str(Path(file_data["path"]).resolve())
         local_class_names = {c["name"] for c in file_data.get("classes", [])}
         local_imports = {
@@ -88,4 +83,4 @@ def build_inheritance_and_csharp_files(
                 if resolved:
                     inheritance_batch.append(resolved)
 
-    return inheritance_batch, csharp_files
+    return inheritance_batch
