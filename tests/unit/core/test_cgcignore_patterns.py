@@ -468,7 +468,8 @@ def test_tc21_cgcignore_auto_created_when_not_exists():
     print(f"{'='*60}\n")
     
     # ✅ CONFIRM: Source files with supported parsers ARE indexed
-    expected_present = ["main.py", "app.js"]
+    # (Only Python and Rust are supported; .js is no longer indexed.)
+    expected_present = ["main.py"]
     for f in expected_present:
         assert f in file_names, f"'{f}' should be indexed (not ignored)"
     
