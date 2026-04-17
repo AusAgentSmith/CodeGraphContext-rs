@@ -40,9 +40,9 @@ use thiserror::Error;
 /// runs on its own Neo4j worker thread — on the write path we're
 /// bottlenecked on Neo4j saturating one core per query, so fanning
 /// out N batches scales write throughput ~linearly up to server core
-/// count. 8 picks up most of the win without starving `cgc watch`
+/// count. 10 picks up most of the win without starving `cgc watch`
 /// from its own Bolt connection.
-pub const BATCH_CONCURRENCY: usize = 8;
+pub const BATCH_CONCURRENCY: usize = 10;
 
 /// Default rows per UNWIND. Submodules can override when a Cypher
 /// template is notably cheaper/heavier than average.
